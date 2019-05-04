@@ -37,15 +37,15 @@ get_pcs <- function(x, n_pcs=15, center = TRUE, scale. = TRUE){
 #' parameter is lowered so that \code{top_n_cand} candidates are always output.
 #'
 #' @param x SCE. An SCE object
-#' @param top_n_cand Numeric. Specifies the top number of droplets by expression to considered candidates
 #' @param bg_max Numeric. Maximum number of counts for a droplet to be considered background. Ignored if top_n_cand is set.
+#' @param top_n_cand Numeric. Specifies the top number of droplets by expression to considered candidates
 #'
 #' @return SCE object with bg_info filled, a list with components
 #' \item{Background}{Character vector of column names of x that are considered background droplets}
 #' \item{Candidate}{Character vector of column names of x that are considered candidate droplets}
 #' \item{Labels}{Numeric vector for droplets specifying 0 for candidate and 1 for background}
 #' @export
-get_bg_cand <- function(x, top_n_cand=NULL, bg_max=NULL){
+get_bg_cand <- function(x, bg_max=NULL, top_n_cand=NULL){
 	drplt_ids <- colnames(x@norm)
 	labels <- rep(1, length(drplt_ids))
 	names(labels) <- drplt_ids
@@ -144,7 +144,9 @@ summary_results <- function(x){
 	malat_gene <- grep("malat1", rownames(x@raw), ignore.case=T, value=TRUE)
 	if ( length(malat_gene) == 0 ) malat1 <- NA
 	else malat1 <- x@raw[malat_gene,] / x@dropl_counts
-	x@other_data <- data.frame(Call=target_call, n_counts=x@dropl_counts, MALAT1=malat1, x@pcs$x)
+	mt_genes <- grep("MT-", rownames(x@raw), ignore.case=T, value=TRUE)
+	mt_pct <- Matrix::colSums( x@raw[mt_genes,] ) / x@dropl_counts
+	x@other_data <- data.frame(Call=target_call, n_counts=x@dropl_counts, MALAT1=malat1, MT_PCT=mt_pct, x@pcs$x)
 	return(x)
 }
 
@@ -161,14 +163,16 @@ summary_results <- function(x){
 #' @param seedn Numeric. Seed for random number generation
 #' @param verbose Boolean. Print out logging information
 #' 
-DIEM_10X <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, n_runs=5, expected_targets=10000, min_count=200, p=0.95, seedn=NULL, verbose=TRUE){
+#' @useDynLib diem
+#' @export
+DIEM_10X <- function(path_10X, min_bg_count=30, max_bg_count=150, n_pcs=5, n_runs=5, expected_targets=NULL, min_count=200, p=0.95, seedn=NULL, verbose=TRUE){
 	x <- read_10x(path_10X)
 	sce <- create_SCE(x)
 	sce <- subset_dropls(sce, min_c=min_bg_count)
 	sce <- normalize(sce)
 	sce <- get_var_genes(sce)
 	sce <- get_pcs(sce, n_pcs)
-	sce <- get_bg_cand(sce, top_n_cand=expected_targets)
+	sce <- get_bg_cand(sce, bg_max=max_bg_count)
 	sce <- run_em_pcs(sce, n_pcs=n_pcs, n_runs=n_runs, seedn=seedn, verbose=verbose)
 	sce <- call_targets(sce, min_count=min_count, p=p)
 	sce <- summary_results(sce)
@@ -191,7 +195,8 @@ DIEM_10X <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, n_run
 #' @param seedn Numeric. Seed for random number generation
 #' @param verbose Boolean. Print out logging information
 #' 
-run_diem_10x <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, n_runs=5, expected_targets=10000, min_count=200, p=0.95, seedn=NULL, verbose=TRUE){
+#' @export
+run_diem_10x <- function(path_10X, min_bg_count=30, max_bg_count=150, n_pcs=5, n_runs=5, expected_targets=NULL, min_count=200, p=0.95, seedn=NULL, verbose=TRUE){
 	sce_list <- list()
 	for (path in path_10X){
 		if (verbose) cat(paste0("Running ", path, "\n"))

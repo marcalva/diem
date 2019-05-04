@@ -2,11 +2,33 @@
 % Please edit documentation in R/debris_id.R
 \name{DIEM_10X}
 \alias{DIEM_10X}
-\title{Run DIEM pipeline directly from 10X output}
+\title{Run diem pipeline directly from 10X output}
 \usage{
 DIEM_10X(path_10X, min_bg_count = 25, max_bg_count = 150, n_pcs = 5,
-  expected_targets = 10000, min_count = 200, p = 0.5, seedn = NULL)
+  n_runs = 5, expected_targets = NULL, min_count = 200, p = 0.95,
+  seedn = NULL, verbose = TRUE)
+}
+\arguments{
+\item{path_10X}{Character. Path to 10X output, containing genes, barcodes, and expression files}
+
+\item{min_bg_count}{Numeric. Minimum number of counts for a droplet to be considered background}
+
+\item{max_bg_count}{Numeric. Maximum number of counts for a droplet to be considered background}
+
+\item{n_pcs}{Integer. Number of expression PCs to use for running EM}
+
+\item{n_runs}{Integer. Number of EM runs, with best result returned}
+
+\item{expected_targets}{Integer. Number of expected targets}
+
+\item{min_count}{Integer. Minimum number of counts to call a target}
+
+\item{p}{Numeric. Minimum membership probability to call a target}
+
+\item{seedn}{Numeric. Seed for random number generation}
+
+\item{verbose}{Boolean. Print out logging information}
 }
 \description{
-Run DIEM pipeline directly from 10X output
+Run diem pipeline directly from 10X output
 }

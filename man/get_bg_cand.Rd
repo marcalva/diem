@@ -4,14 +4,12 @@
 \alias{get_bg_cand}
 \title{Specify background droplets and candidate droplets}
 \usage{
-get_bg_cand(x, bg_min, bg_max, top_n_cand)
+get_bg_cand(x, bg_max = NULL, top_n_cand = NULL)
 }
 \arguments{
 \item{x}{SCE. An SCE object}
 
-\item{bg_min}{Numeric. Minimum number of counts for a droplet to be considered background}
-
-\item{bg_max}{Numeric. Maximum number of counts for a droplet to be considered background}
+\item{bg_max}{Numeric. Maximum number of counts for a droplet to be considered background. Ignored if top_n_cand is set.}
 
 \item{top_n_cand}{Numeric. Specifies the top number of droplets by expression to considered candidates}
 }
@@ -23,9 +21,13 @@ SCE object with bg_info filled, a list with components
 }
 \description{
 This function returns the barcodes that are considered originating from background, and those that are
-considered candidate targets (cells/nuclei). Barcodes are considered background if their 
+considered candidate targets (cells/nuclei). Barcodes are considered background if either they fall below
+the top \code{top_n_cand} barcodes, or if the number of reads is less than bg_max.
+}
+\details{
 total read/UMI count is greater than or equal to \code{bg_min} and less than or equal to \code{bg_max}. 
-Candidate cells/nuclei are the top \code{top_n_cand} droplets ranked by read counts. If the 
+Candidate cells/nuclei are the top \code{top_n_cand} droplets ranked by read counts. This should be 
+at least the expected number of targets recovered from the experiment. If the 
 top \code{top_n_cand} droplets includes those with read/UMI counts < \code{bg_max}, the \code{bg_max} 
 parameter is lowered so that \code{top_n_cand} candidates are always output.
 }
