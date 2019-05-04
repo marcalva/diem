@@ -29,7 +29,8 @@ get_pcs <- function(x, n_pcs=15, center = TRUE, scale. = TRUE){
 #' This function returns the barcodes that are considered originating from background, and those that are
 #' considered candidate targets (cells/nuclei). Barcodes are considered background if their 
 #' total read/UMI count is greater than or equal to \code{bg_min} and less than or equal to \code{bg_max}. 
-#' Candidate cells/nuclei are the top \code{top_n_cand} droplets ranked by read counts. If the 
+#' Candidate cells/nuclei are the top \code{top_n_cand} droplets ranked by read counts. This should be 
+#' at least the expected number of targets recovered from the experiment. If the 
 #' top \code{top_n_cand} droplets includes those with read/UMI counts < \code{bg_max}, the \code{bg_max} 
 #' parameter is lowered so that \code{top_n_cand} candidates are always output.
 #'
@@ -50,14 +51,20 @@ get_bg_cand <- function(x, bg_min, bg_max, top_n_cand){
 	if (bg_min > bg_max) stop("bg_min must be less than bg_max")
 	
 	drplt_ids <- colnames(x@norm)
-	bg_ids <- drplt_ids[ x@dropl_counts >= bg_min & x@dropl_counts <= bg_max ]
+
 	top_n_ix <- order(x@dropl_counts, na.last = TRUE, decreasing = TRUE)[1:top_n_cand]
 	cand_ids <- drplt_ids[top_n_ix]
+
+	bg_ids <- drplt_ids[ x@dropl_counts >= bg_min & x@dropl_counts <= bg_max ]
+
 	n_overlap <- length(intersect(bg_ids, cand_ids))
-	bg_max_new <- x@dropl_counts[top_n_cand]
+	bg_max_new <- x@dropl_counts[top_n_ix[top_n_cand]]
 	if (n_overlap > 0){
 		cat(paste0("Warning: ", as.character(n_overlap), " candidates have counts <= bg_max.\n"))
 		cat(paste0("Lowering bg_max threshold to ", as.character(bg_max_new), "\n"))
+	}
+	if (length(bg_ids) == 0){
+		stop("No background candidates specified. Check parameters to get_bg_cand.")
 	}
 
 	labels <- integer(length(drplt_ids))
@@ -127,32 +134,78 @@ run_em_pcs <- function(x,
 #'
 #' @return SCE object with \code{targets} identified
 #' @export
-call_targets <- function(x, min_count=200, p=0.5){
+call_targets <- function(x, min_count=200, p=0.95){
 	keep <- (x@emo$Z[,2] > p) & (x@dropl_counts >= min_count)
 	x@targets <- rownames(x@emo$Z)[keep]
 	return(x)
 } 
 
-#' Run DIEM pipeline directly from 10X output
+#' Summarize results
+#' 
+#' Create a data frame summarizing summary stats for target and background calls.
 #'
-DIEM_10X <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, expected_targets=10000, min_count=200, p=0.5, seedn=NULL){
+#' @param x SCE. SCE object with PCs and labels
+#'
+#' @return SCE object with summary stats in \code{other_info}
+#' @export
+summary_results <- function(x){
+	n_drop <- length(x@dropl_counts)
+	target_call <- integer(n_drop); names(target_call) <- colnames(x@raw); target_call[x@targets] <- 1
+	malat_gene <- grep("malat1", rownames(x@raw), ignore.case=T, value=TRUE)
+	if ( length(malat_gene) == 0 ) malat1 <- NA
+	else malat1 <- x@raw[malat_gene,] / x@dropl_counts
+	x@other_data <- data.frame(Call=target_call, n_counts=x@dropl_counts, MALAT1=malat1, x@pcs$x)
+	return(x)
+}
+
+#' Run diem pipeline directly from 10X output
+#'
+#' @param path_10X Character. Path to 10X output, containing genes, barcodes, and expression files
+#' @param min_bg_count Numeric. Minimum number of counts for a droplet to be considered background
+#' @param max_bg_count Numeric. Maximum number of counts for a droplet to be considered background
+#' @param n_pcs Integer. Number of expression PCs to use for running EM
+#' @param n_runs Integer. Number of EM runs, with best result returned
+#' @param expected_targets Integer. Number of expected targets
+#' @param min_count Integer. Minimum number of counts to call a target
+#' @param p Numeric. Minimum membership probability to call a target
+#' @param seedn Numeric. Seed for random number generation
+#' @param verbose Boolean. Print out logging information
+#' 
+DIEM_10X <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, n_runs=5, expected_targets=10000, min_count=200, p=0.95, seedn=NULL, verbose=TRUE){
 	x <- read_10x(path_10X)
 	sce <- create_SCE(x)
 	sce <- subset_dropls(sce, min_c=min_bg_count)
 	sce <- normalize(sce)
 	sce <- get_var_genes(sce)
 	sce <- get_pcs(sce, n_pcs)
-	sce <- subset_n_dropls(sce, 2*expected_targets, slot_name=c("raw", "norm"))
 	sce <- get_bg_cand(sce, min_bg_count, max_bg_count, expected_targets)
-	print(head(sce@bg_info$Labels))
-	print(dim(sce@norm))
-	sce <- run_em_pcs(sce, n_pcs=n_pcs, seedn=seedn)
+	sce <- run_em_pcs(sce, n_pcs=n_pcs, n_runs=n_runs, seedn=seedn, verbose=verbose)
 	sce <- call_targets(sce, min_count=min_count, p=p)
+	sce <- summary_results(sce)
 	return(sce)
 }
 
-run_diem_10x <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, expected_targets=10000, min_count=200, p=0.5, seedn=NULL){
-	sce_list <- lapply(path_10X, FUN=DIEM_10X,
-					   min_bg_count=min_bg_count, max_bg_count=max_bg_count, n_pcs=n_pcs, expected_targets=expected_targets, min_count=min_count, p=p, seedn=seedn)
+
+#' Run diem pipeline for 10X samples
+#'
+#' Run diem pipeline on 10X samples, returning \code{SCE} objects.
+#'
+#' @param path_10X Character. Path to 10X output, containing genes, barcodes, and expression files
+#' @param min_bg_count Numeric. Minimum number of counts for a droplet to be considered background
+#' @param max_bg_count Numeric. Maximum number of counts for a droplet to be considered background
+#' @param n_pcs Integer. Number of expression PCs to use for running EM
+#' @param n_runs Integer. Number of EM runs, with best result returned
+#' @param expected_targets Integer. Number of expected targets
+#' @param min_count Integer. Minimum number of counts to call a target
+#' @param p Numeric. Minimum membership probability to call a target
+#' @param seedn Numeric. Seed for random number generation
+#' @param verbose Boolean. Print out logging information
+#' 
+run_diem_10x <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, n_runs=5, expected_targets=10000, min_count=200, p=0.95, seedn=NULL, verbose=TRUE){
+	sce_list <- list()
+	for (path in path_10X){
+		if (verbose) cat(paste0("Running ", path, "\n"))
+		sce_list[path] <- DIEM_10X(path, min_bg_count=min_bg_count, max_bg_count=max_bg_count, n_pcs=n_pcs, n_runs=n_runs, expected_targets=expected_targets, min_count=min_count, p=p, seedn=seedn, verbose=verbose)
+	}
 	return(sce_list)
 }

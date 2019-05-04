@@ -55,6 +55,10 @@ create_SCE <- function(x){
 	}
 	rownames(sce@raw) <- as.character(rownames(sce@raw))
 	sce <- fill_counts(sce)
+	keep <- sce@dropl_counts > 0
+	sce@raw <- sce@raw[,keep]
+	sce@dropl_counts <- sce@dropl_counts[keep]
+	return(sce)
 }
 
 	
