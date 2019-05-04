@@ -38,7 +38,7 @@ sce <- normalize(sce)
 sce <- get_var_genes(sce)
 sce <- get_pcs(sce, n_pcs)
 sce <- subset_n_dropls(sce, 2*expected_target, slot_name=c("raw", "norm"))
-sce <- get_bg_cand(sce, min_bg, max_bg, expected_target)
+sce <- get_bg_cand(sce, expected_target)
 sce <- run_em_pcs(sce, n_pcs=n_pcs, seedn=seedn)
 sce <- call_targets(sce, min_count=min_count, p=p)
 ```

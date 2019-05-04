@@ -27,7 +27,9 @@ get_pcs <- function(x, n_pcs=15, center = TRUE, scale. = TRUE){
 #' Specify background droplets and candidate droplets
 #' 
 #' This function returns the barcodes that are considered originating from background, and those that are
-#' considered candidate targets (cells/nuclei). Barcodes are considered background if their 
+#' considered candidate targets (cells/nuclei). Barcodes are considered background if either they fall below
+#' the top \code{top_n_cand} barcodes, or if the number of reads is less than bg_max.
+#' 
 #' total read/UMI count is greater than or equal to \code{bg_min} and less than or equal to \code{bg_max}. 
 #' Candidate cells/nuclei are the top \code{top_n_cand} droplets ranked by read counts. This should be 
 #' at least the expected number of targets recovered from the experiment. If the 
@@ -35,43 +37,31 @@ get_pcs <- function(x, n_pcs=15, center = TRUE, scale. = TRUE){
 #' parameter is lowered so that \code{top_n_cand} candidates are always output.
 #'
 #' @param x SCE. An SCE object
-#' @param bg_min Numeric. Minimum number of counts for a droplet to be considered background
-#' @param bg_max Numeric. Maximum number of counts for a droplet to be considered background
 #' @param top_n_cand Numeric. Specifies the top number of droplets by expression to considered candidates
+#' @param bg_max Numeric. Maximum number of counts for a droplet to be considered background. Ignored if top_n_cand is set.
 #'
 #' @return SCE object with bg_info filled, a list with components
 #' \item{Background}{Character vector of column names of x that are considered background droplets}
 #' \item{Candidate}{Character vector of column names of x that are considered candidate droplets}
 #' \item{Labels}{Numeric vector for droplets specifying 0 for candidate and 1 for background}
 #' @export
-get_bg_cand <- function(x, bg_min, bg_max, top_n_cand){
-	if (top_n_cand < 1) stop(paste0("top_n_cand must be a positive integer, not ", str(top_n_cand)))
-	if (bg_min < 1) stop(paste0("bg_min must be a positive integer, not ", str(bg_min)))
-	if (bg_max < 1) stop(paste0("bg_max must be a positive integer, not ", str(bg_max)))
-	if (bg_min > bg_max) stop("bg_min must be less than bg_max")
-	
+get_bg_cand <- function(x, top_n_cand=NULL, bg_max=NULL){
 	drplt_ids <- colnames(x@norm)
-
-	top_n_ix <- order(x@dropl_counts, na.last = TRUE, decreasing = TRUE)[1:top_n_cand]
-	cand_ids <- drplt_ids[top_n_ix]
-
-	bg_ids <- drplt_ids[ x@dropl_counts >= bg_min & x@dropl_counts <= bg_max ]
-
-	n_overlap <- length(intersect(bg_ids, cand_ids))
-	bg_max_new <- x@dropl_counts[top_n_ix[top_n_cand]]
-	if (n_overlap > 0){
-		cat(paste0("Warning: ", as.character(n_overlap), " candidates have counts <= bg_max.\n"))
-		cat(paste0("Lowering bg_max threshold to ", as.character(bg_max_new), "\n"))
-	}
-	if (length(bg_ids) == 0){
-		stop("No background candidates specified. Check parameters to get_bg_cand.")
-	}
-
-	labels <- integer(length(drplt_ids))
+	labels <- rep(1, length(drplt_ids))
 	names(labels) <- drplt_ids
-	labels[bg_ids] <- 1
-	labels[cand_ids] <- 0
-	bg_ids <- names(labels)[labels == 1] # reset if candidates overlapped background IDs.
+
+	if (!is.null(top_n_cand)){
+		top_n_ix <- order(x@dropl_counts, na.last = TRUE, decreasing = TRUE)[1:top_n_cand]
+		labels[top_n_ix] <- 0
+	} else if (!is.null(bg_max)){
+		labels[x@dropl_counts > bg_max] <- 0
+	}
+	else {
+		stop("Either top_n_cand or bg_max must be set")
+	}
+	cand_ids <- names(labels)[labels == 0]
+	bg_ids <- names(labels)[labels == 1]
+
 	x@bg_info <- list(Background = bg_ids, Candidate = cand_ids, Labels = labels)
 	return(x)
 }
@@ -107,10 +97,10 @@ run_em_pcs <- function(x,
 	runs <- list()
 	for (i in 1:n_runs){
 		if (!is.null(n_pcs)){
-			runs[[i]] <- run_mv_em_diag(sce@pcs$x[,1:n_pcs], k=2, min_iter=min_iter, max_iter=max_iter,
+			runs[[i]] <- run_mv_em_diag(x@pcs$x[,1:n_pcs], k=2, min_iter=min_iter, max_iter=max_iter,
 										labels = x@bg_info$Labels, eps=eps, seedn=seedn, verbose=verbose)
 		} else {
-			runs[[i]] <- run_mv_em_diag(sce@pcs$x, k=2, min_iter=min_iter, max_iter=max_iter, 
+			runs[[i]] <- run_mv_em_diag(x@pcs$x, k=2, min_iter=min_iter, max_iter=max_iter, 
 										labels = x@bg_info$Labels, eps=eps, seedn=seedn, verbose=verbose)
 		}
 		if (!is.null(seedn)) seedn <- seedn + 1
@@ -178,7 +168,7 @@ DIEM_10X <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, n_run
 	sce <- normalize(sce)
 	sce <- get_var_genes(sce)
 	sce <- get_pcs(sce, n_pcs)
-	sce <- get_bg_cand(sce, min_bg_count, max_bg_count, expected_targets)
+	sce <- get_bg_cand(sce, top_n_cand=expected_targets)
 	sce <- run_em_pcs(sce, n_pcs=n_pcs, n_runs=n_runs, seedn=seedn, verbose=verbose)
 	sce <- call_targets(sce, min_count=min_count, p=p)
 	sce <- summary_results(sce)
@@ -205,7 +195,7 @@ run_diem_10x <- function(path_10X, min_bg_count=25, max_bg_count=150, n_pcs=5, n
 	sce_list <- list()
 	for (path in path_10X){
 		if (verbose) cat(paste0("Running ", path, "\n"))
-		sce_list[path] <- DIEM_10X(path, min_bg_count=min_bg_count, max_bg_count=max_bg_count, n_pcs=n_pcs, n_runs=n_runs, expected_targets=expected_targets, min_count=min_count, p=p, seedn=seedn, verbose=verbose)
+		sce_list[[path]] <- DIEM_10X(path, min_bg_count=min_bg_count, max_bg_count=max_bg_count, n_pcs=n_pcs, n_runs=n_runs, expected_targets=expected_targets, min_count=min_count, p=p, seedn=seedn, verbose=verbose)
 	}
 	return(sce_list)
 }

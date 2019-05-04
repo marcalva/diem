@@ -92,18 +92,21 @@ double get_llkCPP(NumericMatrix x,
 		NumericVector tau, 
 		bool semisup = false, 
 		NumericVector labels = R_NilValue){
-	double eps = 0.01;
+	// double eps = 0.01;
 	// if (sum(tau) < (1 - eps) | sum(tau) > (1+eps)) stop(paste0("Parameter tau must sum to 1, not ", as.character(tau)))
 	bool same_len = (mu.size() == sgma.size()) && (sgma.size() == tau.size());
     if (!same_len) {
 		Rcpp::stop("mu, sgma, and tau must have same length");
 	}
     int n = x.nrow();
+    int n_label = labels.size();
     int k = mu.size();
     double llk = 0;
 	if (semisup){
-		if (labels.size() != n){
-			Rcpp::stop("labels must be same size as number of rows in x");
+		if (n_label != n){
+			char buf[100];
+			sprintf(buf, "Labels %i must same size as number of rows in x %i\n", n_label, n);
+			Rcpp::stop(buf);
 		}
 	}
 	for (int i = 0; i < n; i++){
