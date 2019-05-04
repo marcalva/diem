@@ -91,7 +91,7 @@ run_em_pcs <- function(x,
 					   min_iter=5, 
 					   max_iter=1000, 
 					   eps=1e-10, 
-					   n_runs=10, 
+					   n_runs=5, 
 					   seedn=NULL, 
 					   verbose=TRUE){
 	runs <- list()
