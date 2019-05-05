@@ -13,6 +13,7 @@ SCE <- setClass(Class = "SCE",
 						  targets = "vector", 
 						  other_data = "data.frame", 
                           gene_means = "vector", 
+                          n_genes = "vector", 
                           gene_counts = "vector", 
                           dropl_counts = "vector", 
                           vg = "vector", 
@@ -35,6 +36,7 @@ fill_counts <- function(x){
 	x@gene_means <- Matrix::rowMeans(x@raw)
 	x@gene_counts <- Matrix::rowSums(x@raw)
 	x@dropl_counts <- Matrix::colSums(x@raw)
+	x@n_genes <- Matrix::colSums(x@raw > 0)
 	return(x)
 }
 
@@ -58,6 +60,7 @@ create_SCE <- function(x){
 	keep <- sce@dropl_counts > 0
 	sce@raw <- sce@raw[,keep]
 	sce@dropl_counts <- sce@dropl_counts[keep]
+	sce@n_genes <- sce@n_genes[keep]
 	return(sce)
 }
 

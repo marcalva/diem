@@ -87,6 +87,7 @@ subset_dropls <- function(x, min_c=-Inf, max_c=Inf, slot_name="raw"){
 		slot(x, slot_name) <- slot(x, slot_name)[,keep]
 	}
 	x@dropl_counts <- x@dropl_counts[keep]
+	x@n_genes <- x@n_genes[keep]
 	if ( ! all(is.na(x@pcs)) )  x@pcs$x <- x@pcs$x[ix,]
 	return(x)
 }
@@ -109,6 +110,7 @@ subset_n_dropls <- function(x, n, slot_name="raw"){
 		slot(x, i) <- slot(x, i)[,ix]
 	}
 	x@dropl_counts <- x@dropl_counts[ix]
+	x@n_genes <- x@n_genes[ix]
 	if ( ! all(is.na(x@pcs$x)) )  x@pcs$x <- x@pcs$x[ix,]
 	return(x)
 }
@@ -153,17 +155,37 @@ subset_genes <- function(x, min_c=-Inf, max_c=Inf, slot_name="raw"){
 #' @export
 read_10x <- function(path){
 	files <- list.files(path, full.names=TRUE)
-	mtx_file <- grep("matrix", files, value=TRUE)
-	genes_file <- grep("genes|features", files, value=TRUE)
-	barcode_file <- grep("barcodes", files, value=TRUE)
+	if ("matrix.mtx.gz" %in% files) v3 = TRUE
 
-	expr <- readMM(mtx_file)
+	if (v3){
+		mtx_file <- paste0(path, "/matrix.mtx.gz")
+		genes_file <- paste0(path, "/features.tsv.gz")
+		barcode_file <- paste0(path, "/barcodes.tsv.gz")
+	} else {
+		mtx_file <- paste0(path, "/matrix.mtx")
+		genes_file <- paste0(path, "/genes.tsv")
+		barcode_file <- paste0(path, "/barcodes.tsv")
+	}
+	
+	if (mtx_file %in% files) {
+		expr <- readMM(mtx_file)
+	} else {
+		stop(paste0(mtx_file, " not found"))
+	}
 	expr <- as(expr, "CsparseMatrix")
 
-	barcode_names <- readLines(barcode_file)
-	barcode_names <- sub("-.*", "", barcode_names)
-
-	genes <- read.delim(genes_file, header = FALSE, stringsAsFactors = FALSE, sep = "\t")
+	if (barcode_file %in% files){
+		barcode_names <- readLines(barcode_file)
+		barcode_names <- sub("-.*", "", barcode_names)
+	} else {
+		stop(paste0(barcode_file, " not found"))
+	}
+	
+	if (genes_file %in% files){
+		genes <- read.delim(genes_file, header = FALSE, stringsAsFactors = FALSE, sep = "\t")
+	} else {
+		stop(paste0(genes_file, " not found"))
+	}
 
 	colnames(expr) <- barcode_names
 	rownames(expr) <- make.unique(genes[,2])

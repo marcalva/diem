@@ -4,7 +4,7 @@
 \alias{run_diem_10x}
 \title{Run diem pipeline for 10X samples}
 \usage{
-run_diem_10x(path_10X, min_bg_count = 25, max_bg_count = 150,
+run_diem_10x(path_10X, min_bg_count = 30, max_bg_count = 150,
   n_pcs = 5, n_runs = 5, expected_targets = NULL, min_count = 200,
   p = 0.95, seedn = NULL, verbose = TRUE)
 }

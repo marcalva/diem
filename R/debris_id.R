@@ -120,12 +120,13 @@ run_em_pcs <- function(x,
 #'
 #' @param x SCE. SCE object with EM data
 #' @param min_count Integer. Minimum number of read/UMI counts to call a target
+#' @param min_gene Integer. Minimum number of genes detected to call a target
 #' @param p Numeric. Proportion of likelihood to call a target
 #'
 #' @return SCE object with \code{targets} identified
 #' @export
-call_targets <- function(x, min_count=200, p=0.95){
-	keep <- (x@emo$Z[,2] > p) & (x@dropl_counts >= min_count)
+call_targets <- function(x, min_count=200, min_gene=200, p=0.95){
+	keep <- (x@emo$Z[,2] > p) & (x@dropl_counts >= min_count) & (x@n_genes >= min_gene)
 	x@targets <- rownames(x@emo$Z)[keep]
 	return(x)
 } 
@@ -146,7 +147,7 @@ summary_results <- function(x){
 	else malat1 <- x@raw[malat_gene,] / x@dropl_counts
 	mt_genes <- grep("MT-", rownames(x@raw), ignore.case=T, value=TRUE)
 	mt_pct <- Matrix::colSums( x@raw[mt_genes,] ) / x@dropl_counts
-	x@other_data <- data.frame(Call=target_call, n_counts=x@dropl_counts, MALAT1=malat1, MT_PCT=mt_pct, x@pcs$x)
+	x@other_data <- data.frame(Call=target_call, n_counts=x@dropl_counts, n_genes=x@n_genes, MALAT1=malat1, MT_PCT=mt_pct, x@pcs$x)
 	return(x)
 }
 

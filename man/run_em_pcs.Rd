@@ -5,7 +5,7 @@
 \title{Run EM on PCs}
 \usage{
 run_em_pcs(x, n_pcs = NULL, min_iter = 5, max_iter = 1000,
-  eps = 1e-10, n_runs = 10, seedn = NULL, verbose = TRUE)
+  eps = 1e-10, n_runs = 5, seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{SCE. SCE object with PCs and labels}

@@ -4,7 +4,7 @@
 \alias{DIEM_10X}
 \title{Run diem pipeline directly from 10X output}
 \usage{
-DIEM_10X(path_10X, min_bg_count = 25, max_bg_count = 150, n_pcs = 5,
+DIEM_10X(path_10X, min_bg_count = 30, max_bg_count = 150, n_pcs = 5,
   n_runs = 5, expected_targets = NULL, min_count = 200, p = 0.95,
   seedn = NULL, verbose = TRUE)
 }
