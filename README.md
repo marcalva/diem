@@ -19,16 +19,15 @@ Shown below is the suggested workflow.
 
 ```R
 library(diem)
-
 x <- read_10x(path)
 sce <- create_SCE(x)
-sce <- subset_dropls(sce, min_c=30)
-sce <- normalize(sce)
-sce <- get_var_genes(sce)
-sce <- get_pcs(sce, n_pcs=5)
-sce <- get_bg_cand(sce, bg_max=150)
-sce <- run_em_pcs(sce, n_pcs=5)
-sce <- call_targets(sce)
-sce <- summary_results(sce)
+sce <- get_de_genes(sce, low_count=c(0,150), high_count=c(150, Inf), verbose=TRUE)
+sce <- set_expression(sce, gene_range=c(200, Inf), simf=2, verbose=TRUE)
+sce <- normalize(sce, verbose=TRUE)
+sce <- get_bgscore(sce)
+sce <- get_pcs(sce, n_pcs=5, verbose=TRUE)
+sce <- run_em_pcs(sce, n_pcs=5, verbose=TRUE)
+sce <- call_targets(sce, p=p)
+sce <- get_mt_malat1(sce)
+targets <- call_targets(sce)
 ```
-

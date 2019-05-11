@@ -7,7 +7,7 @@
 create_SCE(x)
 }
 \arguments{
-\item{x}{Sparse matrix. Raw expression counts from single-cell experiment}
+\item{x}{Sparse matrix. Raw expression counts from single-cell experiment, genes in rows, droplets in columns}
 }
 \value{
 SCE object

@@ -4,7 +4,7 @@
 \alias{subset_genes}
 \title{Subset genes in SCE object}
 \usage{
-subset_genes(x, min_c = -Inf, max_c = Inf, slot_name = "raw")
+subset_genes(x, min_c = -Inf, max_c = Inf)
 }
 \arguments{
 \item{x}{SCE object. Must contain data in raw slot}
@@ -12,8 +12,6 @@ subset_genes(x, min_c = -Inf, max_c = Inf, slot_name = "raw")
 \item{min_c}{Numeric. Minimum gene counts}
 
 \item{max_c}{Numeric. Maximum gene counts}
-
-\item{.}{slot_name Character. Data to subset, either raw or norm.}
 }
 \value{
 x SCE object subsetted

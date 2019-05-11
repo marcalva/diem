@@ -4,14 +4,12 @@
 \alias{subset_n_dropls}
 \title{Subset to top n droplets in SCE object}
 \usage{
-subset_n_dropls(x, n, slot_name = "raw")
+subset_n_dropls(x, n)
 }
 \arguments{
 \item{x}{SCE object. Must contain data in raw slot}
 
 \item{n}{Integer. Number of droplets to subset}
-
-\item{slot_name}{Character. Slot of SCE to subset, either raw or norm, or both}
 }
 \value{
 x SCE object subsetted

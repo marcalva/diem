@@ -2,21 +2,26 @@
 % Please edit documentation in R/data_prep.R
 \name{normalize}
 \alias{normalize}
-\title{Normalize (total count and log) raw count data}
+\title{Normalize raw count data}
 \usage{
-normalize(x, sf = 10000)
+normalize(x, logt = TRUE, sf = NULL, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE}
 
+\item{logt}{Boolean. Log transform}
+
 \item{sf}{Numeric. A scaling factor to multiply values after division by total count}
+
+\item{verbose}{Boolean.}
 }
 \value{
-A matrix with normalized expression data
+An SCE object with normalized expression data
 }
 \description{
 Raw expression counts are divided by total counts per droplet, 
-multiplied by scaling factor, and log1p transformed. Same 
-normalization style as Seurat. This normalizes the counts in 
-\code{raw} slot and places them in the @norm slot.
+multiplied by scaling factor, and (optionally) log1p transformed (default). 
+This normalizes the counts in 
+\code{raw} slot and places them in the @norm slot. The scaling factor 
+defaults to the median total read count across all droplets.
 }

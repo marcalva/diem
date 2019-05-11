@@ -5,7 +5,8 @@
 \title{Run multivariate EM restricted to diagonal covariance}
 \usage{
 run_mv_em_diag(x, k = 2, min_iter = 5, max_iter = 1000,
-  labels = NULL, eps = 1e-10, seedn = NULL, verbose = TRUE)
+  labels = NULL, mu0 = NULL, sgma0 = NULL, eps = 1e-10,
+  seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{matrix. Matrix with samples on the rows and features on the columns}
@@ -18,6 +19,10 @@ run_mv_em_diag(x, k = 2, min_iter = 5, max_iter = 1000,
 
 \item{labels}{Numeric vector. Fixed label IDs for semi-supervised clustering. 0 is unknown (to be estimated)}
 
+\item{mu0}{Numeric. Starting value for mu}
+
+\item{sgma0}{Numeric. Starting value for sigma}
+
 \item{eps}{Numeric. Threshold of change in log likelihood to stop iterations}
 
 \item{seedn}{Numeric. Numeric value specifying seed for random initialization}
@@ -28,5 +33,5 @@ run_mv_em_diag(x, k = 2, min_iter = 5, max_iter = 1000,
 list with output
 }
 \description{
-Run multivariate EM restricted to diagonal covariance
+Run multivariate un-, semi-, or fully supervised EM.
 }

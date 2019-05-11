@@ -4,7 +4,7 @@
 \alias{subset_dropls}
 \title{Subset droplets in SCE object}
 \usage{
-subset_dropls(x, min_c = -Inf, max_c = Inf, slot_name = "raw")
+subset_dropls(x, min_c = -Inf, max_c = Inf)
 }
 \arguments{
 \item{x}{SCE object. Must contain data in raw slot}
@@ -12,8 +12,6 @@ subset_dropls(x, min_c = -Inf, max_c = Inf, slot_name = "raw")
 \item{min_c}{Numeric. Minimum row sum}
 
 \item{max_c}{Numeric. Maximum row sum}
-
-\item{slot_name}{Character. Slot of SCE subset, either raw or norm, or both}
 }
 \value{
 x SCE object subsetted

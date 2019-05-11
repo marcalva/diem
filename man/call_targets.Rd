@@ -7,7 +7,7 @@
 call_targets(x, min_count = 200, min_gene = 200, p = 0.95)
 }
 \arguments{
-\item{x}{SCE. SCE object with EM data}
+\item{x}{SCE. SCE object}
 
 \item{min_count}{Integer. Minimum number of read/UMI counts to call a target}
 
@@ -16,9 +16,9 @@ call_targets(x, min_count = 200, min_gene = 200, p = 0.95)
 \item{p}{Numeric. Proportion of likelihood to call a target}
 }
 \value{
-SCE object with \code{targets} identified
+SCE object
 }
 \description{
-Call targets, typically cells or nuclei, from droplets if the 
+Call targets (typically cells or nuclei) from droplets if the 
 log-likelihood membership probability is higher than \code{p}.
 }

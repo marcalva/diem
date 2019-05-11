@@ -4,7 +4,8 @@
 \alias{get_pcs}
 \title{Get PCs from expression data}
 \usage{
-get_pcs(x, n_pcs = 15, center = TRUE, scale. = TRUE)
+get_pcs(x, n_pcs = 15, center = TRUE, scale. = TRUE, genes = "deg",
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. An SCE object}
@@ -13,12 +14,20 @@ get_pcs(x, n_pcs = 15, center = TRUE, scale. = TRUE)
 
 \item{center}{Boolean. Whether to center variables}
 
-\item{scale.}{Boolean. Whether to scale variables to have unit variance}
+\item{genes}{Character. Use these genes stored in SCE object. Either "vg" or "de"}
+
+\item{verbose}{Boolean.}
+
+\item{scale}{Boolean. Whether to scale variables to have unit variance}
 }
 \value{
 An SCE object with \code{\link[irlba]{prcomp_irlba}} output in 
 the \code{pcs} slot
 }
 \description{
-Get PCs from expression data
+Runs irlba implementation of prcomp. Takes normalized expression data in 
+\code{x@norm}, subsets using genes in the \code{deg} or \code{vg} slot, 
+specified with parameter \code{genes}. The first \code{n_pcs} are calculated.
+The return object for \code{prcomp_irlba} is placed in \code{x@pcs}. The 
+principal component scores for the droplets are thus stored in \code{x@pcs$x}.
 }

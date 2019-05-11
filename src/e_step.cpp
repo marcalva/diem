@@ -16,6 +16,9 @@ double mvn_logllk_diagCPP(NumericVector x,
 	double logdet = 0;
 	NumericVector sgma_inv(np);
 	for (int i = 0; i < np; i++){
+		if (sgma(i) == 0.0){
+			Rcpp::stop("Sigma value is 0");
+		}
     	logdet += log(sgma(i));
     	sgma_inv(i) = 1.0/sgma(i);
 	}
@@ -30,6 +33,18 @@ double mvn_logllk_diagCPP(NumericVector x,
     double con = np * log(2 * M_PI);
 
     double ret = -0.5 * (logdet + xe + con);
+    if (isnan(ret)){
+    	printf("Log likelihood returned nan with parameters:\n");
+    	printf("Mu:");
+    	for (int i = 0; i < np; i++){
+    		printf("%f ", mu(i));
+		}
+		printf("\nSigma:");
+		for (int i = 0; i < np; i++){
+			printf("%f ", sgma(i));
+		}
+		printf("\n");
+	}
     return ret;
 }
 
@@ -60,17 +75,11 @@ NumericMatrix e_stepCPP(NumericMatrix x,
 		NumericVector labels = R_NilValue){
 	int n = x.nrow();
 	NumericMatrix Z(n, k);
-	NumericVector f_i(k);
 	for (int i = 0; i < n; i++){
-		for (int j = 0; j < k; j++){
-			NumericVector x_i = x(i, _);
-			NumericVector mu_i = mu[j];
-			NumericVector sgma_i = sgma[j];
-			f_i(j) = log(tau(j)) + mvn_logllk_diagCPP(x_i, mu_i, sgma_i);
-		}
+		NumericVector f_i(k);
 		// unlabeled data is 0. Shift to 0-based index
 		if (semisup && (labels(i) != 0)){
-			Z(i, labels(i)-1) = labels(i);
+			Z(i, labels(i)-1) = 1;
 		}
 		else{
 			for (int j = 0; j < k; j++){
@@ -110,12 +119,16 @@ double get_llkCPP(NumericMatrix x,
 		}
 	}
 	for (int i = 0; i < n; i++){
+		double llk_sum;
 		if ( semisup && labels(i) != 0 ){
 			int ix = labels(i) - 1;
 			NumericVector x_i = x(i,_);
 			NumericVector mu_i = as<NumericVector>(mu[ix]);
 			NumericVector sgma_i = as<NumericVector>(sgma[ix]);
-			llk += log(tau(ix)) + mvn_logllk_diagCPP( x_i, mu_i, sgma_i);
+			if (tau(ix) == 0){
+				Rcpp::stop("tau is 0");
+			}
+			llk_sum = log(tau(ix)) + mvn_logllk_diagCPP( x_i, mu_i, sgma_i);
 		}
 		else{
 			NumericVector llk_i(k);
@@ -123,10 +136,17 @@ double get_llkCPP(NumericMatrix x,
 				NumericVector x_i = x(i,_);
 				NumericVector mu_ij = as<NumericVector>(mu[j]);
 				NumericVector sgma_ij = as<NumericVector>(sgma[j]);
+				if (tau(j) == 0){
+					Rcpp::stop("tau is 0");
+				}
 				llk_i(j) = ( log(tau(j)) + mvn_logllk_diagCPP( x_i, mu_ij, sgma_ij) ); 
 			}
-			llk += sum_logCPP(llk_i);
+			llk_sum = sum_logCPP(llk_i);
 		}
+		if (isnan(llk_sum)){
+			Rcpp::stop("Likelihood returned nan");
+		}
+		llk += llk_sum;
 	}
 	return llk;
 }

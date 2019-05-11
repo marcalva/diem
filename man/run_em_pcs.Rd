@@ -2,13 +2,13 @@
 % Please edit documentation in R/debris_id.R
 \name{run_em_pcs}
 \alias{run_em_pcs}
-\title{Run EM on PCs}
+\title{Specify background droplets and candidate droplets}
 \usage{
 run_em_pcs(x, n_pcs = NULL, min_iter = 5, max_iter = 1000,
-  eps = 1e-10, n_runs = 5, seedn = NULL, verbose = TRUE)
+  eps = 1e-10, n_runs = 10, seedn = NULL, verbose = TRUE)
 }
 \arguments{
-\item{x}{SCE. SCE object with PCs and labels}
+\item{x}{SCE. An SCE object}
 
 \item{n_pcs}{Integer. Number of expression PCs to use for running EM}
 
@@ -23,15 +23,30 @@ run_em_pcs(x, n_pcs = NULL, min_iter = 5, max_iter = 1000,
 \item{seedn}{Numeric. Seed for random number generation}
 
 \item{verbose}{Boolean. Print out logging information}
+
+\item{bg_max}{Numeric. Maximum number of counts for a droplet to be considered background. Ignored if top_n_cand is set.}
+
+\item{top_n_cand}{Numeric. Specifies the top number of droplets by expression to considered candidates}
+
+\item{x}{SCE. SCE object with PCs and labels}
 }
 \value{
+SCE object with bg_info filled, a list with components
+\item{Background}{Character vector of column names of x that are considered background droplets}
+\item{Candidate}{Character vector of column names of x that are considered candidate droplets}
+\item{Labels}{Numeric vector for droplets specifying 0 for candidate and 1 for background}
+
 SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
 }
 \description{
-Run expectation maximization (EM) using diagonal covariance on expression PCs in an SCE object with k=2 groups. 
-EM is run \code{n_runs} times with random initializations, and the EM output parameters with 
-the best log likelihood is output. Within EM, iterate a minimum of \code{min_iter} times and 
-a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
-log likelihood until covnergence is called. \code{seedn} gives the seed for random number generation, 
-which can be used to reproduce results.
+This function returns the barcodes that are considered originating from background, and those that are
+considered candidate targets (cells/nuclei). Barcodes are considered background if either they fall below
+the top \code{top_n_cand} barcodes, or if the number of reads is less than bg_max.
+}
+\details{
+total read/UMI count is greater than or equal to \code{bg_min} and less than or equal to \code{bg_max}. 
+Candidate cells/nuclei are the top \code{top_n_cand} droplets ranked by read counts. This should be 
+at least the expected number of targets recovered from the experiment. If the 
+top \code{top_n_cand} droplets includes those with read/UMI counts < \code{bg_max}, the \code{bg_max} 
+parameter is lowered so that \code{top_n_cand} candidates are always output.
 }

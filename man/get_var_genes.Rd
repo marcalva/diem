@@ -4,14 +4,19 @@
 \alias{get_var_genes}
 \title{Get variable genes}
 \usage{
-get_var_genes(x, min_mean = 1e-04, nf = 2000, lss = 0.3)
+get_var_genes(x, min_mean = 1e-04, nf = 2000, lss = 0.3,
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}
 
+\item{min_mean}{Numeric. Minimum mean of counts to consider}
+
 \item{nf}{Numeric. Output top nf variable features}
 
 \item{lss}{Numeric. The span paramater for loess function.}
+
+\item{verbose}{Boolean.}
 }
 \value{
 SCE object with \code{vg} and \code{vg_info} slots filled for variable genes

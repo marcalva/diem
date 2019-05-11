@@ -1,24 +1,29 @@
-
-#' Normalize (total count and log) raw count data
+#' Normalize raw count data
 #'
 #' Raw expression counts are divided by total counts per droplet, 
-#' multiplied by scaling factor, and log1p transformed. Same 
-#' normalization style as Seurat. This normalizes the counts in 
-#' \code{raw} slot and places them in the @norm slot.
+#' multiplied by scaling factor, and (optionally) log1p transformed (default). 
+#' This normalizes the counts in 
+#' \code{raw} slot and places them in the @norm slot. The scaling factor 
+#' defaults to the median total read count across all droplets.
 #'
 #' @param x SCE. SCE 
+#' @param logt Boolean. Log transform
 #' @param sf Numeric. A scaling factor to multiply values after division by total count
+#' @param verbose Boolean.
 #'
-#' @return A matrix with normalized expression data
+#' @return An SCE object with normalized expression data
 #' @importFrom Matrix Diagonal
 #' @export
-normalize <- function(x, sf=1e4){
+normalize <- function(x, logt=TRUE, sf=NULL, verbose=FALSE){
+	if (verbose) cat("Normalizing gene expression\n")
 	expr <- x@raw
+	if (is.null(sf)) sf <- median(Matrix::colSums(expr))
 	expr <- expr * sf
-	d <- Matrix::Diagonal(x = 1/x@dropl_counts)
+	d <- Matrix::Diagonal(x = 1/x@dropl_info[,"total_counts"])
 	expr <- expr %*% d
-	expr <- log1p(expr)
+	if (logt) expr <- log1p(expr)
 	x@norm <- expr
+	if (verbose) cat("Normalized gene expression\n")
 	return(x)
 }
 
@@ -29,30 +34,30 @@ normalize <- function(x, sf=1e4){
 #' features, and the top \code{nf} are output.
 #'
 #' @param x SCE. SCE object
+#' @param min_mean Numeric. Minimum mean of counts to consider
 #' @param nf Numeric. Output top nf variable features
 #' @param lss Numeric. The span paramater for loess function.
+#' @param verbose Boolean.
 #'
 #' @return SCE object with \code{vg} and \code{vg_info} slots filled for variable genes
 #' and variable gene info. \code{vg_info} is a data frame with log mean, log var, 
 #' fitted log var values, and residuals. \code{vg} is a vector of genes
 #' @export
-get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3){
+get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3, verbose=FALSE){
+	if (verbose) cat("Getting variable genes\n")
 	if (min_mean <= 0){
-		keep <- x@gene_means > 0
+		keep <- x@gene_info[,"mean"] > 0
 	} else {
-		keep <- x@gene_means >= min_mean
+		keep <- x@gene_info[,"mean"] > min_mean
 	}
 	if (table(keep)["TRUE"] < nf){
 		stop("Error: Specifying more variable features than there are features passing min_mean\n")
 	}
-	gene_means <- x@gene_means[keep]
-	gene_names <- rownames(x@raw)[keep]
-	# gene_means <- Matrix::rowMeans(x@raw)
+	gene_means <- x@gene_info[,"mean"][keep]
+	gene_names <- rownames(x@gene_info)[keep]
 
 	log_mean <- log10(gene_means + 1)
 	log_var <- log10(fast_varCPP(x@raw[keep,], gene_means) + 1)
-	# log_varR <- log10(apply(expr, 1, var) + 1)
-	# print(table(log_var == log_varR))
 	fit <- loess(log_var ~ log_mean, span=lss)
 	rsd <- log_var - fit$fitted
 	topi <- order(rsd, decreasing=TRUE)[1:nf]
@@ -62,6 +67,42 @@ get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3){
 	rownames(df) <- gene_names
 	x@vg <- vg
 	x@vg_info <- df
+	if (verbose) cat("Found variable genes\n")
+	return(x)
+}
+
+#' Get DE genes between high and low read count droplets
+#'
+#' Find differentially expressed genes between low and high read count droplets. Sums
+#' gene expression across all cells within the \code{low_count} and \code{high_count} 
+#' range, divides by the total number of reads in each, and calculates the difference between 
+#' the 2. The top \code{n_genes} genes sorted by absolute difference in proportion are 
+#' designated as DE.
+#'
+#' @param x SCE. SCE object
+#' @param low_count Vector. Range of read counts to consider as background
+#' @param high_count Vector. Range of read counts to consider as target
+#' @param n_genes Numeric. Number of genes to output as differentially expressed between background and candidate
+#' @param verbose Boolean.
+#'
+#' @return SCE object with \code{gene_info[,"diff_prop"]} and \code{deg} slots filled. 
+#' The \code{diff_prop} column contains the background - candidate difference in proportions.
+#' The \code{deg} slot contains the names of the genes output as DE.
+#' @export
+get_de_genes <- function(x, low_count=c(0,150), high_count=c(200,Inf), n_genes=2000, verbose=FALSE){
+	if (verbose) cat("Getting genes differentially expressed between high and low count droplets\n")
+	dc <- x@dropl_info[,"total_counts"]
+	low_expr <- x@raw[,dc > low_count[1] & dc <= low_count[2]]
+	high_expr <- x@raw[,dc > high_count[1] & dc <= high_count[2]]
+
+	low_prop <- Matrix::rowSums(low_expr); low_prop <- low_prop/sum(low_prop)
+	high_prop <- Matrix::rowSums(high_expr); high_prop <- high_prop/sum(high_prop)
+	diff_prop <- low_prop - high_prop
+	
+	x@gene_info[,"diff_prop"] <- diff_prop
+	de_genes <- names(sort(abs(diff_prop), decreasing=TRUE))[1:n_genes]
+	x@deg <- de_genes
+	if (verbose) cat("Found DE genes\n")
 	return(x)
 }
 
@@ -74,21 +115,19 @@ get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3){
 #' @param x SCE object. Must contain data in raw slot
 #' @param min_c Numeric. Minimum row sum
 #' @param max_c Numeric. Maximum row sum
-#' @param slot_name Character. Slot of SCE subset, either raw or norm, or both
 #'
 #' @return x SCE object subsetted
 #' @export
-subset_dropls <- function(x, min_c=-Inf, max_c=Inf, slot_name="raw"){
-	if ( is.null(x@dropl_counts) )
-		x <- fill_counts(x)
+subset_dropls <- function(x, min_c=-Inf, max_c=Inf){
 
-	keep = x@dropl_counts >= min_c & x@dropl_counts <= max_c
-	for (i in slot_name){
-		slot(x, slot_name) <- slot(x, slot_name)[,keep]
+	keep = x@dropl_info[,"total_counts"] > min_c & x@dropl_info[,"total_counts"] <= max_c
+	for (i in c("raw", "norm")){
+		m <- slot(x, i)
+		if (length(m) == 0) next
+		slot(x, i) <- slot(x, i)[,keep]
 	}
-	x@dropl_counts <- x@dropl_counts[keep]
-	x@n_genes <- x@n_genes[keep]
-	if ( ! all(is.na(x@pcs)) )  x@pcs$x <- x@pcs$x[ix,]
+	x@dropl_info <- x@dropl_info[keep,,drop=FALSE]
+	if ( ! all(is.na(x@pcs)) )  x@pcs$x <- x@pcs$x[keep,]
 	return(x)
 }
 
@@ -96,21 +135,19 @@ subset_dropls <- function(x, min_c=-Inf, max_c=Inf, slot_name="raw"){
 #'
 #' @param x SCE object. Must contain data in raw slot
 #' @param n Integer. Number of droplets to subset
-#' @param slot_name Character. Slot of SCE to subset, either raw or norm, or both
 #'
 #' @return x SCE object subsetted
 #' @export
-subset_n_dropls <- function(x, n, slot_name="raw"){
-	if ( is.null(x@dropl_counts) )
-		x <- fill_counts(x)
-
-	ranked <- order(x@dropl_counts, decreasing=TRUE)
+subset_n_dropls <- function(x, n){
+	ranked <- order(x@dropl_info[,"total_counts"], decreasing=TRUE)
+	if (n > length(ranked)) n <- length(ranked)
 	ix <- ranked[1:n]
-	for (i in slot_name){
+	for (i in c("raw", "norm")){
+		m <- slot(x, i)
+		if (length(m) == 0) next
 		slot(x, i) <- slot(x, i)[,ix]
 	}
-	x@dropl_counts <- x@dropl_counts[ix]
-	x@n_genes <- x@n_genes[ix]
+	x@dropl_info <- x@dropl_info[ix,,drop=FALSE]
 	if ( ! all(is.na(x@pcs$x)) )  x@pcs$x <- x@pcs$x[ix,]
 	return(x)
 }
@@ -124,20 +161,18 @@ subset_n_dropls <- function(x, n, slot_name="raw"){
 #' @param x SCE object. Must contain data in raw slot
 #' @param min_c Numeric. Minimum gene counts
 #' @param max_c Numeric. Maximum gene counts
-#' @param. slot_name Character. Data to subset, either raw or norm.
 #'
 #' @return x SCE object subsetted
 #' @export
-subset_genes <- function(x, min_c=-Inf, max_c=Inf, slot_name="raw"){
-	if ( is.null(x@gene_counts) )
-		x <- fill_counts(x)
-
-	keep = x@gene_counts >= min_c & x@gene_counts <= max_c
-	for (i in slot_name){
-		slot(x, i) <- slot(x, i)[keep,]
+subset_genes <- function(x, min_c=-Inf, max_c=Inf){
+	keep = (x@gene_info[,"total_counts"] > min_c) & 
+			(x@gene_info[,"total_counts"] <= max_c)
+	for (i in c("raw", "norm")){
+		m <- slot(x, i)
+		if (length(m) == 0) next
+		slot(x, i) <- slot(x, i)[,keep]
 	}
-	x@gene_means <- x@gene_means[keep]
-	x@gene_counts <- x@gene_counts[keep]
+	x@gene_info <- x@gene_info[keep,,drop=FALSE]
 	return(x)
 }
 
@@ -151,11 +186,12 @@ subset_genes <- function(x, min_c=-Inf, max_c=Inf, slot_name="raw"){
 #' @return expr Sparse matrix. Expression counts from 10X cell ranger
 #'  with cells in the columns and genes in the rows.
 #'
-#' @importFrom Matrix readMM
+#' @import Matrix
 #' @export
 read_10x <- function(path){
 	files <- list.files(path, full.names=TRUE)
-	if ("matrix.mtx.gz" %in% files) v3 = TRUE
+	files_names <- list.files(path, full.names=FALSE)
+	v3 <- "matrix.mtx.gz" %in% files_names
 
 	if (v3){
 		mtx_file <- paste0(path, "/matrix.mtx.gz")
@@ -167,21 +203,21 @@ read_10x <- function(path){
 		barcode_file <- paste0(path, "/barcodes.tsv")
 	}
 	
-	if (mtx_file %in% files) {
+	if (file.exists(mtx_file)) {
 		expr <- readMM(mtx_file)
 	} else {
 		stop(paste0(mtx_file, " not found"))
 	}
 	expr <- as(expr, "CsparseMatrix")
 
-	if (barcode_file %in% files){
+	if (file.exists(barcode_file)){
 		barcode_names <- readLines(barcode_file)
 		barcode_names <- sub("-.*", "", barcode_names)
 	} else {
 		stop(paste0(barcode_file, " not found"))
 	}
 	
-	if (genes_file %in% files){
+	if (file.exists(genes_file)){
 		genes <- read.delim(genes_file, header = FALSE, stringsAsFactors = FALSE, sep = "\t")
 	} else {
 		stop(paste0(genes_file, " not found"))
@@ -192,5 +228,3 @@ read_10x <- function(path){
 
 	return(expr)
 }
-	
-

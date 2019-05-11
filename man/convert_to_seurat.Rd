@@ -4,12 +4,14 @@
 \alias{convert_to_seurat}
 \title{Convert SCE object to Seurat}
 \usage{
-convert_to_seurat(x, targets = TRUE, ...)
+convert_to_seurat(x, targets = TRUE, meta = TRUE, ...)
 }
 \arguments{
 \item{x}{SCE object}
 
 \item{targets}{Boolean. If \code{TRUE}, then output droplets that are specified as targets}
+
+\item{meta}{Boolean. Place information in dropl_info slot into meta.data in Seurat object}
 
 \item{...}{Arguments to \code{\link[Seurat]{CreateSeuratObject}}, such as \code{project} for project name}
 }

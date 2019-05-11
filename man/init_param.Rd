@@ -4,7 +4,7 @@
 \alias{init_param}
 \title{Initialize parameters for EM}
 \usage{
-init_param(x, k)
+init_param(x, k, labels = NULL)
 }
 \arguments{
 \item{x}{Matrix or data frame. Data observations with n rows and p columns}
