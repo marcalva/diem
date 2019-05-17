@@ -4,7 +4,7 @@
 \alias{get_pcs}
 \title{Get PCs from expression data}
 \usage{
-get_pcs(x, n_pcs = 15, center = TRUE, scale. = TRUE, genes = "deg",
+get_pcs(x, n_pcs = 30, center = TRUE, scale. = TRUE, genes = "deg",
   verbose = FALSE)
 }
 \arguments{

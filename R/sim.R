@@ -10,15 +10,18 @@
 #' @param x SCE object
 #' @param start_bin Integer. Read count for starting the bins
 #' @param end_bin Integer. Read count for ending the bins
-#' @param by_bin Numeric. Step size, the width of each bin
+#' @param n_bin Numeric. Number of bins
 #'
 #' @param Matrix with read counts summed across the rows
 #' @export
-bin_by_counts <- function(x, start_bin=0, end_bin=150, by_bin=150){
-	n_bin <- floor((end_bin - start_bin)/by_bin)
+bin_by_counts <- function(x, start_bin=0, end_bin=150, n_bin=1){
+	by_bin <- (end_bin - start_bin)/n_bin
+	by_bin <- ceiling(by_bin)
 	counts <- matrix(nrow=nrow(x@raw), ncol=n_bin)
 	rownames(counts) <- rownames(x@raw)
 	bins <- lapply(1:n_bin, function(x) c(start_bin + (x*by_bin) - by_bin, start_bin + (x*by_bin)))
+	# Length the last bin if uneven
+	bins[[n_bin]][2] <- end_bin
 
 	keep <- sapply(bins, function(bin) any(x@dropl_info[,"total_counts"] > bin[1] & x@dropl_info[,"total_counts"] <= bin[2]) )
 	bins <- bins[keep]
@@ -63,6 +66,40 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 	return(sim)
 }
 
+#' Create matrix with dirichlet-multinomial draws
+#'
+#' Draws random samples from a dirichlet-multinomial distribution. The \code{bins} 
+#' matrix contains the probability values for sampling in the columns. The 
+#' columns to use for each draw are given in the vector \code{bin_sampled}. This should 
+#' be the same length as the value of \code{n_draw}. The dirichlet is sampled by 
+#' taking a sample from the gamma distribution, using the probability in \code{bins} 
+#' as the shape. The parameter \code{shape_mult} multiplies the probability vector in 
+#' \code{bins}. The larger the value, the tighter the dirichlet sample, leading to 
+#' the dirichlet-multinomial approaching the multinomial. After sampling the dirichlet, 
+#' a multinomial of size taken from the vector \code{size_sampled} is taken.
+#'
+#' @param bins Matrix. Contains probabilities for random samples for dirichlet
+#' @param bin_sampled Vector. Column indices of bins to use for each draw
+#' @param size_sampled Vector. Sizes to use for each multinomial draw
+#' @param n_draw Integer. Number of random samples to take
+#' @param shape_mult Numeric. Value to multiply the probability vector in bins to get dirichlet parameter.
+#' @param seedn Boolean. Seed number
+#'
+#' @return Matrix with each column containing a random sample from the dirichlet-multinomial.
+#' @export
+draw_diri_multinom <- function(bins, bin_sampled, size_sampled, n_draw, shape_mult=1, seedn=NULL){
+	set.seed(seedn)
+	nv <- nrow(bins)
+	sim <- matrix(nrow=nv, ncol=n_draw)
+	for (i in 1:n_draw){
+		prob <- rgamma(n=nv, shape=shape_mult*bins[,bin_sampled[i]])
+		sim[,i] <- rmultinom(n=1, size=size_sampled[i], prob=prob/sum(prob))
+	}
+	rownames(sim) <- rownames(bins)
+	colnames(sim) <- paste0("SIM", as.character(1:n_draw))
+	return(sim)
+}
+
 #' Simulate background droplets with higher read counts
 #'
 #' Given an SCE object with raw expression data containing droplets from background 
@@ -70,8 +107,8 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 #' count distribution as candidate targets. Then replace the expression data with 
 #' counts only from the simulated droplets and the candidate target droplets. Labels 
 #' the simulated background droplets in the column "background" of \code{x@dropl_info}. 
-#' Candidate targets are the droplets with total counts within the \code{count_range} 
-#' range and total genes detected in the \code{genes_detected} range. The simulated 
+#' Candidate targets are the droplets with total counts and genes detected as 
+#' specified in the SCE object limits. The simulated 
 #' background droplets are generated from a multinomial distribution, which is estimated 
 #' from the background droplets. The background droplets are identified as those with
 #' total reads counts in the range between \code{start_bin} and \code{end_bin}. By default, 
@@ -79,12 +116,10 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 #' be estimated from bins of \code{by_bin} width between \code{start_bin} and \code{end_bin}.
 #' 
 #' @param x SCE.
-#' @param count_range Vector. Range of read counts to consider as candidate targets
-#' @param gene_range Vector. Range of genes detected to consider as candidate targets
 #' @param simf Numeric. Generate number of candidates * simf random samples
-#' @param start_bin Integer. Start range for read counts to generate multinomial distribution(s)
-#' @param end_bin Integer. End range for read counts to generate multinomial distribution(s)
 #' @param by_bin Numeric. Bin size to use for generating multinomial distribution(s)
+#' @param dm Boolean. If true, use Dirichlet-multinomial to sample
+#' @param shape_mult Numeric. Value to multiply the probability vector in bins to get dirichlet parameter
 #' @param seedn Numeric. Number to set seed
 #' @param verbose Boolean
 #'
@@ -93,27 +128,27 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 #' of \code{x@dropl_info} as a 1, while candidate targets are labeled as 0.
 #' @export
 set_expression <- function(x, 
-						   count_range=c(199,Inf), 
-						   gene_range=c(0, Inf), 
-						   simf=2, 
-						   start_bin=0, 
-						   end_bin=150, 
-						   by_bin=NULL, 
+						   simf=1, 
+						   n_bin=1, 
+						   dm=TRUE,
+						   shape_mult=100,
 						   seedn=NULL,
 						   verbose=FALSE){
 	if (verbose) cat("Simulating background droplets\n")
 
 	# Use 1 bin by default.
-
-	if (is.null(by_bin)) by_bin <- (end_bin - start_bin)
+	start_bin <- x@limits$min_bg_count
+	end_bin <- x@limits$max_bg_count
 	# Select candidate targets from sce object x
-	candidate_bool <- ( x@dropl_info[,"total_counts"] > count_range[1] ) &
-	( x@dropl_info[,"total_counts"] <= count_range[2] ) &
-	( x@dropl_info[,"n_genes"] > gene_range[1] ) &
-	( x@dropl_info[,"n_genes"] <= gene_range[2] )
+	tc <- x@dropl_info[,"total_counts"]
+	ng <- x@dropl_info[,"n_genes"]
+	candidate_bool <- ( tc > x@limits$min_tg_count ) &
+	( tc <= x@limits$max_tg_count ) &
+	( ng > x@limits$min_tg_gene ) &
+	( ng <= x@limits$max_tg_gene )
 
 	if ( sum(candidate_bool) == 0 ){
-		stop("No candidate droplets meet count_range and gene_range requirements")
+		stop("No candidate droplets meet the limit requirements")
 	}
 
 	candd <- x@raw[, candidate_bool]
@@ -121,15 +156,25 @@ set_expression <- function(x,
 	
 	# Multinomial distributions binned from count ranges. Used to simulate background droplets
 	if (verbose) cat("Binning background droplets...\n")
-	binned <- bin_by_counts(x, start_bin=start_bin, end_bin=end_bin, by_bin=by_bin)
+	binned <- bin_by_counts(x, start_bin=start_bin, end_bin=end_bin, n_bin=n_bin)
 	probs <- rep( 1/ncol(binned), times=ncol(binned))
 
 	n_draw <- simf*ncol(candd)
 
-	if (verbose) cat("Drawing from multinomial...\n")
 	sizes_sampled <- sample(x=count_sizes, size=n_draw, replace=TRUE)
 	bins_sampled <- sample(1:ncol(binned), size=n_draw, prob=probs, replace=TRUE)
-	simM <- draw_multinom(bins=binned, bin_sampled=bins_sampled, size_sampled=sizes_sampled, n_draw, seedn=seedn)
+	if (dm){
+		if (verbose) cat("Drawing from dirichlet-multinomial...\n")
+		simM <- draw_diri_multinom(bins=binned, 
+								   bin_sampled=bins_sampled, 
+								   size_sampled=sizes_sampled, 
+								   n_draw, 
+								   shape_mult=shape_mult, 
+								   seedn=seedn)
+	} else {
+		if (verbose) cat("Drawing from multinomial...\n")
+		simM <- draw_multinom(bins=binned, bin_sampled=bins_sampled, size_sampled=sizes_sampled, n_draw, seedn=seedn)
+	}
 
 	simM <- Matrix::Matrix(simM, sparse=TRUE)
 	all_expr <- cbind(simM, candd)
@@ -139,7 +184,10 @@ set_expression <- function(x,
 	# Label background
 	labels <- rep(0, ncol(x@raw)); names(labels) = colnames(x@raw)
 	labels[1:n_draw] <- 1
+	bins_col <- c(bins_sampled, rep("NA", ncol(x@raw)-n_draw))
 	x@dropl_info[,"background"] <- labels
+	# x@dropl_info[,"sim_bin"] <- bins_col
+	x@bins <- binned
 
 	if (verbose) cat("Simulated background droplets\n")
 	return(x)

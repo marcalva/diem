@@ -4,9 +4,11 @@
 \alias{diem}
 \title{Run diem pipeline}
 \usage{
-diem(sce, n_pcs = 5, n_runs = 10, min_bg_count = 0,
-  max_bg_count = 150, min_count = 199, min_gene = 199, simf = 2,
-  p = 0.95, seedn = NULL, verbose = TRUE)
+diem(sce, n_pcs = 1, n_runs = 10, min_bg_count = 0,
+  max_bg_count = 150, min_tg_count = 199, max_tg_count = Inf,
+  min_tg_gene = 199, max_tg_gene = Inf, top_n_tg = NULL,
+  top_n_bg = NULL, n_deg = 2000, simf = 1, n_bin = 1,
+  shape_mult = 100, p = 0.5, seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. ACE object with raw counts}
@@ -19,11 +21,25 @@ diem(sce, n_pcs = 5, n_runs = 10, min_bg_count = 0,
 
 \item{max_bg_count}{Numeric. Maximum number of counts for a droplet to be considered background}
 
-\item{min_count}{Numeric. Minimum number of counts for a droplet to be considered a cell/nucleus}
+\item{min_tg_count}{Numeric. Minimum number of counts for a droplet to be considered target}
 
-\item{min_gene}{Numeric. Minimum number of genes for a droplet to be considered a cell/nucleus}
+\item{max_tg_count}{Numeric. Maximum number of counts for a droplet to be considered target}
+
+\item{min_tg_gene}{Numeric. Minimum number of genes detected for a droplet to be considered target}
+
+\item{max_tg_gene}{Numeric. Maximum number of genes detected for a droplet to be considered target}
+
+\item{top_n_tg}{Numeric. Set the top n ranked by counts as the threshold for considering targets}
+
+\item{top_n_bg}{Numeric. Set the top n ranked by counts as the threshold for considering background}
+
+\item{n_deg}{Integer. Number of differentially expressed genes between low/high count droplets to use for calculating PCA}
 
 \item{simf}{Numeric. Factor to multiply the number of candidates to get the number of background droplets simulated}
+
+\item{n_bin}{Numeric. Number of bins to sample from between min_bg_count and max_bg_count}
+
+\item{shape_mult}{Numeric. Number to multiply gene probabilities for sampling from dirichlet}
 
 \item{p}{Numeric. Minimum membership probability to call a target}
 

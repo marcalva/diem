@@ -4,14 +4,10 @@
 \alias{call_targets}
 \title{Call targets after EM}
 \usage{
-call_targets(x, min_count = 200, min_gene = 200, p = 0.95)
+call_targets(x, p = 0.95)
 }
 \arguments{
 \item{x}{SCE. SCE object}
-
-\item{min_count}{Integer. Minimum number of read/UMI counts to call a target}
-
-\item{min_gene}{Integer. Minimum number of genes detected to call a target}
 
 \item{p}{Numeric. Proportion of likelihood to call a target}
 }

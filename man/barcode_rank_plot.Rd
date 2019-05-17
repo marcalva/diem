@@ -4,7 +4,7 @@
 \alias{barcode_rank_plot}
 \title{Create a barcode rank plot}
 \usage{
-barcode_rank_plot(x, return = FALSE)
+barcode_rank_plot(x, title = "", return = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}

@@ -4,28 +4,23 @@
 \alias{set_expression}
 \title{Simulate background droplets with higher read counts}
 \usage{
-set_expression(x, count_range = c(199, Inf), gene_range = c(0, Inf),
-  simf = 2, start_bin = 0, end_bin = 150, by_bin = NULL,
+set_expression(x, simf = 1, n_bin = 1, dm = TRUE, shape_mult = 100,
   seedn = NULL, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE.}
 
-\item{count_range}{Vector. Range of read counts to consider as candidate targets}
-
-\item{gene_range}{Vector. Range of genes detected to consider as candidate targets}
-
 \item{simf}{Numeric. Generate number of candidates * simf random samples}
 
-\item{start_bin}{Integer. Start range for read counts to generate multinomial distribution(s)}
+\item{dm}{Boolean. If true, use Dirichlet-multinomial to sample}
 
-\item{end_bin}{Integer. End range for read counts to generate multinomial distribution(s)}
-
-\item{by_bin}{Numeric. Bin size to use for generating multinomial distribution(s)}
+\item{shape_mult}{Numeric. Value to multiply the probability vector in bins to get dirichlet parameter}
 
 \item{seedn}{Numeric. Number to set seed}
 
 \item{verbose}{Boolean}
+
+\item{by_bin}{Numeric. Bin size to use for generating multinomial distribution(s)}
 }
 \value{
 SCE object with raw expression data replaced by simulated background droplets and 
@@ -38,8 +33,8 @@ and targets (cells/nuclei), generate simulated background droplets with the same
 count distribution as candidate targets. Then replace the expression data with 
 counts only from the simulated droplets and the candidate target droplets. Labels 
 the simulated background droplets in the column "background" of \code{x@dropl_info}. 
-Candidate targets are the droplets with total counts within the \code{count_range} 
-range and total genes detected in the \code{genes_detected} range. The simulated 
+Candidate targets are the droplets with total counts and genes detected as 
+specified in the SCE object limits. The simulated 
 background droplets are generated from a multinomial distribution, which is estimated 
 from the background droplets. The background droplets are identified as those with
 total reads counts in the range between \code{start_bin} and \code{end_bin}. By default, 

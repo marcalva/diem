@@ -4,15 +4,10 @@
 \alias{get_de_genes}
 \title{Get DE genes between high and low read count droplets}
 \usage{
-get_de_genes(x, low_count = c(0, 150), high_count = c(200, Inf),
-  n_genes = 2000, verbose = FALSE)
+get_de_genes(x, n_genes = 2000, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}
-
-\item{low_count}{Vector. Range of read counts to consider as background}
-
-\item{high_count}{Vector. Range of read counts to consider as target}
 
 \item{n_genes}{Numeric. Number of genes to output as differentially expressed between background and candidate}
 
@@ -25,8 +20,8 @@ The \code{deg} slot contains the names of the genes output as DE.
 }
 \description{
 Find differentially expressed genes between low and high read count droplets. Sums
-gene expression across all cells within the \code{low_count} and \code{high_count} 
-range, divides by the total number of reads in each, and calculates the difference between 
+gene expression across all cells within the limits specified in the SCE object, 
+divides by the total number of reads in each, and calculates the difference between 
 the 2. The top \code{n_genes} genes sorted by absolute difference in proportion are 
 designated as DE.
 }

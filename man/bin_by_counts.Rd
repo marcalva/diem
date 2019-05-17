@@ -4,7 +4,7 @@
 \alias{bin_by_counts}
 \title{Bin by expression counts}
 \usage{
-bin_by_counts(x, start_bin = 0, end_bin = 150, by_bin = 150)
+bin_by_counts(x, start_bin = 0, end_bin = 150, n_bin = 1)
 }
 \arguments{
 \item{x}{SCE object}
@@ -13,7 +13,7 @@ bin_by_counts(x, start_bin = 0, end_bin = 150, by_bin = 150)
 
 \item{end_bin}{Integer. Read count for ending the bins}
 
-\item{by_bin}{Numeric. Step size, the width of each bin}
+\item{n_bin}{Numeric. Number of bins}
 
 \item{Matrix}{with read counts summed across the rows}
 }

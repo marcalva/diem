@@ -19,8 +19,9 @@
 #' the \code{pcs} slot
 #' @importFrom irlba prcomp_irlba
 #' @export
-get_pcs <- function(x, n_pcs=15, center = TRUE, scale. = TRUE, genes="deg", verbose=FALSE){
+get_pcs <- function(x, n_pcs=30, center = TRUE, scale. = TRUE, genes="deg", verbose=FALSE){
 	if (verbose) cat("Running PCA\n")
+	if (n_pcs < 30) n_pcs <- 30
 	gn <- slot(x, genes)
 	if (length(gn) == 0){
 		stop(paste0("No genes listed in slot ", genes))
@@ -119,7 +120,7 @@ get_bgscore <- function(x){
 #' @return SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
 #' @export
 run_em_pcs <- function(x, 
-					   n_pcs=NULL, 
+					   n_pcs=1, 
 					   min_iter=5, 
 					   max_iter=1000, 
 					   eps=1e-10, 
@@ -127,6 +128,13 @@ run_em_pcs <- function(x,
 					   seedn=NULL, 
 					   verbose=TRUE){
 	runs <- list()
+	if (is.null(n_pcs)) {n_pcs <- ncol(x@pcs$x)}
+	df <- x@pcs$x[,1:n_pcs,drop=FALSE]
+	for (i in 1:n_runs){
+		runs[[i]] <- run_mv_em_diag(df, k=2, min_iter=min_iter, max_iter=max_iter,
+									labels = x@dropl_info[,"background"], eps=eps, seedn=seedn, verbose=verbose)
+		if (!is.null(seedn)) seedn <- seedn + 1
+	}
 	for (i in 1:n_runs){
 		if (!is.null(n_pcs)){
 			runs[[i]] <- run_mv_em_diag(x@pcs$x[,1:n_pcs], k=2, min_iter=min_iter, max_iter=max_iter,
@@ -145,20 +153,62 @@ run_em_pcs <- function(x,
 	return(x)
 }
 
+#' Run EM on PCs + BgScore
+#' 
+#' Run expectation maximization (EM) using diagonal covariance on expression PCs in an SCE object with k=2 groups. 
+#' EM is run \code{n_runs} times with random initializations, and the EM output parameters with 
+#' the best log likelihood is output. Within EM, iterate a minimum of \code{min_iter} times and 
+#' a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
+#' log likelihood until covnergence is called. \code{seedn} gives the seed for random number generation, 
+#' which can be used to reproduce results.
+#'
+#' @param x SCE. SCE object with PCs and labels
+#' @param n_pcs Integer. Number of expression PCs to use for running EM
+#' @param min_iter Integer. Minimum number of iterations
+#' @param max_iter Integer. Maximum number of iterations
+#' @param eps Numeric. Epsilon of log-likilhood change to call convergence
+#' @param n_runs Integer. Number of EM runs, with best result returned
+#' @param seedn Numeric. Seed for random number generation
+#' @param verbose Boolean. Print out logging information
+#'
+#' @return SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
+#' @export
+run_em_bg_score_pcs <- function(x, 
+					   n_pcs=3, 
+					   min_iter=5, 
+					   max_iter=1000, 
+					   eps=1e-10, 
+					   n_runs=10, 
+					   seedn=NULL, 
+					   verbose=TRUE){
+	runs <- list()
+	if (is.null(n_pcs)) {n_pcs <- ncol(x@pcs$x)}
+	df <- cbind(x@dropl_info$bg_score, x@pcs$x[,1:n_pcs])
+	for (i in 1:n_runs){
+		runs[[i]] <- run_mv_em_diag(df, k=2, min_iter=min_iter, max_iter=max_iter,
+									labels = x@dropl_info[,"background"], eps=eps, seedn=seedn, verbose=verbose)
+		if (!is.null(seedn)) seedn <- seedn + 1
+	}
+	llks <- sapply(runs, function(x) x$llks[length(x$llks)])
+	max_i <- which.max(llks)
+	x@emo <- runs[[max_i]]
+	# Add column names
+	colnames(x@emo$Z) <- c("Background", "Target")
+	return(x)
+}
+
 #' Call targets after EM
 #'
 #' Call targets (typically cells or nuclei) from droplets if the 
 #' log-likelihood membership probability is higher than \code{p}.
 #'
 #' @param x SCE. SCE object
-#' @param min_count Integer. Minimum number of read/UMI counts to call a target
-#' @param min_gene Integer. Minimum number of genes detected to call a target
 #' @param p Numeric. Proportion of likelihood to call a target
 #'
 #' @return SCE object
 #' @export
-call_targets <- function(x, min_count=200, min_gene=200, p=0.95){
-	keep <- (x@emo$Z[,2] > p) & (x@dropl_info[,"total_counts"] >= min_count) & (x@dropl_info[,"n_genes"] >= min_gene)
+call_targets <- function(x, p=0.95){
+	keep <- (x@emo$Z[,2] > p) & (x@dropl_info[,"total_counts"] > x@limits$min_tg_count) & (x@dropl_info[,"n_genes"] > x@limits$min_tg_gene)
 	x@dropl_info[,"Target"] <- keep
 	return(x)
 }

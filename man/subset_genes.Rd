@@ -4,7 +4,7 @@
 \alias{subset_genes}
 \title{Subset genes in SCE object}
 \usage{
-subset_genes(x, min_c = -Inf, max_c = Inf)
+subset_genes(x, min_c = -Inf, max_c = Inf, genes = NULL)
 }
 \arguments{
 \item{x}{SCE object. Must contain data in raw slot}

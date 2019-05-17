@@ -4,10 +4,12 @@
 \alias{create_SCE}
 \title{Create SCE object from sparse matrix}
 \usage{
-create_SCE(x)
+create_SCE(x, name = "SCE")
 }
 \arguments{
 \item{x}{Sparse matrix. Raw expression counts from single-cell experiment, genes in rows, droplets in columns}
+
+\item{name}{Character. Name for SCE object.}
 }
 \value{
 SCE object

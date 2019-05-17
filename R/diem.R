@@ -18,9 +18,16 @@
 #' @param n_runs Integer. Number of random starts for EM run, with best result returned
 #' @param min_bg_count Numeric. Minimum number of counts for a droplet to be considered background
 #' @param max_bg_count Numeric. Maximum number of counts for a droplet to be considered background
-#' @param min_count Numeric. Minimum number of counts for a droplet to be considered a cell/nucleus
-#' @param min_gene Numeric. Minimum number of genes for a droplet to be considered a cell/nucleus
+#' @param min_tg_count Numeric. Minimum number of counts for a droplet to be considered target
+#' @param max_tg_count Numeric. Maximum number of counts for a droplet to be considered target
+#' @param min_tg_gene Numeric. Minimum number of genes detected for a droplet to be considered target
+#' @param max_tg_gene Numeric. Maximum number of genes detected for a droplet to be considered target
+#' @param top_n_tg Numeric. Set the top n ranked by counts as the threshold for considering targets
+#' @param top_n_bg Numeric. Set the top n ranked by counts as the threshold for considering background
+#' @param n_deg Integer. Number of differentially expressed genes between low/high count droplets to use for calculating PCA
 #' @param simf Numeric. Factor to multiply the number of candidates to get the number of background droplets simulated
+#' @param n_bin Numeric. Number of bins to sample from between min_bg_count and max_bg_count
+#' @param shape_mult Numeric. Number to multiply gene probabilities for sampling from dirichlet
 #' @param p Numeric. Minimum membership probability to call a target
 #' @param seedn Numeric. Seed for random number generation
 #' @param verbose Boolean. Print out logging information
@@ -29,23 +36,35 @@
 #' @useDynLib diem
 #' @export
 diem <- function(sce, 
-				 n_pcs=5, 
+				 n_pcs=1, 
 				 n_runs=10, 
 				 min_bg_count=0, 
 				 max_bg_count=150, 
-				 min_count=199, 
-				 min_gene=199, 
-				 simf=2, 
-				 p=0.95, 
+				 min_tg_count=199, 
+				 max_tg_count=Inf,
+				 min_tg_gene=199,
+				 max_tg_gene=Inf,
+				 top_n_tg=NULL,
+				 top_n_bg=NULL, 
+				 n_deg=2000, 
+				 simf=1, 
+				 n_bin=1,
+				 shape_mult=100,
+				 p=0.5, 
 				 seedn=NULL, 
 				 verbose=TRUE){
-	sce <- get_de_genes(sce, low_count=c(min_bg_count,max_bg_count), high_count=c(min_count, Inf), verbose=verbose)
-	sce <- set_expression(sce, count_range=c(min_count, Inf), gene_range=c(min_gene, Inf), simf=simf, seedn=seedn, verbose=verbose)
+	sce <- set_limits(sce, min_bg_count=min_bg_count, max_bg_count=max_bg_count, 
+					  min_tg_count=min_tg_count, max_tg_count=max_tg_count, 
+					  min_tg_gene=min_tg_gene, max_tg_gene=max_tg_gene,
+					  top_n_tg=top_n_tg, top_n_bg=top_n_bg)
+	sce <- get_de_genes(sce, n_genes=n_deg, verbose=verbose)
+	sce <- get_var_genes(sce, nf=n_deg)
+	sce <- set_expression(sce, simf=simf, n_bin=1, seedn=seedn, shape_mult=shape_mult, verbose=verbose)
 	sce <- normalize(sce, verbose=verbose)
 	sce <- get_bgscore(sce)
-	sce <- get_pcs(sce, n_pcs, genes="deg", verbose=verbose)
-	sce <- run_em_pcs(sce, n_pcs=n_pcs, n_runs=n_runs, seedn=seedn, verbose=verbose)
-	sce <- call_targets(sce, min_gene=min_gene, p=p)
+	sce <- get_pcs(sce, genes="deg", verbose=verbose)
+	sce <- run_em_bg_score_pcs(sce, n_pcs=n_pcs, n_runs=n_runs, seedn=seedn, verbose=verbose)
+	sce <- call_targets(sce, p=p)
 	sce <- get_mt_malat1(sce)
 	return(sce)
 }

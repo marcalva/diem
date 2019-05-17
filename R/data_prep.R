@@ -8,13 +8,13 @@
 #'
 #' @param x SCE. SCE 
 #' @param logt Boolean. Log transform
-#' @param sf Numeric. A scaling factor to multiply values after division by total count
+#' @param sf Numeric. A scaling factor to multiply values after division by total count. If NULL, use the median of counts
 #' @param verbose Boolean.
 #'
 #' @return An SCE object with normalized expression data
 #' @importFrom Matrix Diagonal
 #' @export
-normalize <- function(x, logt=TRUE, sf=NULL, verbose=FALSE){
+normalize <- function(x, logt=TRUE, sf=1, verbose=FALSE){
 	if (verbose) cat("Normalizing gene expression\n")
 	expr <- x@raw
 	if (is.null(sf)) sf <- median(Matrix::colSums(expr))
@@ -74,14 +74,12 @@ get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3, verbose=FALS
 #' Get DE genes between high and low read count droplets
 #'
 #' Find differentially expressed genes between low and high read count droplets. Sums
-#' gene expression across all cells within the \code{low_count} and \code{high_count} 
-#' range, divides by the total number of reads in each, and calculates the difference between 
+#' gene expression across all cells within the limits specified in the SCE object, 
+#' divides by the total number of reads in each, and calculates the difference between 
 #' the 2. The top \code{n_genes} genes sorted by absolute difference in proportion are 
 #' designated as DE.
 #'
 #' @param x SCE. SCE object
-#' @param low_count Vector. Range of read counts to consider as background
-#' @param high_count Vector. Range of read counts to consider as target
 #' @param n_genes Numeric. Number of genes to output as differentially expressed between background and candidate
 #' @param verbose Boolean.
 #'
@@ -89,11 +87,11 @@ get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3, verbose=FALS
 #' The \code{diff_prop} column contains the background - candidate difference in proportions.
 #' The \code{deg} slot contains the names of the genes output as DE.
 #' @export
-get_de_genes <- function(x, low_count=c(0,150), high_count=c(200,Inf), n_genes=2000, verbose=FALSE){
+get_de_genes <- function(x, n_genes=2000, verbose=FALSE){
 	if (verbose) cat("Getting genes differentially expressed between high and low count droplets\n")
 	dc <- x@dropl_info[,"total_counts"]
-	low_expr <- x@raw[,dc > low_count[1] & dc <= low_count[2]]
-	high_expr <- x@raw[,dc > high_count[1] & dc <= high_count[2]]
+	low_expr <- x@raw[, (dc > x@limits$min_bg_count) & (dc <= x@limits$max_bg_count)]
+	high_expr <- x@raw[, (dc > x@limits$min_tg_count) & (dc <= x@limits$max_tg_count)]
 
 	low_prop <- Matrix::rowSums(low_expr); low_prop <- low_prop/sum(low_prop)
 	high_prop <- Matrix::rowSums(high_expr); high_prop <- high_prop/sum(high_prop)
@@ -164,13 +162,14 @@ subset_n_dropls <- function(x, n){
 #'
 #' @return x SCE object subsetted
 #' @export
-subset_genes <- function(x, min_c=-Inf, max_c=Inf){
-	keep = (x@gene_info[,"total_counts"] > min_c) & 
+subset_genes <- function(x, min_c=-Inf, max_c=Inf, genes=NULL){
+	keep <- (x@gene_info[,"total_counts"] > min_c) & 
 			(x@gene_info[,"total_counts"] <= max_c)
+	keep <- keep & (rownames(x@gene_info) %in% genes)
 	for (i in c("raw", "norm")){
 		m <- slot(x, i)
 		if (length(m) == 0) next
-		slot(x, i) <- slot(x, i)[,keep]
+		slot(x, i) <- slot(x, i)[keep,]
 	}
 	x@gene_info <- x@gene_info[keep,,drop=FALSE]
 	return(x)

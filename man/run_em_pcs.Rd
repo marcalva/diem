@@ -4,7 +4,7 @@
 \alias{run_em_pcs}
 \title{Specify background droplets and candidate droplets}
 \usage{
-run_em_pcs(x, n_pcs = NULL, min_iter = 5, max_iter = 1000,
+run_em_pcs(x, n_pcs = 1, min_iter = 5, max_iter = 1000,
   eps = 1e-10, n_runs = 10, seedn = NULL, verbose = TRUE)
 }
 \arguments{

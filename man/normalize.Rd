@@ -4,14 +4,14 @@
 \alias{normalize}
 \title{Normalize raw count data}
 \usage{
-normalize(x, logt = TRUE, sf = NULL, verbose = FALSE)
+normalize(x, logt = TRUE, sf = 1, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE}
 
 \item{logt}{Boolean. Log transform}
 
-\item{sf}{Numeric. A scaling factor to multiply values after division by total count}
+\item{sf}{Numeric. A scaling factor to multiply values after division by total count. If NULL, use the median of counts}
 
 \item{verbose}{Boolean.}
 }
