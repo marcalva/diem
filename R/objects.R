@@ -15,6 +15,7 @@ SCE <- setClass(Class = "SCE",
                           vg = "vector", 
                           vg_info = "data.frame", 
                           deg = "vector", 
+                          gene_prob = "matrix", 
                           bins = "matrix", 
                           bins_top = "vector", 
                           pcs = "ANY",
@@ -122,6 +123,11 @@ set_limits <- function(x,
 		stop("Minimum count threshold for targets must be greater than maximum count threshold for background")
 	}
 	x@limits <- limits
+	dc <- x@dropl_info[,"total_counts"]
+	dg <- x@dropl_info[,"n_genes"]
+	low_droplets <- (dc > x@limits$min_bg_count) & (dc <= x@limits$max_bg_count)
+	high_droplets <- (dc > x@limits$min_tg_count) & (dc <= x@limits$max_tg_count) & (dg > x@limits$min_tg_gene) & (dg <= x@limits$max_tg_gene)
+
 	return(x)
 }
 

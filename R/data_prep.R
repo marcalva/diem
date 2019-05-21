@@ -87,20 +87,44 @@ get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3, verbose=FALS
 #' The \code{diff_prop} column contains the background - candidate difference in proportions.
 #' The \code{deg} slot contains the names of the genes output as DE.
 #' @export
-get_de_genes <- function(x, n_genes=2000, verbose=FALSE){
+get_de_genes <- function(x, n_genes=500, sd=NULL, verbose=FALSE){
 	if (verbose) cat("Getting genes differentially expressed between high and low count droplets\n")
 	dc <- x@dropl_info[,"total_counts"]
-	low_expr <- x@raw[, (dc > x@limits$min_bg_count) & (dc <= x@limits$max_bg_count)]
-	high_expr <- x@raw[, (dc > x@limits$min_tg_count) & (dc <= x@limits$max_tg_count)]
+	dg <- x@dropl_info[,"n_genes"]
+	low_droplets <- (dc > x@limits$min_bg_count) & (dc <= x@limits$max_bg_count)
+	high_droplets <- (dc > x@limits$min_tg_count) & (dc <= x@limits$max_tg_count) & (dg > x@limits$min_tg_gene) & (dg <= x@limits$max_tg_gene)
+	low_expr <- x@raw[, low_droplets]
+	high_expr <- x@raw[, high_droplets]
+	
+	# keep <- rowMeans(high_expr) >= min_mean
+	# low_expr <- low_expr[keep,]
+	# high_expr <- high_expr[keep,]
 
 	low_prop <- Matrix::rowSums(low_expr); low_prop <- low_prop/sum(low_prop)
 	high_prop <- Matrix::rowSums(high_expr); high_prop <- high_prop/sum(high_prop)
-	diff_prop <- low_prop - high_prop
-	
-	x@gene_info[,"diff_prop"] <- diff_prop
-	de_genes <- names(sort(abs(diff_prop), decreasing=TRUE))[1:n_genes]
+
+	x@gene_prob <- cbind(low_prop, high_prop)
+	x@gene_info$diff_prop <- low_prop - high_prop
+
+	# Use log transform and scaling to get differences
+	log_low_prop <- log1p(1e4 * low_prop)
+	log_high_prop <- log1p(1e4 * high_prop)
+	log_diff_prop <- log_low_prop - log_high_prop
+
+	de_genes <- names(sort(abs(log_diff_prop), decreasing=TRUE))[1:n_genes]
 	x@deg <- de_genes
-	if (verbose) cat("Found DE genes\n")
+
+	# Check if de genes can separate background from top expressed droplets
+	top100 <- rownames(x@dropl_info)[order(x@dropl_info$total_counts, decreasing=TRUE)][1:100]
+	hp <- sweep_total(high_expr[,top100], x@dropl_info[top100,"total_counts"])
+	top100scores <- Matrix::colSums(hp[de_genes,])
+	bgscore <- sum(low_prop[de_genes])
+	quartiles <- quantile(top100scores, probs = c(0.25, 0.75))
+	if ( (bgscore > quartiles[1]) & (bgscore < quartiles[2]) ){
+		cat("Warning: no separation found using these differential genes\n")
+	} else {
+		if (verbose) cat("Found DE genes\n")
+	}
 	return(x)
 }
 

@@ -36,7 +36,7 @@
 #' @useDynLib diem
 #' @export
 diem <- function(sce, 
-				 n_pcs=1, 
+				 n_pcs=3, 
 				 n_runs=10, 
 				 min_bg_count=0, 
 				 max_bg_count=150, 
@@ -46,7 +46,7 @@ diem <- function(sce,
 				 max_tg_gene=Inf,
 				 top_n_tg=NULL,
 				 top_n_bg=NULL, 
-				 n_deg=2000, 
+				 n_deg=500, 
 				 simf=1, 
 				 n_bin=1,
 				 shape_mult=100,

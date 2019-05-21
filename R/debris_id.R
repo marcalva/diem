@@ -21,22 +21,33 @@
 #' @export
 get_pcs <- function(x, n_pcs=30, center = TRUE, scale. = TRUE, genes="deg", verbose=FALSE){
 	if (verbose) cat("Running PCA\n")
-	if (n_pcs < 30) n_pcs <- 30
 	gn <- slot(x, genes)
+	if (n_pcs < 30) n_pcs <- 30
+	if (length(gn) <= n_pcs) n_pcs <- length(gn)-1
 	if (length(gn) == 0){
 		stop(paste0("No genes listed in slot ", genes))
 	}
+	if (length(gn) > 100){
 	pcs <- prcomp_irlba(Matrix::t(x@norm[gn,]), 
 						n=n_pcs, 
 						retx=TRUE, 
 						center=TRUE, 
 						scale.=scale.)
+	} else {
+		pcs <- prcomp(Matrix::t(x@norm[gn,]), retx=TRUE, center=TRUE, scale.=scale.)
+	}
 	rownames(pcs$x) <- colnames(x@norm)
 	rownames(pcs$rotation) <- gn
-	colnames(pcs$x) <- paste0("PC", as.character(1:n_pcs))
+	colnames(pcs$x) <- paste0("PC", as.character(1:ncol(pcs$x)))
 	x@pcs <- pcs
 	if (verbose) cat("Found PCs\n")
 	return(x)
+}
+
+#' @export
+sweep_total <- function(x, vec){
+	d <- Matrix::Diagonal(x = 1/vec)
+	x <- x %*% d
 }
 
 #' Get background score for each cell
@@ -52,8 +63,7 @@ get_pcs <- function(x, n_pcs=30, center = TRUE, scale. = TRUE, genes="deg", verb
 #' @export
 get_bgscore <- function(x){
     expr <- x@raw
-    d <- Matrix::Diagonal(x = 1/x@dropl_info[,"total_counts"])
-    expr <- expr %*% d
+    expr <- sweep_total(expr, x@dropl_info[,"total_counts"])
     diff_prop <- x@gene_info[x@deg, "diff_prop" ,drop=FALSE]
     bg_genes <- rownames(diff_prop[ diff_prop[,"diff_prop"] > 0, , drop=FALSE])
     x@dropl_info[,"bg_score"] <- Matrix::colSums(expr[bg_genes,])
