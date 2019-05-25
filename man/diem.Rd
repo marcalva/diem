@@ -4,11 +4,11 @@
 \alias{diem}
 \title{Run diem pipeline}
 \usage{
-diem(sce, n_pcs = 1, n_runs = 10, min_bg_count = 0,
+diem(sce, n_pcs = 3, n_runs = 10, min_bg_count = 0,
   max_bg_count = 150, min_tg_count = 199, max_tg_count = Inf,
   min_tg_gene = 199, max_tg_gene = Inf, top_n_tg = NULL,
-  top_n_bg = NULL, n_deg = 2000, simf = 1, n_bin = 1,
-  shape_mult = 100, p = 0.5, seedn = NULL, verbose = TRUE)
+  top_n_bg = NULL, max_drop = 10000, fc_thresh = 2, simf = 1,
+  n_bin = 1, alpha = 100, p = 0.5, seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. ACE object with raw counts}
@@ -33,13 +33,13 @@ diem(sce, n_pcs = 1, n_runs = 10, min_bg_count = 0,
 
 \item{top_n_bg}{Numeric. Set the top n ranked by counts as the threshold for considering background}
 
-\item{n_deg}{Integer. Number of differentially expressed genes between low/high count droplets to use for calculating PCA}
+\item{max_drop}{Integer. Maximum number of droplets to use for t-test to get DE genes}
 
 \item{simf}{Numeric. Factor to multiply the number of candidates to get the number of background droplets simulated}
 
 \item{n_bin}{Numeric. Number of bins to sample from between min_bg_count and max_bg_count}
 
-\item{shape_mult}{Numeric. Number to multiply gene probabilities for sampling from dirichlet}
+\item{alpha}{Numeric. Number to multiply gene probabilities for sampling from dirichlet}
 
 \item{p}{Numeric. Minimum membership probability to call a target}
 

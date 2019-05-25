@@ -4,8 +4,8 @@
 \alias{draw_diri_multinom}
 \title{Create matrix with dirichlet-multinomial draws}
 \usage{
-draw_diri_multinom(bins, bin_sampled, size_sampled, n_draw,
-  shape_mult = 1, seedn = NULL)
+draw_diri_multinom(bins, bin_sampled, size_sampled, n_draw, alpha = 100,
+  seedn = NULL)
 }
 \arguments{
 \item{bins}{Matrix. Contains probabilities for random samples for dirichlet}
@@ -16,7 +16,7 @@ draw_diri_multinom(bins, bin_sampled, size_sampled, n_draw,
 
 \item{n_draw}{Integer. Number of random samples to take}
 
-\item{shape_mult}{Numeric. Value to multiply the probability vector in bins to get dirichlet parameter.}
+\item{alpha}{Numeric. Value to multiply the probability vector in bins to get dirichlet parameter.}
 
 \item{seedn}{Boolean. Seed number}
 }
@@ -29,7 +29,7 @@ matrix contains the probability values for sampling in the columns. The
 columns to use for each draw are given in the vector \code{bin_sampled}. This should 
 be the same length as the value of \code{n_draw}. The dirichlet is sampled by 
 taking a sample from the gamma distribution, using the probability in \code{bins} 
-as the shape. The parameter \code{shape_mult} multiplies the probability vector in 
+as the shape. The parameter \code{alpha} multiplies the probability vector in 
 \code{bins}. The larger the value, the tighter the dirichlet sample, leading to 
 the dirichlet-multinomial approaching the multinomial. After sampling the dirichlet, 
 a multinomial of size taken from the vector \code{size_sampled} is taken.

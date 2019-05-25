@@ -4,7 +4,7 @@
 \alias{get_de_genes}
 \title{Get DE genes between high and low read count droplets}
 \usage{
-get_de_genes(x, n_genes = 2000, verbose = FALSE)
+get_de_genes(x, n_genes = 500, sd = NULL, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}

@@ -73,7 +73,7 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 #' columns to use for each draw are given in the vector \code{bin_sampled}. This should 
 #' be the same length as the value of \code{n_draw}. The dirichlet is sampled by 
 #' taking a sample from the gamma distribution, using the probability in \code{bins} 
-#' as the shape. The parameter \code{shape_mult} multiplies the probability vector in 
+#' as the shape. The parameter \code{alpha} multiplies the probability vector in 
 #' \code{bins}. The larger the value, the tighter the dirichlet sample, leading to 
 #' the dirichlet-multinomial approaching the multinomial. After sampling the dirichlet, 
 #' a multinomial of size taken from the vector \code{size_sampled} is taken.
@@ -82,17 +82,17 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 #' @param bin_sampled Vector. Column indices of bins to use for each draw
 #' @param size_sampled Vector. Sizes to use for each multinomial draw
 #' @param n_draw Integer. Number of random samples to take
-#' @param shape_mult Numeric. Value to multiply the probability vector in bins to get dirichlet parameter.
+#' @param alpha Numeric. Value to multiply the probability vector in bins to get dirichlet parameter.
 #' @param seedn Boolean. Seed number
 #'
 #' @return Matrix with each column containing a random sample from the dirichlet-multinomial.
 #' @export
-draw_diri_multinom <- function(bins, bin_sampled, size_sampled, n_draw, shape_mult=1, seedn=NULL){
+draw_diri_multinom <- function(bins, bin_sampled, size_sampled, n_draw, alpha=100, seedn=NULL){
 	set.seed(seedn)
 	nv <- nrow(bins)
 	sim <- matrix(nrow=nv, ncol=n_draw)
 	for (i in 1:n_draw){
-		prob <- rgamma(n=nv, shape=shape_mult*bins[,bin_sampled[i]])
+		prob <- rgamma(n=nv, shape=alpha*bins[,bin_sampled[i]])
 		sim[,i] <- rmultinom(n=1, size=size_sampled[i], prob=prob/sum(prob))
 	}
 	rownames(sim) <- rownames(bins)
@@ -119,7 +119,7 @@ draw_diri_multinom <- function(bins, bin_sampled, size_sampled, n_draw, shape_mu
 #' @param simf Numeric. Generate number of candidates * simf random samples
 #' @param by_bin Numeric. Bin size to use for generating multinomial distribution(s)
 #' @param dm Boolean. If true, use Dirichlet-multinomial to sample
-#' @param shape_mult Numeric. Value to multiply the probability vector in bins to get dirichlet parameter
+#' @param alpha Numeric. Value to multiply the probability vector in bins to get dirichlet parameter
 #' @param seedn Numeric. Number to set seed
 #' @param verbose Boolean
 #'
@@ -131,7 +131,7 @@ set_expression <- function(x,
 						   simf=1, 
 						   n_bin=1, 
 						   dm=TRUE,
-						   shape_mult=100,
+						   alpha=100,
 						   seedn=NULL,
 						   verbose=FALSE){
 	if (verbose) cat("Simulating background droplets\n")
@@ -169,7 +169,7 @@ set_expression <- function(x,
 								   bin_sampled=bins_sampled, 
 								   size_sampled=sizes_sampled, 
 								   n_draw, 
-								   shape_mult=shape_mult, 
+								   alpha=alpha, 
 								   seedn=seedn)
 	} else {
 		if (verbose) cat("Drawing from multinomial...\n")

@@ -128,6 +128,76 @@ get_de_genes <- function(x, n_genes=500, sd=NULL, verbose=FALSE){
 	return(x)
 }
 
+#' Get DE genes between high and low read count droplets using t-test
+#'
+#' Find differentially expressed genes between low and high read count droplets. Sums
+#' gene expression across all cells within the limits specified in the SCE object, 
+#' divides by the total number of reads in each, and calculates the difference between 
+#' the 2. The top \code{n_genes} genes sorted by absolute difference in proportion are 
+#' designated as DE.
+#'
+#' @param x SCE. SCE object
+#' @param max_drop Numeric. Maximum number of droplets to use for t-test
+#' @param fc_thresh Numeric. Only genes that have this fold-change threshold between low and high
+#'  droplets will be considered as differentially expressed. Set to 2 by default.
+#' @param verbose Boolean.
+#'
+#' @return SCE object with \code{gene_info[,"p"]}, \code{gene_info[,"fc"]}, and \code{deg} slots filled. 
+#' The \code{p} column contains the background - candidate difference in proportions.
+#' The \code{fc} column contains the fold change: background over high read count
+#' The \code{deg} slot contains the names of the genes output as DE.
+#' @export
+get_de_genes_t <- function(x, max_drop=1e4, fc_thresh=2, verbose=FALSE){
+	if (verbose) cat("Getting genes differentially expressed between high and low count droplets\n")
+	dc <- x@dropl_info[,"total_counts"]
+	dg <- x@dropl_info[,"n_genes"]
+	low_droplets <- (dc > x@limits$min_bg_count) & (dc <= x@limits$max_bg_count)
+	high_droplets <- (dc > x@limits$min_tg_count) & (dc <= x@limits$max_tg_count) & (dg > x@limits$min_tg_gene) & (dg <= x@limits$max_tg_gene)
+
+	# Subset dropletss if there are too many
+	if (sum(low_droplets) > max_drop){
+		lnames <- rownames(x@dropl_info)[low_droplets]
+		ldc <- dc[low_droplets]
+		ldco <- order(ldc, decreasing=TRUE)[1:max_drop]
+		low_droplets <- rownames(x@dropl_info) %in% lnames[ldco]
+	}
+	if (sum(high_droplets) > max_drop){
+		hnames <- rownames(x@dropl_info)[high_droplets]
+		hdc <- dc[high_droplets]
+		hdco <- order(hdc, decreasing=TRUE)[1:max_drop]
+		high_droplets <- rownames(x@dropl_info) %in% hnames[hdco]
+	}
+
+	low_expr <- as.matrix(x@raw[, low_droplets])
+	high_expr <- as.matrix(x@raw[, high_droplets])
+
+	low_prop <- sweep(low_expr, 2, dc[low_droplets], "/")
+	high_prop <- sweep(high_expr, 2, dc[high_droplets], "/")
+
+	genes_use <- rownames(high_expr)[rowMeans(high_expr) > 0.005]
+	t_results <- sapply(genes_use, function(i){
+						tr <- t.test(low_prop[i,], high_prop[i,])
+						fc <- tr$estimate[["mean of x"]] / tr$estimate[["mean of y"]]
+						return(c("p"=tr$p.value, "fc"=fc))
+					 })
+	t_results <- t(t_results)
+
+	x@gene_info[rownames(t_results),"fc"] <- t_results[,"fc"]
+	x@gene_info[rownames(t_results),"t_p"] <- t_results[,"p"]
+	
+	pt <- 0.05 / length(genes_use)
+	x@deg <- rownames(t_results)[ t_results[,"t_fc"] > fc_thresh & t_results[,"p"] < pt ]
+
+	# Check if de genes can separate background from top expressed droplets
+	if (length(x@deg) < 10) stop("Less than 10 genes found differentially expressed between low and high read droplets")
+	if ( length(x@deg) < 50 ){
+		cat("Warning: Less than 50 genes found DE between low and high read droplets")
+	} else {
+		if (verbose) cat(paste0("Found ", as.character(length(x@deg)), " DE genes\n"))
+	}
+	return(x)
+}
+
 #' Subset droplets in SCE object
 #'
 #' Given thresholds min_c and max_c, subset droplets by read counts

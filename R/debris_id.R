@@ -64,8 +64,8 @@ sweep_total <- function(x, vec){
 get_bgscore <- function(x){
     expr <- x@raw
     expr <- sweep_total(expr, x@dropl_info[,"total_counts"])
-    diff_prop <- x@gene_info[x@deg, "diff_prop" ,drop=FALSE]
-    bg_genes <- rownames(diff_prop[ diff_prop[,"diff_prop"] > 0, , drop=FALSE])
+    fc <- x@gene_info[x@deg, "fc", drop=FALSE]
+    bg_genes <- rownames(fc)
     x@dropl_info[,"bg_score"] <- Matrix::colSums(expr[bg_genes,])
     return(x)
 }

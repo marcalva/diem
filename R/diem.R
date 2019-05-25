@@ -24,10 +24,10 @@
 #' @param max_tg_gene Numeric. Maximum number of genes detected for a droplet to be considered target
 #' @param top_n_tg Numeric. Set the top n ranked by counts as the threshold for considering targets
 #' @param top_n_bg Numeric. Set the top n ranked by counts as the threshold for considering background
-#' @param n_deg Integer. Number of differentially expressed genes between low/high count droplets to use for calculating PCA
+#' @param max_drop Integer. Maximum number of droplets to use for t-test to get DE genes
 #' @param simf Numeric. Factor to multiply the number of candidates to get the number of background droplets simulated
 #' @param n_bin Numeric. Number of bins to sample from between min_bg_count and max_bg_count
-#' @param shape_mult Numeric. Number to multiply gene probabilities for sampling from dirichlet
+#' @param alpha Numeric. Number to multiply gene probabilities for sampling from dirichlet
 #' @param p Numeric. Minimum membership probability to call a target
 #' @param seedn Numeric. Seed for random number generation
 #' @param verbose Boolean. Print out logging information
@@ -46,10 +46,11 @@ diem <- function(sce,
 				 max_tg_gene=Inf,
 				 top_n_tg=NULL,
 				 top_n_bg=NULL, 
-				 n_deg=500, 
+				 max_drop=1e4, 
+				 fc_thresh=2, 
 				 simf=1, 
 				 n_bin=1,
-				 shape_mult=100,
+				 alpha=100,
 				 p=0.5, 
 				 seedn=NULL, 
 				 verbose=TRUE){
@@ -57,9 +58,8 @@ diem <- function(sce,
 					  min_tg_count=min_tg_count, max_tg_count=max_tg_count, 
 					  min_tg_gene=min_tg_gene, max_tg_gene=max_tg_gene,
 					  top_n_tg=top_n_tg, top_n_bg=top_n_bg)
-	sce <- get_de_genes(sce, n_genes=n_deg, verbose=verbose)
-	sce <- get_var_genes(sce, nf=n_deg)
-	sce <- set_expression(sce, simf=simf, n_bin=1, seedn=seedn, shape_mult=shape_mult, verbose=verbose)
+	sce <- get_de_genes_t(sce, max_drop=max_drop, fc_thresh=fc_thresh, verbose=verbose)
+	sce <- set_expression(sce, simf=simf, n_bin=1, seedn=seedn, alpha=alpha, verbose=verbose)
 	sce <- normalize(sce, verbose=verbose)
 	sce <- get_bgscore(sce)
 	sce <- get_pcs(sce, genes="deg", verbose=verbose)

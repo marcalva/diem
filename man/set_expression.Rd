@@ -4,7 +4,7 @@
 \alias{set_expression}
 \title{Simulate background droplets with higher read counts}
 \usage{
-set_expression(x, simf = 1, n_bin = 1, dm = TRUE, shape_mult = 100,
+set_expression(x, simf = 1, n_bin = 1, dm = TRUE, alpha = 100,
   seedn = NULL, verbose = FALSE)
 }
 \arguments{
@@ -14,7 +14,7 @@ set_expression(x, simf = 1, n_bin = 1, dm = TRUE, shape_mult = 100,
 
 \item{dm}{Boolean. If true, use Dirichlet-multinomial to sample}
 
-\item{shape_mult}{Numeric. Value to multiply the probability vector in bins to get dirichlet parameter}
+\item{alpha}{Numeric. Value to multiply the probability vector in bins to get dirichlet parameter}
 
 \item{seedn}{Numeric. Number to set seed}
 
