@@ -15,6 +15,6 @@ SCE object
 \description{
 Places percent of reads aligning to MT genome and MALAT1 gene in 
 \code{x@dropl_info}, under columns MALAT1 and MT_PCT. The gene 
-names in the rows of \code{x@raw} should be MALAT1 and only mitochondrial 
+names in the rows of \code{x@counts} should be MALAT1 and only mitochondrial 
 genes should start with MT-.
 }

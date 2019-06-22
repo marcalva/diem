@@ -89,7 +89,7 @@ set_double <- function(x){
 #' @param seedn Numeric. Numeric value specifying seed for random initialization
 #' @param verbose Boolean. Print logging information
 #'
-#' @return list with output
+#' @return EMO object
 #' @export
 run_mv_em_diag <- function(x, 
 						   k=2, 
@@ -132,7 +132,7 @@ run_mv_em_diag <- function(x,
 	
 	# Iterations
 	converged <- FALSE
-	n_iter <- NULL
+	n_iter <- NA
 	for (iter in 1:max_iter){
 		# Populate Z membership probs
 		Z <- e_stepCPP(x, k, mu, sgma, tau, semisup, labels)
@@ -143,6 +143,11 @@ run_mv_em_diag <- function(x,
 		sgma_n <- mp$sgma
 		tau_n <- mp$tau
 
+		# Set double precision to match with C++ if x is below double minimum
+		mu_n <- lapply(mu_n, set_double)
+		sgma_n <- lapply(sgma_n, set_double)
+		tau_n <- set_double(tau_n)
+
 		# These 2 checks exit the iterations when 1 group contains either 0 or 1 observation.
 		# Should this be changed to return NA, instead of converged?
 		if (any(unlist(sgma_n) == 0) | any(tau_n == 0) ) {
@@ -150,29 +155,18 @@ run_mv_em_diag <- function(x,
 			mu <- mu_n
 			sgma <- sgma_n
 			llks[iter] <- llk
-			cat("Warning: converged after 1 or less observation in a group. Can't calculate likelihood\n")
+			if (verbose) cat("Warning: converged after 1 or less observation in a group. Can't calculate likelihood\n")
 			print(mp)
-			if (verbose) cat(paste0("Converged after ", as.character(iter), " iterations.\n"))
 			converged <- TRUE
 			n_iter <- iter
 			break
 		}
 
-		# Set double precision to match with C++ if x is below double minimum
-		mu_n <- lapply(mu_n, set_double)
-		sgma_n <- lapply(sgma_n, set_double)
-		tau_n <- set_double(tau_n)
-
-		# Evaluate data likelihood if possible
-		if (any(unlist(sgma_n) == 0) | any(tau_n == 0) ) {
-			llk_n <- llk
-		} else {
-			llk_n <- get_llkCPP(x, mu_n, sgma_n, tau_n, semisup=semisup, labels);
-		}
+		llk_n <- get_llkCPP(x, mu_n, sgma_n, tau_n, semisup=semisup, labels);
 
 		if (is.na(llk_n)) stop("Returned likelihood is NA")
 		llk_diff <- (llk_n - llk) / abs(llk_n)
-		if (verbose) cat(paste0("Iteration ", as.character(iter), ", llk: ", as.character(llk_n), '\n'))
+		# if (verbose) cat(paste0("Iteration ", as.character(iter), ", llk: ", as.character(llk_n), '\n'))
 		# if (llk_diff < 0) stop("Likelihood decreased during EM iteration. Probably a bug...")
 		
 		# Update paramters
@@ -184,7 +178,7 @@ run_mv_em_diag <- function(x,
 		
 		# Check if likelihood difference doesn't change
 		if (iter >= min_iter & abs(llk_diff) < eps) {
-			if (verbose) cat(paste0("Converged after ", as.character(iter), " iterations.\n"))
+			# if (verbose) cat(paste0("Converged after ", as.character(iter), " iterations.\n"))
 			converged <- TRUE
 			n_iter <- iter
 			break
@@ -194,21 +188,22 @@ run_mv_em_diag <- function(x,
 
 	# Return
 	if (converged){
-		ret <- list(Z = Z,
-					mu = mu,
-					sgma = sgma,
-					tau = tau,
-					llks = llks,
-					n_iter = n_iter)
+		ret <- EMO(Z = Z,
+				   mu = mu,
+				   sgma = sgma,
+				   tau = tau,
+				   llks = llks,
+				   n_iter = n_iter)
 	}
 	else{
-		ret <- list(Z = NULL,
-					mu = NULL,
-					sgma = NULL,
-					tau = NULL,
-					llks = NULL, 
-					n_iter = n_iter)
+		ret <- EMO(Z = NA,
+				   mu = NA,
+				   sgma = NA,
+				   tau = NA,
+				   llks = NA, 
+				   n_iter = n_iter)
 	}
+	if (verbose) cat("Finished EM\n")
 	return(ret)
 }
 

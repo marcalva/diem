@@ -4,31 +4,32 @@
 \alias{run_em_pcs}
 \title{Specify background droplets and candidate droplets}
 \usage{
-run_em_pcs(x, n_pcs = 1, min_iter = 5, max_iter = 1000,
+run_em_pcs(x, min_r = 0.5, min_iter = 5, max_iter = 1000,
   eps = 1e-10, n_runs = 10, seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{SCE. An SCE object}
 
-\item{n_pcs}{Integer. Number of expression PCs to use for running EM}
+\item{min_r}{Numeric. Only run PCs correlated to the background score. PCs are correlated with the background 
+score and the absolute value of the R coefficient must be greater than this threshold.}
 
-\item{min_iter}{Integer. Minimum number of iterations}
+\item{min_iter}{Integer. Minimum number of iterations.}
 
-\item{max_iter}{Integer. Maximum number of iterations}
+\item{max_iter}{Integer. Maximum number of iterations.}
 
-\item{eps}{Numeric. Epsilon of log-likilhood change to call convergence}
+\item{eps}{Numeric. Epsilon of log-likilhood change to call convergence.}
 
-\item{n_runs}{Integer. Number of EM runs, with best result returned}
+\item{n_runs}{Integer. Number of EM initializations to run, with best result returned.}
 
-\item{seedn}{Numeric. Seed for random number generation}
+\item{seedn}{Numeric. Seed for random number generation.}
 
-\item{verbose}{Boolean. Print out logging information}
+\item{verbose}{Boolean. Verbosity.}
 
 \item{bg_max}{Numeric. Maximum number of counts for a droplet to be considered background. Ignored if top_n_cand is set.}
 
 \item{top_n_cand}{Numeric. Specifies the top number of droplets by expression to considered candidates}
 
-\item{x}{SCE. SCE object with PCs and labels}
+\item{x}{SCE. SCE object with PCs and labels.}
 }
 \value{
 SCE object with bg_info filled, a list with components

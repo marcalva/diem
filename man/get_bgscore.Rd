@@ -15,6 +15,5 @@ SCE object.
 \description{
 Background score is calculated as the percentage of reads mapping to a 
 DE gene enriched in the background droplets. Differentially expressed genes 
-must be calculated beforehand. Background score is stored in \code{x@dropl_info} 
-in the bg_score column.
+must be calculated beforehand.
 }

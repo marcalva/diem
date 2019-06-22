@@ -4,62 +4,59 @@
 \alias{diem}
 \title{Run diem pipeline}
 \usage{
-diem(sce, n_pcs = 3, n_runs = 10, min_bg_count = 0,
-  max_bg_count = 150, min_tg_count = 199, max_tg_count = Inf,
-  min_tg_gene = 199, max_tg_gene = Inf, top_n_tg = NULL,
-  top_n_bg = NULL, max_drop = 10000, fc_thresh = 2, simf = 1,
-  n_bin = 1, alpha = 100, p = 0.5, seedn = NULL, verbose = TRUE)
+diem(sce, min_counts = NULL, top_n = NULL, de_cutpoint = NULL,
+  log2fc_thresh = 0.5, de_p_thresh = 0.05, de_correct = "bonferroni",
+  simf = 0.5, gma = 10, scale_factor = 10000, n_pcs = 30,
+  genes = NULL, min_r = 0.5, min_iter = 5, max_iter = 1000,
+  eps = 1e-10, n_runs = 10, lk_fraction = 0.95, seedn = NULL,
+  verbose = TRUE)
 }
 \arguments{
-\item{sce}{SCE. ACE object with raw counts}
+\item{sce}{SCE. SCE object with raw counts.}
 
-\item{n_pcs}{Integer. Number of expression PCs to use for running EM}
+\item{min_counts}{Integer. Only droplets with at least this number of total counts are used for testing.}
 
-\item{n_runs}{Integer. Number of random starts for EM run, with best result returned}
+\item{top_n}{Numeric. Only the top \code{top_n} droplets ranked by total counts are used for testing.}
 
-\item{min_bg_count}{Numeric. Minimum number of counts for a droplet to be considered background}
+\item{de_cutpoint}{Numeric. Manually set the DE cutpoint.}
 
-\item{max_bg_count}{Numeric. Maximum number of counts for a droplet to be considered background}
+\item{log2fc_thresh}{Numeric. Test only genes that have this log2 fold-change threshold between low and high
+droplets will be considered as differentially expressed. Fold change is for both comparison low vs high and high vs low}
 
-\item{min_tg_count}{Numeric. Minimum number of counts for a droplet to be considered target}
+\item{de_p_thresh}{Numeric. Adjusted p-value threshold for differential expression.}
 
-\item{max_tg_count}{Numeric. Maximum number of counts for a droplet to be considered target}
+\item{de_correct}{Character. Correction method.}
 
-\item{min_tg_gene}{Numeric. Minimum number of genes detected for a droplet to be considered target}
+\item{simf}{Numeric. Generate number of candidates * \code{simf} random samples.}
 
-\item{max_tg_gene}{Numeric. Maximum number of genes detected for a droplet to be considered target}
+\item{gma}{Numeric. Multiply p by this number to generate alpha for Dirichlet-multinomial random sampling.}
 
-\item{top_n_tg}{Numeric. Set the top n ranked by counts as the threshold for considering targets}
+\item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
 
-\item{top_n_bg}{Numeric. Set the top n ranked by counts as the threshold for considering background}
+\item{n_pcs}{Integer. Number of PCs to calculate.}
 
-\item{max_drop}{Integer. Maximum number of droplets to use for t-test to get DE genes}
+\item{genes}{Vector. Use these genes specified for PCA.}
 
-\item{simf}{Numeric. Factor to multiply the number of candidates to get the number of background droplets simulated}
+\item{min_r}{Numeric. Only run PCs correlated to the background score. PCs are correlated with the background 
+score and the absolute value of the R coefficient must be greater than this threshold.}
 
-\item{n_bin}{Numeric. Number of bins to sample from between min_bg_count and max_bg_count}
+\item{min_iter}{Integer. Minimum number of iterations in EM.}
 
-\item{alpha}{Numeric. Number to multiply gene probabilities for sampling from dirichlet}
+\item{max_iter}{Integer. Maximum number of iterations in EM.}
 
-\item{p}{Numeric. Minimum membership probability to call a target}
+\item{eps}{Numeric. Epsilon of log-likilhood change to call convergence in EM.}
 
-\item{seedn}{Numeric. Seed for random number generation}
+\item{n_runs}{Integer. Number of EM initializations to run, with best result returned.}
 
-\item{verbose}{Boolean. Print out logging information}
+\item{lk_fraction}{Numeric. Select droplets that have a fraction of target likelihood greater than this number.}
+
+\item{seedn}{Numeric. Seed for random number generation.}
+
+\item{verbose}{Boolean. Print out logging information.}
 }
 \value{
-SCE object with droplet IDs labeled as background or nucleus.
+SCE object.
 }
 \description{
-Run DIEM on an SCE object, typically returned from \code{\link{read_10x}} function.
-DIEM first simulates background droplets by randomly sampling from a multinomial 
-distribution. The parameters (gene probabilities) from the distribution are derived 
-from droplets with low read counts, as the majority of these are likely to represent 
-background RNA contamination. The number of simulated background droplets is given by 
-the parameter \code{simf}, which multiplies the number of candidate droplets tested. 
-PCA is run on the expression matrix containing the simulated and candidate droplets. 
-DIEM then runs semi-supervised EM on the first \code{n_pcs} PCs. In order to call 
-droplets as either background or target, the likelihood fraction must be greater than 
-\code{p} (0.95 by default). This also calculates the percentage of reads that originate 
-from mitochondrial genes, or from MALAT1.
+Run DIEM pipeline on an SCE object, typically returned from \code{\link{read_10x}} function.
 }

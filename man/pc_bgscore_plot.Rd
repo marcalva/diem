@@ -4,14 +4,14 @@
 \alias{pc_bgscore_plot}
 \title{Background score-PC plot}
 \usage{
-pc_bgscore_plot(x, title = "", pc = 1, return = FALSE)
+pc_bgscore_plot(x, title = "", pc = 1, ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}
 
 \item{title}{Character}
 
-\item{return}{Boolean. Return a ggplot object}
+\item{ret}{Boolean. Return a ggplot object}
 }
 \value{
 Nothing, unless return=TRUE then a ggplot

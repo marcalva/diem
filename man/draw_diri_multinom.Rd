@@ -4,10 +4,11 @@
 \alias{draw_diri_multinom}
 \title{Create matrix with dirichlet-multinomial draws}
 \usage{
-draw_diri_multinom(bins, bin_sampled, size_sampled, n_draw, alpha = 100,
-  seedn = NULL)
+draw_diri_multinom(dmp, seedn = NULL)
 }
 \arguments{
+\item{seedn}{Boolean. Seed number}
+
 \item{bins}{Matrix. Contains probabilities for random samples for dirichlet}
 
 \item{bin_sampled}{Vector. Column indices of bins to use for each draw}
@@ -15,10 +16,6 @@ draw_diri_multinom(bins, bin_sampled, size_sampled, n_draw, alpha = 100,
 \item{size_sampled}{Vector. Sizes to use for each multinomial draw}
 
 \item{n_draw}{Integer. Number of random samples to take}
-
-\item{alpha}{Numeric. Value to multiply the probability vector in bins to get dirichlet parameter.}
-
-\item{seedn}{Boolean. Seed number}
 }
 \value{
 Matrix with each column containing a random sample from the dirichlet-multinomial.

@@ -4,10 +4,11 @@
 \alias{bin_by_counts}
 \title{Bin by expression counts}
 \usage{
-bin_by_counts(x, start_bin = 0, end_bin = 150, n_bin = 1)
+bin_by_counts(x, start_bin = 0, end_bin = NULL, n_bin = 1,
+  min_in_bin = 1, bins = NULL)
 }
 \arguments{
-\item{x}{SCE object}
+\item{x}{Sparse matrix. Expression data in sparse matrix format}
 
 \item{start_bin}{Integer. Read count for starting the bins}
 
@@ -15,12 +16,15 @@ bin_by_counts(x, start_bin = 0, end_bin = 150, n_bin = 1)
 
 \item{n_bin}{Numeric. Number of bins}
 
+\item{bins}{List. If not null, use these bins. Each element is a bin with start and end.}
+
 \item{Matrix}{with read counts summed across the rows}
 }
 \description{
-Sum read counts for genes across droplets in SCE object. 
+Bins expression data across columns and sums values.
 Given start, end, and by parameters, sums reads across 
 genes in each bin. There are (end - start)/by bins. If 
 this is a fraction, the number of bins are rounded down, 
-with the same width for each bin.
+with the same width for each bin. Start and end are calculated as 
+greater than and less than or equal to, respectively.
 }

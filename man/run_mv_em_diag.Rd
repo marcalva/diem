@@ -30,7 +30,7 @@ run_mv_em_diag(x, k = 2, min_iter = 5, max_iter = 1000,
 \item{verbose}{Boolean. Print logging information}
 }
 \value{
-list with output
+EMO object
 }
 \description{
 Run multivariate un-, semi-, or fully supervised EM.

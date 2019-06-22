@@ -21,6 +21,7 @@ Imports:
 	irlba, 
 	Matrix, 
     Rcpp,
-    scales
+    scales, 
+    reshape2
 Suggests:
     Seurat

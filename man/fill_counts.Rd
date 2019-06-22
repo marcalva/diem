@@ -7,7 +7,7 @@
 fill_counts(x)
 }
 \arguments{
-\item{x}{SCE. SCE object with x@raw data present}
+\item{x}{SCE. SCE object with x@counts data present}
 }
 \description{
 Fill information from raw counts

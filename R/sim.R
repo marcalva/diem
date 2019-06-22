@@ -1,39 +1,42 @@
 
 #' Bin by expression counts
 #' 
-#' Sum read counts for genes across droplets in SCE object. 
+#' Bins expression data across columns and sums values.
 #' Given start, end, and by parameters, sums reads across 
 #' genes in each bin. There are (end - start)/by bins. If 
 #' this is a fraction, the number of bins are rounded down, 
-#' with the same width for each bin.
+#' with the same width for each bin. Start and end are calculated as 
+#' greater than and less than or equal to, respectively.
 #'
-#' @param x SCE object
+#' @param x Sparse matrix. Expression data in sparse matrix format
 #' @param start_bin Integer. Read count for starting the bins
 #' @param end_bin Integer. Read count for ending the bins
 #' @param n_bin Numeric. Number of bins
+#' @param bins List. If not null, use these bins. Each element is a bin with start and end.
 #'
 #' @param Matrix with read counts summed across the rows
 #' @export
-bin_by_counts <- function(x, start_bin=0, end_bin=150, n_bin=1){
-	by_bin <- (end_bin - start_bin)/n_bin
-	by_bin <- ceiling(by_bin)
-	counts <- matrix(nrow=nrow(x@raw), ncol=n_bin)
-	rownames(counts) <- rownames(x@raw)
-	bins <- lapply(1:n_bin, function(x) c(start_bin + (x*by_bin) - by_bin, start_bin + (x*by_bin)))
-	# Length the last bin if uneven
-	bins[[n_bin]][2] <- end_bin
+bin_by_counts <- function(x, start_bin=0, end_bin=NULL, n_bin=1, min_in_bin=1, bins=NULL){
+	total_counts <- Matrix::colSums(x)
+	if (is.null(bins)){
+		if (is.null(end_bin)) end_bin <- max(total_counts)
+		by_bin <- (end_bin - start_bin)/n_bin
+		by_bin <- ceiling(by_bin)
+		bins <- lapply(1:n_bin, function(x) c(start_bin + (x*by_bin) - by_bin, start_bin + (x*by_bin)))
+		bins[[n_bin]][2] <- end_bin # Lengthen last bin if uneven
 
-	keep <- sapply(bins, function(bin) any(x@dropl_info[,"total_counts"] > bin[1] & x@dropl_info[,"total_counts"] <= bin[2]) )
+	}
+
+	keep <- sapply(bins, function(bin) sum(total_counts > bin[1] & total_counts <= bin[2]) >= min_in_bin )
 	bins <- bins[keep]
+	n_bin <- length(bins)
 
+	counts <- matrix(nrow=nrow(x), ncol=n_bin)
+	rownames(counts) <- rownames(x)
 	colnames(counts) <- sapply(bins, function(x) paste0("Bin", as.character(x[1]), "_", as.character(x[2])))
 
 	for (i in 1:n_bin){
-		counts[,i] <- Matrix::rowSums( x@raw[, x@dropl_info[,"total_counts"] > bins[[i]][1] & x@dropl_info[,"total_counts"] <= bins[[i]][2], drop=FALSE] )
-	
-		# Total sum to greatest counts in bin
-		counts[,i] <- counts[,i]/sum(counts[,i])
-		# counts[,i] <- bins[[i]][2] * counts[,i]
+		counts[,i] <- Matrix::rowSums( x[, total_counts > bins[[i]][1] & total_counts <= bins[[i]][2], drop=FALSE] )
 	}
 	return(counts)
 }
@@ -66,6 +69,28 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 	return(sim)
 }
 
+#' Estimate gamma
+estimate_gamma <- function(x, ranges=NULL){
+	p <- Matrix::colSums(x); p <- p / sum(p)
+	if (is.null(ranges)){
+		ranges <- seq(50,1000, 50)
+	}
+	loglik <- function(m, alpha){
+		alpha_0 <- sum(alpha)
+		logllks <- apply(m, 1, function(xi){
+						 n <- sum(xi)
+						 lfactorial(n) + 
+						 lgamma(alpha_0) - 
+						 lgamma(n + alpha_0) + 
+						 sum(lgamma(xi + alpha)) - 
+						 sum(lfactorial(xi)) - 
+						 sum(lgamma(alpha))})
+		return(sum(logllks))
+	}
+	llks <- sapply(ranges, function(a) {print(a); loglik(x, a*p)})
+	return(ranges[which.max(llks)])
+}
+
 #' Create matrix with dirichlet-multinomial draws
 #'
 #' Draws random samples from a dirichlet-multinomial distribution. The \code{bins} 
@@ -82,21 +107,20 @@ draw_multinom <- function(bins, bin_sampled, size_sampled, n_draw, seedn=NULL){
 #' @param bin_sampled Vector. Column indices of bins to use for each draw
 #' @param size_sampled Vector. Sizes to use for each multinomial draw
 #' @param n_draw Integer. Number of random samples to take
-#' @param alpha Numeric. Value to multiply the probability vector in bins to get dirichlet parameter.
 #' @param seedn Boolean. Seed number
 #'
 #' @return Matrix with each column containing a random sample from the dirichlet-multinomial.
 #' @export
-draw_diri_multinom <- function(bins, bin_sampled, size_sampled, n_draw, alpha=100, seedn=NULL){
+draw_diri_multinom <- function(dmp, seedn=NULL){
 	set.seed(seedn)
-	nv <- nrow(bins)
+	nv <- nrow(dmp@alphas)
+	n_draw <- ncol(dmp@alphas)
 	sim <- matrix(nrow=nv, ncol=n_draw)
-	for (i in 1:n_draw){
-		prob <- rgamma(n=nv, shape=alpha*bins[,bin_sampled[i]])
-		sim[,i] <- rmultinom(n=1, size=size_sampled[i], prob=prob/sum(prob))
-	}
-	rownames(sim) <- rownames(bins)
+	rownames(sim) <- rownames(dmp@alphas)
 	colnames(sim) <- paste0("SIM", as.character(1:n_draw))
+	for (i in 1:n_draw){
+		sim[,i] <- rmultinom(n=1, size=dmp@sizes[i], prob=dmp@alphas[,i])
+	}
 	return(sim)
 }
 
@@ -116,78 +140,58 @@ draw_diri_multinom <- function(bins, bin_sampled, size_sampled, n_draw, alpha=10
 #' be estimated from bins of \code{by_bin} width between \code{start_bin} and \code{end_bin}.
 #' 
 #' @param x SCE.
-#' @param simf Numeric. Generate number of candidates * simf random samples
-#' @param by_bin Numeric. Bin size to use for generating multinomial distribution(s)
-#' @param dm Boolean. If true, use Dirichlet-multinomial to sample
-#' @param alpha Numeric. Value to multiply the probability vector in bins to get dirichlet parameter
-#' @param seedn Numeric. Number to set seed
+#' @param simf Numeric. Generate number of candidates * \code{simf} random samples.
+#' @param gma Numeric. Multiply p by this number to generate alpha for Dirichlet-multinomial random sampling.
+#' @param seedn Numeric. Number to set seed.
 #' @param verbose Boolean
 #'
-#' @return SCE object with raw expression data replaced by simulated background droplets and 
-#' candidate targets. Simulated background droplets are labeled in the background column 
-#' of \code{x@dropl_info} as a 1, while candidate targets are labeled as 0.
+#' @return SCE object.
+#' @importFrom Matrix colSums Matrix
 #' @export
-set_expression <- function(x, 
-						   simf=1, 
-						   n_bin=1, 
-						   dm=TRUE,
-						   alpha=100,
-						   seedn=NULL,
-						   verbose=FALSE){
+sim_bg <- function(x, 
+				   simf=0.5, 
+				   gma=10, 
+				   seedn=NULL, 
+				   verbose=FALSE){
 	if (verbose) cat("Simulating background droplets\n")
 
-	# Use 1 bin by default.
-	start_bin <- x@limits$min_bg_count
-	end_bin <- x@limits$max_bg_count
-	# Select candidate targets from sce object x
-	tc <- x@dropl_info[,"total_counts"]
-	ng <- x@dropl_info[,"n_genes"]
-	candidate_bool <- ( tc > x@limits$min_tg_count ) &
-	( tc <= x@limits$max_tg_count ) &
-	( ng > x@limits$min_tg_gene ) &
-	( ng <= x@limits$max_tg_gene )
+	tc <- Matrix::colSums(x@counts)
 
-	if ( sum(candidate_bool) == 0 ){
-		stop("No candidate droplets meet the limit requirements")
-	}
+	set.seed(seedn)
 
-	candd <- x@raw[, candidate_bool]
-	count_sizes <- x@dropl_info[candidate_bool,"total_counts"] # distribution of read counts for multinomial simulation
-	
-	# Multinomial distributions binned from count ranges. Used to simulate background droplets
-	if (verbose) cat("Binning background droplets...\n")
-	binned <- bin_by_counts(x, start_bin=start_bin, end_bin=end_bin, n_bin=n_bin)
-	probs <- rep( 1/ncol(binned), times=ncol(binned))
+	candd <- get_candd_counts(x)
+	candd <- candd[x@de@deg,]
+	nv <- nrow(candd)
 
 	n_draw <- simf*ncol(candd)
 
-	sizes_sampled <- sample(x=count_sizes, size=n_draw, replace=TRUE)
-	bins_sampled <- sample(1:ncol(binned), size=n_draw, prob=probs, replace=TRUE)
-	if (dm){
-		if (verbose) cat("Drawing from dirichlet-multinomial...\n")
-		simM <- draw_diri_multinom(bins=binned, 
-								   bin_sampled=bins_sampled, 
-								   size_sampled=sizes_sampled, 
-								   n_draw, 
-								   alpha=alpha, 
-								   seedn=seedn)
-	} else {
-		if (verbose) cat("Drawing from multinomial...\n")
-		simM <- draw_multinom(bins=binned, bin_sampled=bins_sampled, size_sampled=sizes_sampled, n_draw, seedn=seedn)
+	# Get p from DE test
+	p <- x@de@low_means[x@de@deg]
+	p <- p/sum(p)
+	p <- p*gma
+	# Generate alphas from gamma
+	alphas <- matrix(nrow=nv, ncol=n_draw)
+	rownames(alphas) <- rownames(x@de@deg)
+	for (i in 1:n_draw){
+		alphas[,i] <- rgamma(n=nv, shape=p)
 	}
 
-	simM <- Matrix::Matrix(simM, sparse=TRUE)
-	all_expr <- cbind(simM, candd)
-	x@raw <- all_expr
-	x <- fill_counts(x)
+	# Get sizes
+	candd_counts <- Matrix::colSums(candd)
+	sizes_sampled <- sample(x=candd_counts, size=n_draw, replace=TRUE)
 
-	# Label background
-	labels <- rep(0, ncol(x@raw)); names(labels) = colnames(x@raw)
-	labels[1:n_draw] <- 1
-	bins_col <- c(bins_sampled, rep("NA", ncol(x@raw)-n_draw))
-	x@dropl_info[,"background"] <- labels
-	# x@dropl_info[,"sim_bin"] <- bins_col
-	x@bins <- binned
+	# Set Dirichlet-multinomial parameters
+	dmp <- DM_params(alphas=alphas, sizes=sizes_sampled, gamma=gma)
+	x@sim@dm_params <- dmp
+
+	# Draw from Dirichlet-multinomial
+	sim <- draw_diri_multinom(dmp, seedn=seedn)
+	sim <- Matrix::Matrix(sim, sparse=TRUE)
+	all_expr <- cbind(sim, candd)
+	# Fix labels, 0 is unknown, 1 is background
+	labels <- c(rep(1, ncol(sim)), rep(0, ncol(candd)))
+	x@sim@counts <- all_expr
+	x@sim@labels <- labels
 
 	if (verbose) cat("Simulated background droplets\n")
 	return(x)

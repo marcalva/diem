@@ -1,72 +1,95 @@
 
-
 #' Get PCs from expression data
 #'
 #' Runs irlba implementation of prcomp. Takes normalized expression data in 
-#' \code{x@norm}, subsets using genes in the \code{deg} or \code{vg} slot, 
-#' specified with parameter \code{genes}. The first \code{n_pcs} are calculated.
+#' \code{x@sim@norm}, subsets using genes in the \code{x@de@deg}.
+#' The first \code{n_pcs} are calculated.
 #' The return object for \code{prcomp_irlba} is placed in \code{x@pcs}. The 
 #' principal component scores for the droplets are thus stored in \code{x@pcs$x}.
 #'
-#' @param x SCE. An SCE object
-#' @param n_pcs Integer. Number of PCs to calculate
-#' @param center Boolean. Whether to center variables
-#' @param scale Boolean. Whether to scale variables to have unit variance
-#' @param genes Character. Use these genes stored in SCE object. Either "vg" or "de"
+#' @param x SCE. An SCE object.
+#' @param n_pcs Integer. Number of PCs to calculate.
+#' @param genes Vector. Use these genes specified.
 #' @param verbose Boolean.
 #'
 #' @return An SCE object with \code{\link[irlba]{prcomp_irlba}} output in 
 #' the \code{pcs} slot
 #' @importFrom irlba prcomp_irlba
+#' @importFrom Matrix colSums
 #' @export
-get_pcs <- function(x, n_pcs=30, center = TRUE, scale. = TRUE, genes="deg", verbose=FALSE){
+get_pcs <- function(x, 
+					n_pcs=30, 
+					genes=NULL, 
+					verbose=FALSE){
 	if (verbose) cat("Running PCA\n")
-	gn <- slot(x, genes)
+	if (is.null(genes)){
+		gn <- x@de@deg
+	} else {
+		gn <- genes
+	}
 	if (n_pcs < 30) n_pcs <- 30
 	if (length(gn) <= n_pcs) n_pcs <- length(gn)-1
 	if (length(gn) == 0){
 		stop(paste0("No genes listed in slot ", genes))
 	}
+	expr <- Matrix::t(x@sim@norm[gn,])
+	expr <- expr[,Matrix::colSums(expr) > 0] # remove genes with no counts
 	if (length(gn) > 100){
-	pcs <- prcomp_irlba(Matrix::t(x@norm[gn,]), 
-						n=n_pcs, 
-						retx=TRUE, 
-						center=TRUE, 
-						scale.=scale.)
+		pcs <- irlba::prcomp_irlba(expr, n=n_pcs, retx=TRUE, center=TRUE, scale.=TRUE)
 	} else {
-		pcs <- prcomp(Matrix::t(x@norm[gn,]), retx=TRUE, center=TRUE, scale.=scale.)
+		pcs <- prcomp(expr, retx=TRUE, center=TRUE, scale.=TRUE)
 	}
-	rownames(pcs$x) <- colnames(x@norm)
-	rownames(pcs$rotation) <- gn
+	rownames(pcs$x) <- rownames(expr)
+	rownames(pcs$rotation) <- colnames(expr)
 	colnames(pcs$x) <- paste0("PC", as.character(1:ncol(pcs$x)))
-	x@pcs <- pcs
+	x@sim@pcs <- pcs
 	if (verbose) cat("Found PCs\n")
 	return(x)
 }
 
 #' @export
-sweep_total <- function(x, vec){
+sweep_cols <- function(x, vec){
 	d <- Matrix::Diagonal(x = 1/vec)
 	x <- x %*% d
+}
+
+#' Get proportion of counts in \code{rows}in x.
+#'
+#' @param x Matrix. Matrix object.
+#' @param rows Character. rownames in x to calculate proportions of.
+#'
+#' @return Numeric vector.
+#' @importFrom Matrix Diagonal colSums
+#' @export
+get_col_props <- function(x, rows){
+	x <- x  %*% Matrix::Diagonal(x = 1/Matrix::colSums(x))
+	col_props <- Matrix::colSums(x[rows,])
+	names(col_props) <- colnames(x)
+	return(col_props)
 }
 
 #' Get background score for each cell
 #'
 #' Background score is calculated as the percentage of reads mapping to a 
 #' DE gene enriched in the background droplets. Differentially expressed genes 
-#' must be calculated beforehand. Background score is stored in \code{x@dropl_info} 
-#' in the bg_score column.
+#' must be calculated beforehand.
 #'
 #' @param x SCE. SCE object.
 #'
 #' @return SCE object.
 #' @export
 get_bgscore <- function(x){
-    expr <- x@raw
-    expr <- sweep_total(expr, x@dropl_info[,"total_counts"])
-    fc <- x@gene_info[x@deg, "fc", drop=FALSE]
-    bg_genes <- rownames(fc)
-    x@dropl_info[,"bg_score"] <- Matrix::colSums(expr[bg_genes,])
+	log2fc <- x@de@table[x@de@deg,"log2fc"]
+	log2fc <- Matrix::Matrix(log2fc)
+	bg_score <- Matrix::t(log2fc) %*% x@sim@norm[x@de@deg,]
+	bg_score <- as.numeric(bg_score)
+	names(bg_score) <- colnames(x@sim@norm)
+    # bg_genes <- x@de@deg_low
+    # bg_score <- get_col_props(x@sim@counts, bg_genes)
+    x@sim@bg_score <- bg_score
+    # Add bg score to dropl_info slot for candidate droplets
+    bg_score <- bg_score[ names(bg_score) %in% rownames(x@dropl_info) ]
+    x@dropl_info[names(bg_score),"bg_score"] <- bg_score
     return(x)
 }
 
@@ -112,25 +135,28 @@ get_bgscore <- function(x){
 #' Run EM on PCs
 #' 
 #' Run expectation maximization (EM) using diagonal covariance on expression PCs in an SCE object with k=2 groups. 
-#' EM is run \code{n_runs} times with random initializations, and the EM output parameters with 
-#' the best log likelihood is output. Within EM, iterate a minimum of \code{min_iter} times and 
+#' Selects only PCs that are correlated with the background score to avoid clustering based on biological cell type 
+#' variation. PCs with a pearson correlation coefficient greater than or equal to \code{min_r} are used.
+#' EM is run \code{n_runs} times with random initializations, and parameters with 
+#' the best log likelihood are output. Within EM, iterate a minimum of \code{min_iter} times and 
 #' a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
-#' log likelihood until covnergence is called. \code{seedn} gives the seed for random number generation, 
+#' log likelihood until convergence is reached. \code{seedn} gives the seed for random number generation, 
 #' which can be used to reproduce results.
 #'
-#' @param x SCE. SCE object with PCs and labels
-#' @param n_pcs Integer. Number of expression PCs to use for running EM
-#' @param min_iter Integer. Minimum number of iterations
-#' @param max_iter Integer. Maximum number of iterations
-#' @param eps Numeric. Epsilon of log-likilhood change to call convergence
-#' @param n_runs Integer. Number of EM runs, with best result returned
-#' @param seedn Numeric. Seed for random number generation
-#' @param verbose Boolean. Print out logging information
+#' @param x SCE. SCE object with PCs and labels.
+#' @param min_r Numeric. Only run PCs correlated to the background score. PCs are correlated with the background 
+#' score and the absolute value of the R coefficient must be greater than this threshold.
+#' @param min_iter Integer. Minimum number of iterations.
+#' @param max_iter Integer. Maximum number of iterations.
+#' @param eps Numeric. Epsilon of log-likilhood change to call convergence.
+#' @param n_runs Integer. Number of EM initializations to run, with best result returned.
+#' @param seedn Numeric. Seed for random number generation.
+#' @param verbose Boolean. Verbosity.
 #'
 #' @return SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
 #' @export
 run_em_pcs <- function(x, 
-					   n_pcs=1, 
+					   min_r=0.5, 
 					   min_iter=5, 
 					   max_iter=1000, 
 					   eps=1e-10, 
@@ -138,88 +164,129 @@ run_em_pcs <- function(x,
 					   seedn=NULL, 
 					   verbose=TRUE){
 	runs <- list()
-	if (is.null(n_pcs)) {n_pcs <- ncol(x@pcs$x)}
-	df <- x@pcs$x[,1:n_pcs,drop=FALSE]
+
+	# Select PCs that are correlated with bg score
+	cors <- cor(x@sim@pcs$x, x@sim@bg_score)
+	cors <- abs(cors)
+	cord_pcs <- (1:ncol(x@sim@pcs$x))[which(cors >= min_r)]
+	if (length(cord_pcs) == 0){
+		stop("No PCs are correlated with background score. Cannot run EM on uncorrelated PCs.")
+	}
+	df <- as.data.frame(cbind(x@sim@bg_score, x@sim@pcs$x[,cord_pcs]))
+	if (verbose){
+		cat(paste0("Using PCs ", paste0(as.character(cord_pcs), collapse=","), " for EM\n"))
+	}
+	df <- as.data.frame(x@sim@pcs$x[,cord_pcs])
+
+	# Run EM
+	if (verbose){
+		cat("Running semi-supervised EM\n")
+	}
 	for (i in 1:n_runs){
 		runs[[i]] <- run_mv_em_diag(df, k=2, min_iter=min_iter, max_iter=max_iter,
-									labels = x@dropl_info[,"background"], eps=eps, seedn=seedn, verbose=verbose)
+									labels = x@sim@labels, eps=eps, seedn=seedn, verbose=FALSE)
 		if (!is.null(seedn)) seedn <- seedn + 1
 	}
-	for (i in 1:n_runs){
-		if (!is.null(n_pcs)){
-			runs[[i]] <- run_mv_em_diag(x@pcs$x[,1:n_pcs], k=2, min_iter=min_iter, max_iter=max_iter,
-										labels = x@dropl_info[,"background"], eps=eps, seedn=seedn, verbose=verbose)
-		} else {
-			runs[[i]] <- run_mv_em_diag(x@pcs$x, k=2, min_iter=min_iter, max_iter=max_iter, 
-										labels = x@dropl_info[,"background"], eps=eps, seedn=seedn, verbose=verbose)
-		}
-		if (!is.null(seedn)) seedn <- seedn + 1
+	if (verbose){
+		cat("Finished EM\n")
 	}
-	llks <- sapply(runs, function(x) x$llks[length(x$llks)])
+
+	# Get run with max likelihood of parameters
+	llks <- sapply(runs, function(x) x@llks[length(x@llks)])
+	if (sum(!is.na(llks)) == 0){
+		stop("No EM runs converged successfully.\n")
+	}
 	max_i <- which.max(llks)
-	x@emo <- runs[[max_i]]
-	# Add column names
-	colnames(x@emo$Z) <- c("Background", "Target")
+	x@sim@emo <- runs[[max_i]]
+	colnames(x@sim@emo@Z) <- c("Background", "Target")
+	x@sim@emo@pcs <- cord_pcs
 	return(x)
 }
 
-#' Run EM on PCs + BgScore
-#' 
-#' Run expectation maximization (EM) using diagonal covariance on expression PCs in an SCE object with k=2 groups. 
-#' EM is run \code{n_runs} times with random initializations, and the EM output parameters with 
-#' the best log likelihood is output. Within EM, iterate a minimum of \code{min_iter} times and 
-#' a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
-#' log likelihood until covnergence is called. \code{seedn} gives the seed for random number generation, 
-#' which can be used to reproduce results.
-#'
-#' @param x SCE. SCE object with PCs and labels
-#' @param n_pcs Integer. Number of expression PCs to use for running EM
-#' @param min_iter Integer. Minimum number of iterations
-#' @param max_iter Integer. Maximum number of iterations
-#' @param eps Numeric. Epsilon of log-likilhood change to call convergence
-#' @param n_runs Integer. Number of EM runs, with best result returned
-#' @param seedn Numeric. Seed for random number generation
-#' @param verbose Boolean. Print out logging information
-#'
-#' @return SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
-#' @export
-run_em_bg_score_pcs <- function(x, 
-					   n_pcs=3, 
-					   min_iter=5, 
-					   max_iter=1000, 
-					   eps=1e-10, 
-					   n_runs=10, 
-					   seedn=NULL, 
-					   verbose=TRUE){
-	runs <- list()
-	if (is.null(n_pcs)) {n_pcs <- ncol(x@pcs$x)}
-	df <- cbind(x@dropl_info$bg_score, x@pcs$x[,1:n_pcs])
-	for (i in 1:n_runs){
-		runs[[i]] <- run_mv_em_diag(df, k=2, min_iter=min_iter, max_iter=max_iter,
-									labels = x@dropl_info[,"background"], eps=eps, seedn=seedn, verbose=verbose)
-		if (!is.null(seedn)) seedn <- seedn + 1
-	}
-	llks <- sapply(runs, function(x) x$llks[length(x$llks)])
-	max_i <- which.max(llks)
-	x@emo <- runs[[max_i]]
-	# Add column names
-	colnames(x@emo$Z) <- c("Background", "Target")
-	return(x)
-}
+##' Run EM on PCs + BgScore
+##' 
+##' Run expectation maximization (EM) using diagonal covariance on expression PCs in an SCE object with k=2 groups. 
+##' EM is run \code{n_runs} times with random initializations, and the EM output parameters with 
+##' the best log likelihood is output. Within EM, iterate a minimum of \code{min_iter} times and 
+##' a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
+##' log likelihood until covnergence is called. \code{seedn} gives the seed for random number generation, 
+##' which can be used to reproduce results.
+##'
+##' @param x SCE. SCE object with PCs and labels
+##' @param n_pcs Integer. Number of expression PCs to use for running EM
+##' @param min_iter Integer. Minimum number of iterations
+##' @param max_iter Integer. Maximum number of iterations
+##' @param eps Numeric. Epsilon of log-likilhood change to call convergence
+##' @param n_runs Integer. Number of EM runs, with best result returned
+##' @param seedn Numeric. Seed for random number generation
+##' @param verbose Boolean. Print out logging information
+##'
+##' @return SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
+##' @export
+#run_em_bg_score_pcs <- function(x, 
+#								select_pcs=TRUE, 
+#					   n_pcs=3, 
+#					   min_iter=5, 
+#					   max_iter=1000, 
+#					   eps=1e-10, 
+#					   n_runs=10, 
+#					   seedn=NULL, 
+#					   verbose=TRUE){
+#	runs <- list()
+#	if (is.null(n_pcs)) {n_pcs <- ncol(x@sim@pcs$x)}
+#	if (n_pcs > 0){
+#		df <- cbind(x@sim@bg_score, x@sim@pcs$x[,1:n_pcs])
+#	} else {
+#		df <- data.frame(bg_score=x@sim@bg_score)
+#	}
+#	if (select_pcs){
+#		cord_pcs <- c()
+#		pv_thresh <- 0.05 / ncol(x@sim@pcs$x)
+#		for (i in 1:ncol(x@sim@pcs$x)){
+#			ct <- cor.test(x@sim@bg_score, x@sim@pcs$x[,i], use="pairwise", method="pearson")
+#			if (ct$p.value < pv_thresh){
+#				cord_pcs <- c(cord_pcs, i)
+#			}
+#		}
+#		if (length(cord_pcs) == 0){
+#			stop("No PCs are correlated with background score. Cannot run EM on uncorrelated PCs.")
+#		}
+#		df <- cbind(x@sim@bg_score, x@sim@pcs$x[,cord_pcs])
+#	}
+#	if (verbose){
+#		cat("Running semi-supervised EM\n")
+#	}
+#	for (i in 1:n_runs){
+#		runs[[i]] <- run_mv_em_diag(df, k=2, min_iter=min_iter, max_iter=max_iter,
+#									labels = x@sim@labels, eps=eps, seedn=seedn, verbose=FALSE)
+#		if (!is.null(seedn)) seedn <- seedn + 1
+#	}
+#	if (verbose){
+#		cat("Finished EM\n")
+#	}
+#	llks <- sapply(runs, function(x) x@llks[length(x@llks)])
+#	if (sum(!is.na(llks)) == 0){
+#		stop("No EM runs converged successfully.\n")
+#	}
+#	max_i <- which.max(llks)
+#	x@sim@emo <- runs[[max_i]]
+#	colnames(x@sim@emo@Z) <- c("Background", "Target")
+#	x@sim@emo@pcs <- cord_pcs
+#	return(x)
+#}
 
 #' Call targets after EM
 #'
-#' Call targets (typically cells or nuclei) from droplets if the 
-#' log-likelihood membership probability is higher than \code{p}.
+#' Call targets from droplets if the log-likelihood membership probability is higher than \code{lk_fraction}.
 #'
-#' @param x SCE. SCE object
-#' @param p Numeric. Proportion of likelihood to call a target
+#' @param x SCE. SCE object.
+#' @param lk_fraction Numeric. Select droplets that have a fraction of target likelihood greater than this number.
 #'
 #' @return SCE object
 #' @export
-call_targets <- function(x, p=0.95){
-	keep <- (x@emo$Z[,2] > p) & (x@dropl_info[,"total_counts"] > x@limits$min_tg_count) & (x@dropl_info[,"n_genes"] > x@limits$min_tg_gene)
-	x@dropl_info[,"Target"] <- keep
+call_targets <- function(x, lk_fraction=0.95){
+	keep_names <- rownames(x@sim@emo@Z)[ x@sim@emo@Z[,2] > lk_fraction ]
+	x@dropl_info[,"Target"] <- rownames(x@dropl_info) %in% keep_names
 	return(x)
 }
 
@@ -237,7 +304,7 @@ targets_ids <- function(x){
 #'
 #' Places percent of reads aligning to MT genome and MALAT1 gene in 
 #' \code{x@dropl_info}, under columns MALAT1 and MT_PCT. The gene 
-#' names in the rows of \code{x@raw} should be MALAT1 and only mitochondrial 
+#' names in the rows of \code{x@counts} should be MALAT1 and only mitochondrial 
 #' genes should start with MT-.
 #'
 #' @param x SCE.
@@ -247,12 +314,12 @@ targets_ids <- function(x){
 get_mt_malat1 <- function(x){
 	n_drop <- nrow(x@dropl_info)
 	
-	malat_gene <- grep("malat1", rownames(x@raw), ignore.case=T, value=TRUE)
+	malat_gene <- grep("^malat1", rownames(x@counts), ignore.case=T, value=TRUE)
 	if ( length(malat_gene) == 0 ) malat1 <- NA
-	else malat1 <- x@raw[malat_gene,] / x@dropl_info[,"total_counts"]
+	else malat1 <- x@counts[malat_gene,] / x@dropl_info[,"total_counts"]
 
-	mt_genes <- grep("MT-", rownames(x@raw), ignore.case=T, value=TRUE)
-	mt_pct <- Matrix::colSums( x@raw[mt_genes,] ) / x@dropl_info[,"total_counts"]
+	mt_genes <- grep("^mt-", rownames(x@counts), ignore.case=T, value=TRUE)
+	mt_pct <- Matrix::colSums( x@counts[mt_genes,,drop=FALSE] ) / x@dropl_info[,"total_counts"]
 
 	x@dropl_info[,"MALAT1"] <- malat1
 	x@dropl_info[,"MT_PCT"] <- mt_pct

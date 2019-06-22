@@ -19,5 +19,8 @@ convert_to_seurat(x, targets = TRUE, meta = TRUE, ...)
 A Seurat object
 }
 \description{
-Convert SCE object to Seurat
+Convert SCE object to Seurat. if \code{targets} is true (default), outputs only droplets that are 
+called targets. In addition, outputs meta information calculated, such as bg_score. Additional arguments to 
+this function are passed onto \code{\link[Seurat]{CreateSeuratObject}}. Common arguments include 
+"min.cells = 3" and "min.features = 200".
 }
