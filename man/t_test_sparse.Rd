@@ -2,7 +2,7 @@
 % Please edit documentation in R/de.R
 \name{t_test_sparse}
 \alias{t_test_sparse}
-\title{Get variable genes}
+\title{Run t test given parameters of the mean, variance, and size.}
 \usage{
 t_test_sparse(x_mean, x_var, x_n, y_mean, y_var, y_n)
 }
@@ -18,22 +18,8 @@ t_test_sparse(x_mean, x_var, x_n, y_mean, y_var, y_n)
 \item{y_var}{Numeric. Variance of group y.}
 
 \item{y_n}{Numeric. Size of group y.}
-
-\item{x}{SCE. SCE object.}
-
-\item{min_mean}{Numeric. Minimum mean of counts to consider.}
-
-\item{nf}{Numeric. Output top nf variable features.}
-
-\item{lss}{Numeric. The span paramater for loess function.}
-
-\item{verbose}{Boolean.}
 }
 \value{
-SCE object with \code{vg} and \code{vg_info} slots filled for variable genes
-and variable gene info. \code{vg_info} is a data frame with log mean, log var, 
-fitted log var values, and residuals. \code{vg} is a vector of genes
-
 list with 2 components:
 \describe{
   \item{p}{p-value}
@@ -41,7 +27,6 @@ list with 2 components:
 }
 }
 \description{
-Finds top \code{nf} variable genes by running a loess regression 
-on log(variance) and log(mean). Residuals are used to rank 
-features, and the top \code{nf} are output.
+This t test function rapidly calculates p value and log fold change
+given the parameters.
 }

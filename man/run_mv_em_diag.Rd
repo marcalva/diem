@@ -5,29 +5,33 @@
 \title{Run multivariate EM restricted to diagonal covariance}
 \usage{
 run_mv_em_diag(x, k = 2, min_iter = 5, max_iter = 1000,
-  labels = NULL, mu0 = NULL, sgma0 = NULL, eps = 1e-10,
-  seedn = NULL, verbose = TRUE)
+  labels = NULL, mu0 = NULL, sgma0 = NULL, tau0 = NULL,
+  eps = 1e-10, seedn = NULL, verbose = TRUE, trace = FALSE)
 }
 \arguments{
-\item{x}{matrix. Matrix with samples on the rows and features on the columns}
+\item{x}{matrix. Matrix with samples on the rows and features on the columns.}
 
-\item{k}{Numeric. Number of clusters. Must be pre-specified}
+\item{k}{Numeric. Number of clusters. Must be pre-specified.}
 
-\item{min_iter}{Numeric. Minimum number of iterations before calling convergence}
+\item{min_iter}{Numeric. Minimum number of iterations before calling convergence.}
 
-\item{max_iter}{Numeric. Maximum number of iterations}
+\item{max_iter}{Numeric. Maximum number of iterations.}
 
-\item{labels}{Numeric vector. Fixed label IDs for semi-supervised clustering. 0 is unknown (to be estimated)}
+\item{labels}{Numeric vector. Fixed label IDs for semi-supervised clustering. 0 is unknown (to be estimated).}
 
-\item{mu0}{Numeric. Starting value for mu}
+\item{mu0}{Numeric. Starting value for mu. If set, all mu0, sgma0, and tau0 must be set.}
 
-\item{sgma0}{Numeric. Starting value for sigma}
+\item{sgma0}{Numeric. Starting value for sigma. If set, all mu0, sgma0, and tau0 must be set.}
 
-\item{eps}{Numeric. Threshold of change in log likelihood to stop iterations}
+\item{tau0}{Numeric. Starting value for tau. If set, all mu0, sgma0, and tau0 must be set.}
 
-\item{seedn}{Numeric. Numeric value specifying seed for random initialization}
+\item{eps}{Numeric. Threshold of change in log likelihood to stop iterations.}
 
-\item{verbose}{Boolean. Print logging information}
+\item{seedn}{Numeric. Numeric value specifying seed for random initialization.}
+
+\item{verbose}{Boolean. Print logging information.}
+
+\item{trace}{Boolean. Print out parameter and likelihod values during iterations.}
 }
 \value{
 EMO object

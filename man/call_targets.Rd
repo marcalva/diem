@@ -2,41 +2,18 @@
 % Please edit documentation in R/debris_id.R
 \name{call_targets}
 \alias{call_targets}
-\title{Run EM on PCs + BgScore}
+\title{Call targets after EM}
 \usage{
 call_targets(x, lk_fraction = 0.95)
 }
 \arguments{
-\item{x}{SCE. SCE object with PCs and labels}
+\item{x}{SCE. SCE object.}
 
 \item{lk_fraction}{Numeric. Select droplets that have a fraction of target likelihood greater than this number.}
-
-\item{n_pcs}{Integer. Number of expression PCs to use for running EM}
-
-\item{min_iter}{Integer. Minimum number of iterations}
-
-\item{max_iter}{Integer. Maximum number of iterations}
-
-\item{eps}{Numeric. Epsilon of log-likilhood change to call convergence}
-
-\item{n_runs}{Integer. Number of EM runs, with best result returned}
-
-\item{seedn}{Numeric. Seed for random number generation}
-
-\item{verbose}{Boolean. Print out logging information}
-
-\item{x}{SCE. SCE object.}
 }
 \value{
-SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
-
 SCE object
 }
 \description{
-Run expectation maximization (EM) using diagonal covariance on expression PCs in an SCE object with k=2 groups. 
-EM is run \code{n_runs} times with random initializations, and the EM output parameters with 
-the best log likelihood is output. Within EM, iterate a minimum of \code{min_iter} times and 
-a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
-log likelihood until covnergence is called. \code{seedn} gives the seed for random number generation, 
-which can be used to reproduce results.
+Call targets from droplets if the log-likelihood membership probability is higher than \code{lk_fraction}.
 }

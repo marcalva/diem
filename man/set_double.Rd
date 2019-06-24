@@ -6,6 +6,12 @@
 \usage{
 set_double(x)
 }
+\arguments{
+\item{x}{Numeric.}
+}
+\value{
+A numeric (same as x).
+}
 \description{
-Round x up to double precision value if R rounds x below the minimum number for double
+For compatibility with Rcpp
 }

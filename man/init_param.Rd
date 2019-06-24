@@ -2,7 +2,7 @@
 % Please edit documentation in R/em.R
 \name{init_param}
 \alias{init_param}
-\title{Initialize parameters for EM}
+\title{Initialize parameters for EM using K-means}
 \usage{
 init_param(x, k, labels = NULL)
 }
@@ -10,6 +10,9 @@ init_param(x, k, labels = NULL)
 \item{x}{Matrix or data frame. Data observations with n rows and p columns}
 
 \item{k}{Integer. Number of clusters}
+
+\item{labels}{Vector. Integer vector of labels. If semi-supervised, samples with 0 are 
+unknown, wheres positive integers are fixed labels}
 }
 \value{
 Parameters in a list with components
@@ -18,5 +21,5 @@ Parameters in a list with components
 \item{tau}{Numeric vector of length k}
 }
 \description{
-Initialize parameters for EM
+Initialize parameters for EM using K-means
 }

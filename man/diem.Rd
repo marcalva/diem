@@ -4,41 +4,35 @@
 \alias{diem}
 \title{Run diem pipeline}
 \usage{
-diem(sce, min_counts = NULL, top_n = NULL, de_cutpoint = NULL,
-  log2fc_thresh = 0.5, de_p_thresh = 0.05, de_correct = "bonferroni",
-  simf = 0.5, gma = 10, scale_factor = 10000, n_pcs = 30,
-  genes = NULL, min_r = 0.5, min_iter = 5, max_iter = 1000,
-  eps = 1e-10, n_runs = 10, lk_fraction = 0.95, seedn = NULL,
-  verbose = TRUE)
+diem(sce, log_base_em = 10, top_n = NULL, min_counts = NULL,
+  log_base_label = 5, de_cutpoint = NULL, log2fc_thresh = 0,
+  de_p_thresh = 0.05, de_correct = "fdr", scale_factor = 10000,
+  min_iter = 5, max_iter = 1000, eps = 1e-10, n_runs = 10,
+  lk_fraction = 0.95, seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
 
-\item{min_counts}{Integer. Only droplets with at least this number of total counts are used for testing.}
+\item{log_base_em}{Numeric. Take droplets with counts above 2 logs below the max droplet count using this base
+for EM classification}
 
-\item{top_n}{Numeric. Only the top \code{top_n} droplets ranked by total counts are used for testing.}
+\item{top_n}{Numeric. Only run EM to classify droplets if they are in the 
+top number of droplets ranked by total counts.}
 
-\item{de_cutpoint}{Numeric. Manually set the DE cutpoint.}
+\item{min_counts}{Integer. Only run EM to classify droplets with at least this number of total counts.}
 
-\item{log2fc_thresh}{Numeric. Test only genes that have this log2 fold-change threshold between low and high
-droplets will be considered as differentially expressed. Fold change is for both comparison low vs high and high vs low}
+\item{log_base_label}{Numeric. Fix the labels as nuclei for droplets with counts above 1 log below 
+the max droplet count using this base.}
 
-\item{de_p_thresh}{Numeric. Adjusted p-value threshold for differential expression.}
+\item{de_cutpoint}{Numeric. Manually set the DE cutpoint. If not NULL, it is calculated from the data.}
 
-\item{de_correct}{Character. Correction method.}
+\item{log2fc_thresh}{Numeric. Test only genes that have an absolute log2 fold-change above this threshold.}
 
-\item{simf}{Numeric. Generate number of candidates * \code{simf} random samples.}
+\item{de_p_thresh}{Numeric. Adjusted p-value threshold.}
 
-\item{gma}{Numeric. Multiply p by this number to generate alpha for Dirichlet-multinomial random sampling.}
+\item{de_correct}{Character. p-value correction method.}
 
 \item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
-
-\item{n_pcs}{Integer. Number of PCs to calculate.}
-
-\item{genes}{Vector. Use these genes specified for PCA.}
-
-\item{min_r}{Numeric. Only run PCs correlated to the background score. PCs are correlated with the background 
-score and the absolute value of the R coefficient must be greater than this threshold.}
 
 \item{min_iter}{Integer. Minimum number of iterations in EM.}
 

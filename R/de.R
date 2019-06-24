@@ -1,48 +1,4 @@
 
-##' Get variable genes
-##'
-##' Finds top \code{nf} variable genes by running a loess regression 
-##' on log(variance) and log(mean). Residuals are used to rank 
-##' features, and the top \code{nf} are output.
-##'
-##' @param x SCE. SCE object.
-##' @param min_mean Numeric. Minimum mean of counts to consider.
-##' @param nf Numeric. Output top nf variable features.
-##' @param lss Numeric. The span paramater for loess function.
-##' @param verbose Boolean.
-##'
-##' @return SCE object with \code{vg} and \code{vg_info} slots filled for variable genes
-##' and variable gene info. \code{vg_info} is a data frame with log mean, log var, 
-##' fitted log var values, and residuals. \code{vg} is a vector of genes
-##' @export
-#get_var_genes <- function(x, min_mean = 0.0001, nf = 2000, lss=0.3, verbose=FALSE){
-#	if (verbose) cat("Getting variable genes\n")
-#	if (min_mean <= 0){
-#		keep <- x@gene_info[,"mean"] > 0
-#	} else {
-#		keep <- x@gene_info[,"mean"] > min_mean
-#	}
-#	if (table(keep)["TRUE"] < nf){
-#		stop("Error: Specifying more variable features than there are features passing min_mean\n")
-#	}
-#	gene_means <- x@gene_info[,"mean"][keep]
-#	gene_names <- rownames(x@gene_info)[keep]
-#
-#	log_mean <- log10(gene_means + 1)
-#	log_var <- log10(fast_varCPP(x@counts[keep,], gene_means) + 1)
-#	fit <- loess(log_var ~ log_mean, span=lss)
-#	rsd <- log_var - fit$fitted
-#	topi <- order(rsd, decreasing=TRUE)[1:nf]
-#	vg <- gene_names[topi]
-#	df <- data.frame(mean=log_mean, var=log_var,
-#					 fit=fit$fitted, rsd=rsd)
-#	rownames(df) <- gene_names
-#	x@vg <- vg
-#	x@vg_info <- df
-#	if (verbose) cat("Found variable genes\n")
-#	return(x)
-# }
-
 #' Run t test given parameters of the mean, variance, and size.
 #'
 #' This t test function rapidly calculates p value and log fold change
@@ -111,32 +67,32 @@ set_de_cutpoint <- function(x,
 #' Get DE genes between high and low read count droplets using a t-test
 #'
 #' Find differentially expressed genes between low and high read count droplets. Groups droplets into
-#' low or high if they have less than or equal to or greater than \code{de_cutpoint}, respectively. Must run
-#' set \code{de_cutpoint} by running \code{\link{set_de_cutpoint}} before.A t-test is run between the 2 groups 
+#' low or high count groups. The count threshold for separating low and high is determined by taking the 
+#' log10 of the maximum droplet count, subtracting 1, and calculating 10 to the power of this number. In other 
+#' words, the thresold is found by dividing the max count by 10. 
+#' Alternatively, the you can set the cutpoint threshold manually with \code{de_cutpoint}. A t-test is run between the 2 groups 
 #' for each gene, calculating log fold change and p-value. Statistically significant genes are determined by adjusting 
 #' the p-value using the \code{de_correct}. Can be any method used in \code{\link[stats]{p.adjust}}, typically either 
-#' "bonferroni" (default) or "fdr."
+#' "bonferroni" or "fdr" (default).
 #'
 #' @param x SCE. SCE object.
-#' @param log2fc_thresh Numeric. Test only genes that have this log2 fold-change threshold between low and high
-#' droplets will be considered as differentially expressed. Fold change is for both comparison low vs high and high vs low.
+#' @param de_cutpoint Numeric. Manually set the DE cutpoint. If not NULL, it is calculated from the data.
+#' @param log2fc_thresh Numeric. Test only genes that have an absolute log2 fold-change above this threshold.
 #' @param de_p_thresh Numeric. Adjusted p-value threshold.
 #' @param de_correct Character. p-value correction method.
 #' @param verbose Boolean.
 #'
 #' @return SCE object.
-#' @importFrom Matrix Diagonal colSums rowMeans
+#' @importFrom Matrix rowMeans
 #' @export
-get_de <- function(x, 
-				   log2fc_thresh=0.5, 
-				   de_p_thresh=0.05, 
-				   de_correct="bonferroni", 
-				   verbose=FALSE){
-	if (verbose) cat("Finding differentially expressed genes\n")
+get_de_genes <- function(x, 
+						 de_cutpoint=NULL,
+						 log2fc_thresh=0, 
+						 de_p_thresh=0.05, 
+						 de_correct="fdr", 
+						 verbose=FALSE){
+	x <- set_de_cutpoint(x, de_cutpoint=de_cutpoint, verbose=verbose)
 
-	if (is.null(x@de_cutpoint)){
-		stop("Can't find DE genes. Set DE cutpoint first.")
-	}
 	dc <- x@dropl_info[,"total_counts"]
 	low_droplets <- (dc <= x@de_cutpoint)
 	high_droplets <- (dc > x@de_cutpoint)
@@ -148,25 +104,31 @@ get_de <- function(x,
 	low_prop <- divide_by_colsum(low_expr)
 	high_prop <- divide_by_colsum(high_expr)
 
-	# low_prop <- log1p(low_prop)
-	# high_prop <- log1p(high_prop)
+	if (verbose) cat("Finding differentially expressed genes\n")
 
 	# Calculate mean, variance, and n
 	low_means <- Matrix::rowMeans(low_prop)
 	high_means <- Matrix::rowMeans(high_prop)
+
+	genes_use <- rownames(high_expr)[ low_means > 0 & high_means > 0 ]
+
 	low_vars <- fast_varCPP(low_prop, low_means); names(low_vars) <- names(low_means)
 	high_vars <- fast_varCPP(high_prop, high_means); names(high_vars) <- names(high_means)
 	low_n <- ncol(low_prop)
 	high_n <- ncol(high_prop)
 
 	# Run DE
-	genes_use <- rownames(high_expr)[ low_means > 0 & high_means > 0 ]
-	t_results <- sapply(genes_use, function(i){
-						tr <- t_test_sparse(low_means[i], low_vars[i], low_n, high_means[i], high_vars[i], high_n)
+	if (verbose) pb <- txtProgressBar(min = 0, max = length(genes_use), initial = 0, style = 3)
+	t_results <- sapply(seq_along(genes_use), function(i){
+						gene <- genes_use[i]
+						tr <- t_test_sparse(low_means[gene], low_vars[gene], low_n, high_means[gene], high_vars[gene], high_n)
+						if(verbose) setTxtProgressBar(pb, i)
 						return(c("p"=tr$p, "log2fc"=tr$log2fc))
 					 })
+	if (verbose) close(pb)
 	t_results <- as.data.frame(t(t_results))
 	t_results[,"p_adj"] <- p.adjust(t_results[,"p"], method=de_correct)
+	rownames(t_results) <- genes_use
 
 	deg <- rownames(t_results)[ (abs(t_results[,"log2fc"]) > log2fc_thresh) & (t_results[,"p_adj"] < de_p_thresh) ]
 	deg_low <- rownames(t_results)[ (t_results[,"log2fc"] > log2fc_thresh) & (t_results[,"p_adj"] < de_p_thresh) ]

@@ -4,22 +4,12 @@
 #' @rdname EMO-class
 #' @exportClass EMO
 EMO <- setClass(Class = "EMO", 
-				slots = c(Z = "matrix",
-						  mu = "list",
+				slots = c(Z = "matrix", 
+						  mu = "list", 
 						  sgma = "list", 
 						  tau = "vector", 
 						  llks = "vector", 
-						  n_iter = "numeric",
-						  pcs = "numeric"))
-
-#' DM_params
-#' @name DM_params-class
-#' @rdname DM_params-class
-#' @exportClass DM_params
-DM_params <- setClass(Class = "DM_params",
-					  slots = c(alphas = "matrix", 
-					  			sizes = "vector",
-					  			gamma = "numeric"))
+						  n_iter = "numeric"))
 
 #' DE
 #' @name DE-class
@@ -37,17 +27,15 @@ DE <- setClass(Class = "DE",
 			   			 deg_high = "character", 
 			   			 table = "data.frame"))
 
-#' sim
-#' @name SIM-class
-#' @rdname SIM-class
-#' @exportClass SIM
-SIM <- setClass(Class = "SIM", 
+#' DIEM
+#' @name DIEM-class
+#' @rdname DIEM-class
+#' @exportClass DIEM
+DIEM <- setClass(Class = "DIEM", 
 				slots = c(counts = "dgCMatrix", 
 						  norm = "ANY", 
+						  pi = "data.frame", 
 						  labels = "vector", 
-						  bg_score = "vector", 
-						  pcs = "ANY", 
-						  dm_params = "DM_params", 
 						  emo = "EMO"))
 
 #' SCE
@@ -61,8 +49,9 @@ SCE <- setClass(Class = "SCE",
 						  norm = "ANY",
 						  de_cutpoint = "numeric", 
 						  min_counts = "numeric", 
+						  fix_counts = "numeric", 
 						  de = "DE", 
-						  sim = "SIM", 
+						  diem = "DIEM", 
 						  gene_info = "data.frame",
 						  dropl_info = "data.frame", 
                           name = "character"))
@@ -139,12 +128,11 @@ convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
 		stop("Package \"Seurat\" needed for this function to work. Please install it.",
 		    	       call. = FALSE)
 	}
-	if (targets) keep <- rownames(x@dropl_info)[ x@dropl_info[,"Target"] ]
+	if (targets) keep <- rownames(x@dropl_info)[ grep("Nucleus", x@dropl_info[,"Call"]) ]
 	else keep <- rownames(x@dropl_info)
 	if (meta) meta.data <- x@dropl_info[keep,,drop=FALSE]
 	else meta.data <- NULL
 	seur <- Seurat::CreateSeuratObject(counts=x@counts[,keep], meta.data=meta.data, ...)
 	return(seur)
 }
-
 

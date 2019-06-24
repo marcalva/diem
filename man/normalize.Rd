@@ -2,9 +2,9 @@
 % Please edit documentation in R/data.R
 \name{normalize}
 \alias{normalize}
-\title{Normalize simulated and candidate raw count data}
+\title{Normalize raw counts for droplets being classified.}
 \usage{
-normalize(x, scale_factor = 10000)
+normalize(x, scale_factor = 10000, logt = FALSE)
 }
 \arguments{
 \item{x}{SCE.}
