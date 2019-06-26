@@ -56,6 +56,10 @@ run_em <- function(x,
 				   verbose=TRUE){
 	runs <- list()
 
+	if (length(x@diem@pi) == 0){
+		stop("Calculate pi before running EM")
+	}
+
 	# Run EM
 	if (verbose){
 		cat("Running semi-supervised EM\n")

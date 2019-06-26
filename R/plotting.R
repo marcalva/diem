@@ -61,6 +61,43 @@ volcano_de_plot <- function(x, ret=FALSE){
 	else p
 }
 
+#' Correlation plot of low vs high expression
+#'
+#' @param x SCE. SCE object
+#' @param ret Boolean. Return a ggplot object
+#'
+#' @return Nothing, unless return=TRUE then a ggplot
+#' @import ggplot2
+#' @importFrom Matrix colSums rowSums
+#' @export
+low_high_cor_plot <- function(x, scale_factor=1, ret=FALSE){
+	dc <- Matrix::colSums(x@counts)
+	low_p <- Matrix::rowSums(x@counts[,dc < x@de_cutpoint])
+	high_p <- Matrix::rowSums(x@counts[,dc >= x@de_cutpoint])
+	low_p <- log1p(scale_factor*low_p/sum(low_p))
+	high_p <- log1p(scale_factor*high_p/sum(high_p))
+
+	df <- data.frame(low=low_p,high=high_p)
+	df <- df[rowSums(df) > 0,]
+
+	df$DEG <- ""
+	if ( length(x@de@deg) > 0){
+		df[x@de@deg,"DEG"] <- "DEG"
+	}
+
+	df <- df[order(df$DEG),]
+	limits <- c(min(min(low_p), min(high_p)), max(max(low_p), max(high_p)))
+
+	p <- ggplot(data=df, aes(x=low, y=high, color=DEG)) + 
+	geom_point() + 
+	theme_minimal() + 
+	xlim(limits) + ylim(limits) + 
+	xlab("Gene expression below DE cutpoint") + 
+	ylab("Gene expression above DE cutpoint")
+	if (ret) return(p)
+	else p
+}
+
 #' Distribution of likelihood fraction
 #'
 #' @param x SCE. SCE object

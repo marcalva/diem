@@ -33,17 +33,18 @@ t_test_sparse <- function(x_mean, x_var, x_n, y_mean, y_var, y_n){
 #' In order to find genes enriched in the background or the nucleus, we need to 
 #' determine how to group droplets for DE. This function finds a proper cut point 
 #' to decide which droplets are assigned to either the high or low group. This number 
-#' is determined by taking the log10 of the maximum droplet count, subtracting 1, 
-#' and calculating 10 to the power of this number (10^(log10(x)-1) where x is the max 
-#' count. Alternatively, the you can set the cutpoint threshold manually.
+#' is determined by dividing the maximum droplet count by \code{log_base}. 
+#' Alternatively, the you can set the cutpoint threshold manually with \code{de_cutpoint}.
 #'
 #' @param x SCE. SCE object.
+#' @param log_base Numeric. Base of log to take.
 #' @param de_cutpoint Numeric. Manually set the DE cutpoint.
 #' @param verbose Boolean. Verbosity.
 #'
 #' @return SCE object.
 #' @export
 set_de_cutpoint <- function(x, 
+							log_base=100, 
 							de_cutpoint=NULL, 
 							verbose=FALSE){
 	if (verbose) cat("Setting DE cutpoint\n")
@@ -51,9 +52,7 @@ set_de_cutpoint <- function(x,
 		x@de_cutpoint <- de_cutpoint
 	} else {
 		max_count <- max(x@dropl_info$total_counts)
-		max_count_l <- log10(max_count)
-		de_cutpoint_l <- max_count_l-1
-		x@de_cutpoint <- 10^de_cutpoint_l
+		x@de_cutpoint <- max_count/log_base
 	}
 	n_over <- sum(x@dropl_info$total_counts > x@de_cutpoint)
 	if (n_over < 10){
@@ -83,17 +82,20 @@ set_de_cutpoint <- function(x,
 #' @param verbose Boolean.
 #'
 #' @return SCE object.
-#' @importFrom Matrix rowMeans
+#' @importFrom Matrix rowMeans rowSums
 #' @export
 get_de_genes <- function(x, 
-						 de_cutpoint=NULL,
+						 log_base=100, 
+						 de_cutpoint=NULL, 
+						 top_n=1e4, 
 						 log2fc_thresh=0, 
 						 de_p_thresh=0.05, 
-						 de_correct="fdr", 
+						 de_correct="bonferroni", 
 						 verbose=FALSE){
-	x <- set_de_cutpoint(x, de_cutpoint=de_cutpoint, verbose=verbose)
+	x <- set_de_cutpoint(x, log_base=log_base, de_cutpoint=de_cutpoint, verbose=verbose)
 
 	dc <- x@dropl_info[,"total_counts"]
+	# low_droplets <- (dc > x@de_cutpoint/(log_base^2)) & (dc <= x@de_cutpoint/(log_base^1))
 	low_droplets <- (dc <= x@de_cutpoint)
 	high_droplets <- (dc > x@de_cutpoint)
 
@@ -101,16 +103,21 @@ get_de_genes <- function(x,
 	high_expr <- x@counts[, high_droplets]
 
 	# Normalize count size
-	low_prop <- divide_by_colsum(low_expr)
-	high_prop <- divide_by_colsum(high_expr)
+	low_prop <- log1p(divide_by_colsum(low_expr))
+	high_prop <- log1p(divide_by_colsum(high_expr))
 
 	if (verbose) cat("Finding differentially expressed genes\n")
+
+	# Filter out genes from top_n
+	all_prop <- Matrix::rowSums(x@counts)
+	genes_top <- rownames(x@counts)[order(all_prop, decreasing=TRUE)[1:top_n]]
 
 	# Calculate mean, variance, and n
 	low_means <- Matrix::rowMeans(low_prop)
 	high_means <- Matrix::rowMeans(high_prop)
 
-	genes_use <- rownames(high_expr)[ low_means > 0 & high_means > 0 ]
+	genes_expr <- rownames(high_expr)[ low_means > 0 & high_means > 0 ]
+	genes_use <- intersect(genes_top, genes_expr)
 
 	low_vars <- fast_varCPP(low_prop, low_means); names(low_vars) <- names(low_means)
 	high_vars <- fast_varCPP(high_prop, high_means); names(high_vars) <- names(high_means)
@@ -129,6 +136,20 @@ get_de_genes <- function(x,
 	t_results <- as.data.frame(t(t_results))
 	t_results[,"p_adj"] <- p.adjust(t_results[,"p"], method=de_correct)
 	rownames(t_results) <- genes_use
+
+	# For testing
+#	# Replace fold-change with difference in proportion, and select top 1K
+	low_pe <- 1e4 * low_means/sum(low_means)
+	high_pe <- 1e4 * high_means/sum(high_means)
+	diffs <- low_pe - high_pe
+#	top_i <- order(abs(diffs), decreasing=TRUE)[1:1e3]
+#
+#	diffs_deg <- diffs[top_i]
+#	deg <- names(diffs_deg)
+#	deg_low <- names(diffs_deg)[diffs_deg > 0]
+#	deg_high <- names(diffs_deg)[diffs_deg < 0]
+#
+	t_results[,"log2fc"] < diffs[rownames(t_results)]
 
 	deg <- rownames(t_results)[ (abs(t_results[,"log2fc"]) > log2fc_thresh) & (t_results[,"p_adj"] < de_p_thresh) ]
 	deg_low <- rownames(t_results)[ (t_results[,"log2fc"] > log2fc_thresh) & (t_results[,"p_adj"] < de_p_thresh) ]
@@ -154,6 +175,161 @@ get_de_genes <- function(x,
 	} else {
 		if (verbose) cat(paste0("Found ", as.character(length(x@de@deg)), " DE genes\n"))
 	}
+
+	return(x)
+}
+
+#' Multi-sample edgeR
+#'
+#' @return List of SCE objects.
+#' @import edgeR
+#' @importFrom Matrix rowSums
+#' @export
+run_edgeR_multi <- function(x){
+	if (!requireNamespace("edgeR", quietly = TRUE)) {
+		stop("Package \"edgeR\" needed for this function to work. Please install it.",
+			 call. = FALSE)
+	}
+	# x is a list of SCE objects
+	counts <- lapply(x, function(sce){
+					 dc <- sce@dropl_info[,"total_counts"]
+					 low_droplets <- (dc <= sce@de_cutpoint)
+					 high_droplets <- (dc > sce@de_cutpoint)
+					 low_expr <- Matrix::rowSums(sce@counts[, low_droplets])
+					 high_expr <- Matrix::rowSums(sce@counts[, high_droplets])
+					 expr <- cbind(low_expr, high_expr)
+			 })
+	counts <- do.call(cbind, counts)
+	colnames(counts) <- make.unique(colnames(counts))
+	groups <- factor(rep(c("low", "high"), length(x)))
+	paired <- factor(sapply(1:length(x), function(i) rep(i, 2)))
+
+	y = edgeR::DGEList(counts=counts, group=groups)
+	keep <- rowSums(edgeR::cpm(y)>3) == ncol(y)
+	y$counts <- y$counts[keep,]
+	y$lib.size <- colSums(y$counts)
+	y <- edgeR::calcNormFactors(y)
+	design <- model.matrix(~paired + groups)
+	y <- edgeR::estimateDisp(y,design)
+	et <- edgeR::exactTest(y)
+	diffTableET = et$table
+	diffTableET$PValueAdj <- p.adjust(diffTableET$PValue, method="bonferroni")
+	diffTableET = diffTableET[order(diffTableET$PValueAdj),]
+	diffTableET$color <- "black"
+	diffTableET[diffTableET$PValueAdj < .05,"color"] <- "red"
+
+	# For DE object
+	deg <- rownames(diffTableET)[diffTableET[,"PValueAdj"] < 0.05]
+	deg_low <- rownames(diffTableET)[diffTableET[,"PValueAdj"] < 0.05 & diffTableET[,"logFC"] > 0]
+	deg_high <- rownames(diffTableET)[diffTableET[,"PValueAdj"] < 0.05 & diffTableET[,"logFC"] < 0]
+	dfr <- data.frame(log2fc=diffTableET$logFC, p=diffTableET[,"PValue"], p_adj=diffTableET[,"PValueAdj"])
+	rownames(dfr) <- rownames(diffTableET)
+	de_obj <- DE(deg=deg,
+				 deg_low=deg_low,
+				 deg_high=deg_high,
+				 table=dfr)
+	for (i in 1:length(x)){
+		x[[i]]@edgeR <- diffTableET
+		x[[i]]@de <- de_obj
+		x[[i]]@common.dispersion <- y$common.dispersion
+
+	}
+
+	return(x)
+}
+
+#' Estimate Dispersion
+#'
+#' @return List of SCE objects.
+#' @import edgeR
+#' @importFrom Matrix rowSums
+#' @export
+estimate_disp <- function(x){
+	if (!requireNamespace("edgeR", quietly = TRUE)) {
+		stop("Package \"edgeR\" needed for this function to work. Please install it.",
+			 call. = FALSE)
+	}
+	# x is a list of SCE objects
+	counts <- lapply(x, function(sce){
+					 dc <- sce@dropl_info[,"total_counts"]
+					 low_droplets <- (dc <= sce@de_cutpoint)
+					 high_droplets <- (dc > sce@de_cutpoint)
+					 low_expr <- Matrix::rowSums(sce@counts[, low_droplets])
+					 high_expr <- Matrix::rowSums(sce@counts[, high_droplets])
+					 expr <- cbind(low_expr, high_expr)
+			 })
+	counts <- do.call(cbind, counts)
+	colnames(counts) <- make.unique(colnames(counts))
+	groups <- factor(rep(c("low", "high"), length(x)))
+	paired <- factor(sapply(1:length(x), function(i) rep(i, 2)))
+
+	y = edgeR::DGEList(counts=counts, group=groups)
+	keep <- rowSums(edgeR::cpm(y)>3) == ncol(y)
+	y$counts <- y$counts[keep,]
+	y$lib.size <- colSums(y$counts)
+	y <- edgeR::calcNormFactors(y)
+	design <- model.matrix(~paired + groups)
+	# design <- model.matrix(~groups)
+	y <- edgeR::estimateDisp(y,design)
+
+	for (i in 1:length(x)){
+		x[[i]]@common.dispersion <- y$common.dispersion
+
+	}
+
+	return(x)
+}
+
+
+#' Single-sample edgeR
+#'
+#' @return SCE object.
+#' @import edgeR
+#' @importFrom Matrix rowSums
+#' @export
+run_edgeR_single <- function(x, bcv=0.2){
+	if (!requireNamespace("edgeR", quietly = TRUE)) {
+		stop("Package \"edgeR\" needed for this function to work. Please install it.",
+			 call. = FALSE)
+	}
+	# x is a list of SCE objects
+	dc <- x@dropl_info[,"total_counts"]
+	low_droplets <- (dc <= x@de_cutpoint)
+	high_droplets <- (dc > x@de_cutpoint)
+	low_expr <- Matrix::rowSums(x@counts[, low_droplets])
+	high_expr <- Matrix::rowSums(x@counts[, high_droplets])
+	counts <- cbind(low_expr, high_expr)
+	groups <- factor(c("low", "high"))
+
+	y <- edgeR::DGEList(counts=counts, group=groups)
+	keep <- rowSums(edgeR::cpm(y)>3) == ncol(y)
+	y$counts <- y$counts[keep,]
+	y$lib.size <- colSums(y$counts)
+	y <- edgeR::calcNormFactors(y)
+	design <- model.matrix(~groups)
+	et <- edgeR::exactTest(y, dispersion=bcv^2)
+	diffTableET = et$table
+	diffTableET$PValueAdj <- p.adjust(diffTableET$PValue, method="bonferroni")
+	diffTableET = diffTableET[order(diffTableET$PValueAdj),]
+	diffTableET$color <- "black"
+	diffTableET[diffTableET$PValueAdj < .05,"color"] <- "red"
+
+	# For DE object
+	deg <- rownames(diffTableET)[diffTableET[,"PValueAdj"] < 0.05]
+	# deg_low <- rownames(diffTableET)[diffTableET[,"PValueAdj"] < 0.05 & diffTableET[,"logFC"] > 0]
+	# deg_high <- rownames(diffTableET)[diffTableET[,"PValueAdj"] < 0.05 & diffTableET[,"logFC"] < 0]
+	deg_low <- rownames(diffTableET)[diffTableET[,"logFC"] > 0]
+	deg_high <- rownames(diffTableET)[diffTableET[,"logFC"] < 0]
+	dfr <- data.frame(log2fc=diffTableET$logFC, p=diffTableET[,"PValue"], p_adj=diffTableET[,"PValueAdj"])
+	rownames(dfr) <- rownames(diffTableET)
+	de_obj <- DE(deg=deg,
+				 deg_low=deg_low,
+				 deg_high=deg_high,
+				 table=dfr)
+
+	x@edgeR <- diffTableET
+	x@de <- de_obj
+	x@common.dispersion <- bcv^2
 
 	return(x)
 }

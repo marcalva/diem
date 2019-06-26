@@ -4,10 +4,13 @@
 \alias{set_de_cutpoint}
 \title{Set count cutpoint for DE testing between low and high count droplets}
 \usage{
-set_de_cutpoint(x, de_cutpoint = NULL, verbose = FALSE)
+set_de_cutpoint(x, log_base = 100, de_cutpoint = NULL,
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
+
+\item{log_base}{Numeric. Base of log to take.}
 
 \item{de_cutpoint}{Numeric. Manually set the DE cutpoint.}
 
@@ -20,7 +23,6 @@ SCE object.
 In order to find genes enriched in the background or the nucleus, we need to 
 determine how to group droplets for DE. This function finds a proper cut point 
 to decide which droplets are assigned to either the high or low group. This number 
-is determined by taking the log10 of the maximum droplet count, subtracting 1, 
-and calculating 10 to the power of this number (10^(log10(x)-1) where x is the max 
-count. Alternatively, the you can set the cutpoint threshold manually.
+is determined by dividing the maximum droplet count by \code{log_base}. 
+Alternatively, the you can set the cutpoint threshold manually with \code{de_cutpoint}.
 }

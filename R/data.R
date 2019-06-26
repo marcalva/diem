@@ -64,11 +64,11 @@ subset_for_em <- function(x, log_base=10, top_n=NULL, min_counts=NULL){
 		if ( ( !is.null(top_n) ) & ( !is.null(min_counts) ) ){
 			stop("Set only one of top_n or min_counts")
 		}
-		if ( !is.null(top_n) ){
+		if ( is.null(top_n) ){
 			x@min_counts <- min_counts
 		} else {
 			top_n_ix <- order(dc, decreasing=TRUE)[top_n]
-			x@min_counts <- max(min_counts, dc[top_n_ix])
+			x@min_counts <- dc[top_n_ix]
 		}
 	}
 	# Subset counts matrix

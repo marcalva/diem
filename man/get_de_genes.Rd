@@ -4,8 +4,9 @@
 \alias{get_de_genes}
 \title{Get DE genes between high and low read count droplets using a t-test}
 \usage{
-get_de_genes(x, de_cutpoint = NULL, log2fc_thresh = 0,
-  de_p_thresh = 0.05, de_correct = "fdr", verbose = FALSE)
+get_de_genes(x, log_base = 100, de_cutpoint = NULL, top_n = 10000,
+  log2fc_thresh = 0, de_p_thresh = 0.05, de_correct = "bonferroni",
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object.}

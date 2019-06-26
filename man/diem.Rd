@@ -5,10 +5,11 @@
 \title{Run diem pipeline}
 \usage{
 diem(sce, log_base_em = 10, top_n = NULL, min_counts = NULL,
-  log_base_label = 5, de_cutpoint = NULL, log2fc_thresh = 0,
-  de_p_thresh = 0.05, de_correct = "fdr", scale_factor = 10000,
-  min_iter = 5, max_iter = 1000, eps = 1e-10, n_runs = 10,
-  lk_fraction = 0.95, seedn = NULL, verbose = TRUE)
+  log_base_label = 5, log_base_de = 10, de_cutpoint = NULL,
+  top_n_de = 10000, log2fc_thresh = 0, de_p_thresh = 0.05,
+  de_correct = "bonferroni", scale_factor = 10000, min_iter = 5,
+  max_iter = 1000, eps = 1e-10, n_runs = 10, lk_fraction = 0.95,
+  seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
