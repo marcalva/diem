@@ -12,6 +12,30 @@ divide_by_colsum <- function(x){
 	return(x)
 }
 
+#' Sale rows of a matrix
+#' @export
+scale_matrix <- function(x){
+	exprm <- t(as.matrix(expr))
+	exprm <- scale(exprm)
+	return(t(exprm))
+}
+
+#' Subset DE to genes in keep
+#'
+#' @param x An SCE object.
+#'
+#' @return An SCE object
+#' @export
+subset_DE <- function(x, keep){
+	x@de@low_means <- x@de@low_means[intersect(names(x@de@low_means), keep)]
+	x@de@high_means <- x@de@high_means[intersect(names(x@de@high_means), keep)]
+	x@de@deg <- intersect(x@de@deg, keep)
+	x@de@deg_low <- intersect(x@de@deg_low, keep)
+	x@de@deg_high <- intersect(x@de@deg_high, keep)
+	x@de@log2fc <- x@de@log2fc[intersect(names(x@de@log2fc), keep)]
+	return(x)
+}
+
 #' Normalize raw counts for droplets being classified.
 #'
 #' Counts are normalized by dividing by total counts per droplet, and log1p-transformed. 
@@ -21,16 +45,38 @@ divide_by_colsum <- function(x){
 #' @param scale_factor Numeric. A scaling factor to multiply values after division by total count.
 #'
 #' @return SCE object
-#' @importFrom Matrix Diagonal colSums
+#' @importFrom Matrix rowMeans
 #' @export
 normalize <- function(x, 
-					  scale_factor=1e4,
-					  logt=FALSE){
+					  scale.=TRUE,
+					  scale_factor=1,
+					  logt=FALSE,
+					  verbose=FALSE){
+	if (length(x@diem@counts) == 0){
+		stop("Subset x with subset_for_em function")
+	}
+	if (verbose) cat("Normalizing\n")
 	expr <- x@diem@counts
 	expr <- divide_by_colsum(expr)
 	expr <- expr * scale_factor
 	if (logt) expr <- log1p(expr)
+	if (scale.) {
+		genes <- rownames(expr); droplets <- colnames(expr)
+		means <- Matrix::rowMeans(expr); names(means) <- genes
+		vars <- fast_varCPP(x=expr, mu=means); names(vars) <- genes
+		# Remove zero variance genes
+		keep <- genes[vars > 0]
+		means <- means[keep]
+		vars <- vars[keep]
+		expr <- expr[keep,]
+		x <- subset_DE(x, keep)
+		expr <- fast_row_scaleCPP(x=expr, mu=means, sigma_sq=vars)
+		rownames(expr) <- keep
+		colnames(expr) <- droplets
+	}
 	x@diem@norm <- expr
+	if (verbose) cat("Normalized\n")
+
 	return(x)
 }
 
@@ -68,11 +114,15 @@ subset_for_em <- function(x, log_base=10, top_n=NULL, min_counts=NULL){
 			x@min_counts <- min_counts
 		} else {
 			top_n_ix <- order(dc, decreasing=TRUE)[top_n]
-			x@min_counts <- dc[top_n_ix]
+			x@min_counts <- as.numeric(dc[top_n_ix])
 		}
 	}
-	# Subset counts matrix
-	x@diem <- DIEM(counts = x@counts[,dc > x@min_counts])
+	# Subset counts matrix and remove 0 mean genes
+	expr <- x@counts[x@de@deg, dc > x@min_counts]
+	keep <- rownames(expr)[Matrix::rowMeans(expr) > 0]
+	expr <- expr[keep,]
+	x <- subset_DE(x, keep)
+	x@diem <- DIEM(counts = x@counts[x@de@deg, dc > x@min_counts])
 	return(x)
 }
 

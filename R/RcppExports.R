@@ -25,3 +25,7 @@ fast_varCPP <- function(x, mu) {
     .Call('_diem_fast_varCPP', PACKAGE = 'diem', x, mu)
 }
 
+fast_row_scaleCPP <- function(x, mu, sigma_sq) {
+    .Call('_diem_fast_row_scaleCPP', PACKAGE = 'diem', x, mu, sigma_sq)
+}
+

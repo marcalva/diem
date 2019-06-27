@@ -4,7 +4,8 @@
 \alias{normalize}
 \title{Normalize raw counts for droplets being classified.}
 \usage{
-normalize(x, scale_factor = 10000, logt = FALSE)
+normalize(x, scale. = TRUE, scale_factor = 1, logt = FALSE,
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE.}

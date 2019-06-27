@@ -28,17 +28,16 @@
 #' @useDynLib diem
 #' @export
 diem <- function(sce, 
+				 log_base_de=100, 
+				 de_cutpoint=NULL, 
+				 cpm_thresh=3, 
+				 log2fc_thresh=0.25, 
 				 log_base_em=10, 
 				 top_n=NULL, 
 				 min_counts=NULL, 
+				 scale_factor=1, 
+				 logt=TRUE, 
 				 log_base_label=5, 
-				 log_base_de=10, 
-				 de_cutpoint=NULL, 
-				 top_n_de=1e4, 
-				 log2fc_thresh=0, 
-				 de_p_thresh=0.05, 
-				 de_correct="bonferroni", 
-				 scale_factor=1e4, 
 				 min_iter=5, 
 				 max_iter=1000, 
 				 eps=1e-10, 
@@ -46,13 +45,13 @@ diem <- function(sce,
 				 lk_fraction=0.95, 
 				 seedn=NULL, 
 				 verbose=TRUE){
+	sce <- set_de_cutpoint(sce, log_base=log_base_de, de_cutpoint=de_cutpoint)
+	sce <- get_de(sce, cpm_thresh=cpm_thresh, log2fc_thresh=log2fc_thresh)
 	sce <- subset_for_em(sce, log_base=log_base_em, top_n=top_n, min_counts=min_counts)
+	sce <- normalize(sce, scale_factor=scale_factor, logt=logt, verbose=verbose)
 	sce <- set_labels(sce, log_base=log_base_label)
-	sce <- get_de_genes(sce, log_base=log_base_de, top_n=top_n_de, de_cutpoint=de_cutpoint, log2fc_thresh=log2fc_thresh, de_p_thresh=de_p_thresh, de_correct=de_correct, verbose=verbose)
-	sce <- normalize(sce, scale_factor=scale_factor)
 	sce <- get_pi(sce)
 	sce <- run_em(sce, min_iter=min_iter, max_iter=max_iter, eps=eps, n_runs=n_runs, seedn=seedn, verbose=verbose)
 	sce <- call_targets(sce, lk_fraction=lk_fraction)
 	return(sce)
 }
-

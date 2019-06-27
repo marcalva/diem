@@ -18,14 +18,12 @@ EMO <- setClass(Class = "EMO",
 DE <- setClass(Class = "DE",
 			   slots = c(low_means = "numeric",
 			   			 high_means = "numeric", 
-			   			 low_vars = "numeric", 
-			   			 high_vars = "numeric", 
 			   			 low_n = "numeric", 
 			   			 high_n = "numeric", 
 			   			 deg = "character", 
 			   			 deg_low = "character", 
 			   			 deg_high = "character", 
-			   			 table = "data.frame"))
+			   			 log2fc = "numeric"))
 
 #' DIEM
 #' @name DIEM-class
@@ -51,8 +49,6 @@ SCE <- setClass(Class = "SCE",
 						  min_counts = "numeric", 
 						  fix_counts = "numeric", 
 						  de = "DE", 
-						  edgeR = "data.frame", 
-						  common.dispersion = "numeric", 
 						  diem = "DIEM", 
 						  gene_info = "data.frame",
 						  dropl_info = "data.frame", 

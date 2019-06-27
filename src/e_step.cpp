@@ -16,8 +16,8 @@ double mvn_logllk_diagCPP(NumericVector x,
 	double logdet = 0;
 	NumericVector sgma_inv(np);
 	for (int i = 0; i < np; i++){
-		if ((sgma(i) == 0.0) || isnan(sgma(i)) ){
-			Rcpp::stop("Sigma value is 0 or nan");
+		if (sgma(i) == 0.0){
+			Rcpp::stop("Sigma value is 0");
 		}
     	logdet += log(sgma(i));
     	sgma_inv(i) = 1.0/sgma(i);
@@ -101,6 +101,8 @@ double get_llkCPP(NumericMatrix x,
 		NumericVector tau, 
 		bool semisup = false, 
 		NumericVector labels = R_NilValue){
+	// double eps = 0.01;
+	// if (sum(tau) < (1 - eps) | sum(tau) > (1+eps)) stop(paste0("Parameter tau must sum to 1, not ", as.character(tau)))
 	bool same_len = (mu.size() == sgma.size()) && (sgma.size() == tau.size());
     if (!same_len) {
 		Rcpp::stop("mu, sgma, and tau must have same length");

@@ -86,6 +86,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fast_row_scaleCPP
+Eigen::MatrixXd fast_row_scaleCPP(Eigen::SparseMatrix<double> x, NumericVector mu, NumericVector sigma_sq);
+RcppExport SEXP _diem_fast_row_scaleCPP(SEXP xSEXP, SEXP muSEXP, SEXP sigma_sqSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sigma_sq(sigma_sqSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_row_scaleCPP(x, mu, sigma_sq));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_diem_mvn_logllk_diagCPP", (DL_FUNC) &_diem_mvn_logllk_diagCPP, 3},
@@ -94,6 +107,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_diem_e_stepCPP", (DL_FUNC) &_diem_e_stepCPP, 7},
     {"_diem_get_llkCPP", (DL_FUNC) &_diem_get_llkCPP, 6},
     {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 2},
+    {"_diem_fast_row_scaleCPP", (DL_FUNC) &_diem_fast_row_scaleCPP, 3},
     {NULL, NULL, 0}
 };
 

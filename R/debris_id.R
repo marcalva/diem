@@ -11,16 +11,26 @@
 #' @importFrom Matrix Matrix t
 #' @export
 get_pi <- function(x){
-	log2fc_l <- Matrix::Matrix(x@de@table[x@de@deg_low,"log2fc"])
-	log2fc_h <- -Matrix::Matrix(x@de@table[x@de@deg_high,"log2fc"])
+	log2fc_l <- x@de@log2fc[x@de@deg_low]
+	log2fc_h <- x@de@log2fc[x@de@deg_high]
 
-	pi_l <- Matrix::t(x@diem@norm[x@de@deg_low,]) %*% log2fc_l
-	pi_h <- Matrix::t(x@diem@norm[x@de@deg_high,]) %*% log2fc_h
+	if (any(is.na(log2fc_l)) | any(is.na(log2fc_h))){
+		stop("Fold changes cannot be NA")
+	}
+	if (any(is.infinite(log2fc_l)) | any(is.infinite(log2fc_h))){
+		stop("Fold changes cannot be infinite")
+	}
+
+	pi_l <- t(x@diem@norm[x@de@deg_low,]) %*% log2fc_l
+	pi_h <- t(x@diem@norm[x@de@deg_high,]) %*% -log2fc_h
 
 	pi_df <- as.data.frame(cbind(pi_l, pi_h))
 	rownames(pi_df) <- colnames(x@diem@norm)
 	colnames(pi_df) <- c("pi_l", "pi_h")
 	x@diem@pi <- pi_df
+
+	x@dropl_info[,"pi_l"] <- rep(NA, nrow(x@dropl_info))
+	x@dropl_info[,"pi_h"] <- rep(NA, nrow(x@dropl_info))
 
     x@dropl_info[rownames(pi_df),"pi_l"] <- pi_df[,"pi_l"]
     x@dropl_info[rownames(pi_df),"pi_h"] <- pi_df[,"pi_h"]

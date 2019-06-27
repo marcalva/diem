@@ -5,11 +5,10 @@
 \title{Run diem pipeline}
 \usage{
 diem(sce, log_base_em = 10, top_n = NULL, min_counts = NULL,
-  log_base_label = 5, log_base_de = 10, de_cutpoint = NULL,
-  top_n_de = 10000, log2fc_thresh = 0, de_p_thresh = 0.05,
-  de_correct = "bonferroni", scale_factor = 10000, min_iter = 5,
-  max_iter = 1000, eps = 1e-10, n_runs = 10, lk_fraction = 0.95,
-  seedn = NULL, verbose = TRUE)
+  log_base_label = 5, log_base_de = 100, de_cutpoint = NULL,
+  cpm_thresh = 3, log2fc_thresh = 0.25, scale_factor = 1,
+  logt = TRUE, min_iter = 5, max_iter = 1000, eps = 1e-10,
+  n_runs = 10, lk_fraction = 0.95, seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
@@ -29,10 +28,6 @@ the max droplet count using this base.}
 
 \item{log2fc_thresh}{Numeric. Test only genes that have an absolute log2 fold-change above this threshold.}
 
-\item{de_p_thresh}{Numeric. Adjusted p-value threshold.}
-
-\item{de_correct}{Character. p-value correction method.}
-
 \item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
 
 \item{min_iter}{Integer. Minimum number of iterations in EM.}
@@ -48,6 +43,10 @@ the max droplet count using this base.}
 \item{seedn}{Numeric. Seed for random number generation.}
 
 \item{verbose}{Boolean. Print out logging information.}
+
+\item{de_p_thresh}{Numeric. Adjusted p-value threshold.}
+
+\item{de_correct}{Character. p-value correction method.}
 }
 \value{
 SCE object.
