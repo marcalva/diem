@@ -113,7 +113,7 @@ set_double <- function(x){
 #' @param max_iter Numeric. Maximum number of iterations.
 #' @param labels Numeric vector. Fixed label IDs for semi-supervised clustering. 0 is unknown (to be estimated).
 #' @param mu0 Numeric. Starting value for mu. If set, all mu0, sgma0, and tau0 must be set.
-#' @param sgma0 Numeric. Starting value for sigma. If set, all mu0, sgma0, and tau0 must be set.
+#' @param sgma0 Numeric. Starting value for sigma (variance). If set, all mu0, sgma0, and tau0 must be set.
 #' @param tau0 Numeric. Starting value for tau. If set, all mu0, sgma0, and tau0 must be set.
 #' @param eps Numeric. Threshold of change in log likelihood to stop iterations.
 #' @param seedn Numeric. Numeric value specifying seed for random initialization.

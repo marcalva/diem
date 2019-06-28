@@ -47,8 +47,8 @@ barcode_rank_plot <- function(x, title="", return=FALSE){
 #' @export
 de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE){
 	dc <- Matrix::colSums(x@counts)
-	low_p <- Matrix::rowSums(x@counts[,dc < x@de_cutpoint])
-	high_p <- Matrix::rowSums(x@counts[,dc >= x@de_cutpoint])
+	low_p <- Matrix::rowSums(x@counts[, x@low_droplets])
+	high_p <- Matrix::rowSums(x@counts[, x@high_droplets])
 	low_p <- log1p(scale_factor*low_p/sum(low_p))
 	high_p <- log1p(scale_factor*high_p/sum(high_p))
 

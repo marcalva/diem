@@ -4,14 +4,18 @@
 \alias{diem}
 \title{Run diem pipeline}
 \usage{
-diem(sce, log_base_em = 10, top_n = NULL, min_counts = NULL,
-  log_base_label = 5, log_base_de = 100, de_cutpoint = NULL,
-  cpm_thresh = 3, log2fc_thresh = 0.25, scale_factor = 1,
-  logt = TRUE, min_iter = 5, max_iter = 1000, eps = 1e-10,
+diem(sce, log_base_de = 100, de_cutpoint = NULL, cpm_thresh = 3,
+  log2fc_thresh = 0.25, log_base_em = 10, top_n = NULL,
+  min_counts = NULL, scale_factor = 1, logt = TRUE,
+  log_base_label = 5, min_iter = 5, max_iter = 1000, eps = 1e-10,
   n_runs = 10, lk_fraction = 0.95, seedn = NULL, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
+
+\item{de_cutpoint}{Numeric. Manually set the DE cutpoint. If not NULL, it is calculated from the data.}
+
+\item{log2fc_thresh}{Numeric. Test only genes that have an absolute log2 fold-change above this threshold.}
 
 \item{log_base_em}{Numeric. Take droplets with counts above 2 logs below the max droplet count using this base
 for EM classification}
@@ -21,14 +25,10 @@ top number of droplets ranked by total counts.}
 
 \item{min_counts}{Integer. Only run EM to classify droplets with at least this number of total counts.}
 
+\item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
+
 \item{log_base_label}{Numeric. Fix the labels as nuclei for droplets with counts above 1 log below 
 the max droplet count using this base.}
-
-\item{de_cutpoint}{Numeric. Manually set the DE cutpoint. If not NULL, it is calculated from the data.}
-
-\item{log2fc_thresh}{Numeric. Test only genes that have an absolute log2 fold-change above this threshold.}
-
-\item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
 
 \item{min_iter}{Integer. Minimum number of iterations in EM.}
 

@@ -21,8 +21,11 @@ get_pi <- function(x){
 		stop("Fold changes cannot be infinite")
 	}
 
-	pi_l <- t(x@diem@norm[x@de@deg_low,]) %*% log2fc_l
-	pi_h <- t(x@diem@norm[x@de@deg_high,]) %*% -log2fc_h
+	genes_low <- intersect(rownames(x@diem@norm), x@de@deg_low)
+	genes_high <- intersect(rownames(x@diem@norm), x@de@deg_high)
+
+	pi_l <- t(x@diem@norm[genes_low,]) %*% log2fc_l[genes_low]
+	pi_h <- t(x@diem@norm[genes_high,]) %*% -log2fc_h[genes_high]
 
 	pi_df <- as.data.frame(cbind(pi_l, pi_h))
 	rownames(pi_df) <- colnames(x@diem@norm)
@@ -74,25 +77,23 @@ run_em <- function(x,
 	if (verbose){
 		cat("Running semi-supervised EM\n")
 	}
-	pb <- txtProgressBar(min = 0, max = n_runs, initial = 0, style = 3)
-	for (i in 1:n_runs){
-		runs[[i]] <- run_mv_em_diag(x@diem@pi, k=2, min_iter=min_iter, max_iter=max_iter,
-									labels = x@diem@labels, eps=eps, seedn=seedn, verbose=FALSE)
-		if (!is.null(seedn)) seedn <- seedn + 1
-		setTxtProgressBar(pb,i)
-	}
-	close(pb)
-	if (verbose){
-		cat("Finished EM\n")
-	}
 
-	# Get run with max likelihood of parameters
-	llks <- sapply(runs, function(x) x@llks[length(x@llks)])
-	if (sum(!is.na(llks)) == 0){
-		stop("No EM runs converged successfully.\n")
-	}
-	max_i <- which.max(llks)
-	x@diem@emo <- runs[[max_i]]
+	# Get starting parameters
+	tc <- Matrix::colSums(x@diem@counts)[rownames(x@diem@pi)]
+	top100 <- rownames(x@diem@pi)[order(tc, decreasing=TRUE)[1:100]]
+	bot100 <- rownames(x@diem@pi)[order(tc, decreasing=FALSE)[1:100]]
+	mu_top <- apply(x@diem@pi[top100,], 2, mean)
+	mu_bot <- apply(x@diem@pi[bot100,], 2, mean)
+	sigma_top <- apply(x@diem@pi[top100,], 2, var)
+	sigma_bot <- apply(x@diem@pi[bot100,], 2, var)
+	mu0 <- list(mu_top, mu_bot)
+	sgma0 <- list(sigma_top, sigma_bot)
+	tau0 <- c(0.5, 0.5)
+
+	# Run EM
+	x@diem@emo <- run_mv_em_diag(x@diem@pi, k=2, min_iter=min_iter, max_iter=max_iter,
+								 labels = x@diem@labels, eps=eps, seedn=seedn, verbose=FALSE,
+								 mu0=mu0, sgma0=sgma0, tau0=tau0)
 	colnames(x@diem@emo@Z) <- c("Target", "Background")
 	return(x)
 }
@@ -124,7 +125,7 @@ call_targets <- function(x, lk_fraction=0.95){
 #' @return Character vector with droplet IDs of called targets
 #' @export
 targets_ids <- function(x){
-	return(rownames(x@dropl_info)[x@dropl_info[,"Call"]])
+	return(rownames(x@dropl_info)[x@dropl_info[,"Call"] %in% "Nucleus"])
 }
 
 #' Get percent of reads aligning to MT genome and MALAT1 gene

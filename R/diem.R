@@ -45,13 +45,68 @@ diem <- function(sce,
 				 lk_fraction=0.95, 
 				 seedn=NULL, 
 				 verbose=TRUE){
-	sce <- set_de_cutpoint(sce, log_base=log_base_de, de_cutpoint=de_cutpoint)
-	sce <- get_de(sce, cpm_thresh=cpm_thresh, log2fc_thresh=log2fc_thresh)
-	sce <- subset_for_em(sce, log_base=log_base_em, top_n=top_n, min_counts=min_counts)
+	sce <- init_de_cutpoint(sce, log_base=log_base_de, de_cutpoint=de_cutpoint)
+	sce <- init_test_set(sce, log_base=log_base_em, top_n=top_n, min_counts=min_counts)
+	sce <- get_log2fc(sce, cpm_thresh=cpm_thresh, log2fc_thresh=log2fc_thresh)
 	sce <- normalize(sce, scale_factor=scale_factor, logt=logt, verbose=verbose)
 	sce <- set_labels(sce, log_base=log_base_label)
 	sce <- get_pi(sce)
 	sce <- run_em(sce, min_iter=min_iter, max_iter=max_iter, eps=eps, n_runs=n_runs, seedn=seedn, verbose=verbose)
 	sce <- call_targets(sce, lk_fraction=lk_fraction)
+	return(sce)
+}
+
+#' @export
+eval_iter <- function(x){
+	if (length(x@diem@prev_nuclei) == 0){
+		return(FALSE)
+	}
+	nuc1 <- sort(x@diem@prev_nuclei)
+	nuc2 <- sort(targets_ids(x))
+	return(identical(nuc1, nuc2))
+}
+
+#' @export
+diem_iter <- function(sce, 
+				 log_base_de=100, 
+				 de_cutpoint=NULL, 
+				 cpm_thresh=3, 
+				 log2fc_thresh=0.25, 
+				 log_base_em=10, 
+				 top_n=NULL, 
+				 min_counts=NULL, 
+				 scale_factor=1, 
+				 logt=TRUE, 
+				 log_base_label=5, 
+				 min_iter=5, 
+				 max_iter=1000, 
+				 eps=1e-10, 
+				 n_runs=10, 
+				 lk_fraction=0.95, 
+				 seedn=NULL, 
+				 verbose=TRUE){
+	sce <- init_de_cutpoint(sce, log_base=log_base_de, de_cutpoint=de_cutpoint)
+	sce <- init_test_set(sce, log_base=log_base_em, top_n=top_n, min_counts=min_counts)
+	ix <- 0
+	while (ix < 100){
+		cat(paste0("Iteration ", as.character(ix+1), "\n"))
+		sce <- get_log2fc(sce, cpm_thresh=cpm_thresh, log2fc_thresh=log2fc_thresh)
+		sce <- normalize(sce, scale_factor=scale_factor, logt=logt, verbose=verbose)
+		sce <- set_labels(sce, log_base=log_base_label)
+		sce <- get_pi(sce)
+		sce <- run_em(sce, min_iter=min_iter, max_iter=max_iter, eps=eps, n_runs=n_runs, seedn=seedn, verbose=verbose)
+		sce <- call_targets(sce, lk_fraction=lk_fraction)
+		if (eval_iter(sce)){
+			print(length(sce@high_droplets))
+			break
+		} else {
+			sce@low_droplets <- rownames(sce@dropl_info)[sce@dropl_info[,"Call"] %in% "Debris"]
+			sce@high_droplets <- rownames(sce@dropl_info)[sce@dropl_info[,"Call"] %in% "Nucleus"]
+			sce <- init_test_set(sce, top_n=2*length(sce@high_droplets))
+			sce@diem@prev_nuclei <- sce@high_droplets
+			ix <- ix + 1
+			print(length(sce@high_droplets))
+		}
+	}
 	return(sce)
 }

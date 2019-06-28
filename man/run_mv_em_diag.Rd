@@ -21,7 +21,7 @@ run_mv_em_diag(x, k = 2, min_iter = 5, max_iter = 1000,
 
 \item{mu0}{Numeric. Starting value for mu. If set, all mu0, sgma0, and tau0 must be set.}
 
-\item{sgma0}{Numeric. Starting value for sigma. If set, all mu0, sgma0, and tau0 must be set.}
+\item{sgma0}{Numeric. Starting value for sigma (variance). If set, all mu0, sgma0, and tau0 must be set.}
 
 \item{tau0}{Numeric. Starting value for tau. If set, all mu0, sgma0, and tau0 must be set.}
 

@@ -14,25 +14,30 @@
 #'
 #' @return SCE object.
 #' @export
-set_de_cutpoint <- function(x, 
+init_de_cutpoint <- function(x, 
 							log_base=100, 
 							de_cutpoint=NULL, 
 							verbose=FALSE){
 	if (verbose) cat("Setting DE cutpoint\n")
-	if (!is.null(de_cutpoint)){
-		x@de_cutpoint <- de_cutpoint
-	} else {
-		max_count <- max(x@dropl_info$total_counts)
-		x@de_cutpoint <- max_count/log_base
+
+	dc <- x@dropl_info[,"total_counts"]
+	names(dc) <- rownames(x@dropl_info)
+
+	if (is.null(de_cutpoint)){
+		max_count <- max(dc)
+		de_cutpoint <- max_count/log_base
 	}
-	n_over <- sum(x@dropl_info$total_counts > x@de_cutpoint)
+	n_over <- sum(dc > de_cutpoint)
 	if (n_over < 10){
 		stop("Less than 10 droplets are over the DE cutpoint. Set to a lower value.\n")
 	}
-	if (verbose) cat(paste0("Set DE cutpoint at ", as.character(x@de_cutpoint), " counts\n"))
+	if (verbose) cat(paste0("Initialized DE cutpoint at ", as.character(de_cutpoint), " counts\n"))
+
+	x@low_droplets <- names(dc)[dc <= de_cutpoint]
+	x@high_droplets <- names(dc)[(dc > de_cutpoint)]
+
 	return(x)
 }
-
 
 #' Run differential expression between high and low read count droplets
 #'
@@ -49,33 +54,26 @@ set_de_cutpoint <- function(x,
 #' @return SCE object.
 #' @importFrom Matrix rowMeans rowSums
 #' @export
-get_de <- function(x, 
+get_log2fc <- function(x, 
 	cpm_thresh=3, 
 	log2fc_thresh=0.25, 
 	verbose=FALSE){
 	
-	if (is.null(x@de_cutpoint)){
-		stop("Calculate DE cutpoint first")
+	if (length(x@high_droplets) == 0){
+		stop("Initialize DE cutpoint first")
 	}
 
-	dc <- x@dropl_info[,"total_counts"]
-	low_droplets <- (dc <= x@de_cutpoint)
-	high_droplets <- (dc > x@de_cutpoint)
-
-	genes <- rownames(x@counts)
-
-	low_expr <- x@counts[, low_droplets]
-	high_expr <- x@counts[, high_droplets]
-
-	low_sum <- Matrix::rowSums(low_expr)
-	high_sum <- Matrix::rowSums(high_expr)
+	low_sum <- Matrix::rowSums(x@counts[, x@low_droplets])
+	high_sum <- Matrix::rowSums(x@counts[, x@high_droplets])
 
 	low_sum <- 1e6*low_sum/sum(low_sum)
 	high_sum <- 1e6*high_sum/sum(high_sum)
 
+	genes <- rownames(x@counts)
 	genes_expr <- genes[ low_sum > cpm_thresh & high_sum > cpm_thresh ]
 	low_sum <- low_sum[genes_expr]; high_sum <- high_sum[genes_expr]
 	log2fc <- log2(low_sum) - log2(high_sum)
+	names(log2fc) <- genes_expr
 
 	deg_low <- genes_expr[ log2fc > log2fc_thresh ]
 	deg_high <- genes_expr[ log2fc < -log2fc_thresh ]
@@ -84,8 +82,6 @@ get_de <- function(x,
 	# Save in DE
 	de_obj <- DE(low_means=low_sum[deg],
 				 high_means=high_sum[deg],
-				 low_n=ncol(low_expr),
-				 high_n=ncol(high_expr),
 				 deg=deg, 
 				 deg_low=deg_low, 
 				 deg_high=deg_high,

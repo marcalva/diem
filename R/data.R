@@ -49,14 +49,15 @@ subset_DE <- function(x, keep){
 #' @export
 normalize <- function(x, 
 					  scale.=TRUE,
+					  de_genes=TRUE, 
 					  scale_factor=1,
 					  logt=FALSE,
 					  verbose=FALSE){
 	if (length(x@diem@counts) == 0){
-		stop("Subset x with subset_for_em function")
+		stop("Initialize test set with init_test_set function")
 	}
 	if (verbose) cat("Normalizing\n")
-	expr <- x@diem@counts
+	expr <- x@diem@counts[x@de@deg,]
 	expr <- divide_by_colsum(expr)
 	expr <- expr * scale_factor
 	if (logt) expr <- log1p(expr)
@@ -100,29 +101,25 @@ normalize <- function(x,
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
-subset_for_em <- function(x, log_base=10, top_n=NULL, min_counts=NULL){
+init_test_set <- function(x, log_base=10, top_n=NULL, min_counts=NULL){
 	dc <- Matrix::colSums(x@counts)
 	dc_max <- max(dc)
 	if (is.null(top_n) & is.null(min_counts)){
-		x@min_counts <- dc_max/(log_base^2)
+		min_counts <- dc_max/(log_base^2)
 	} else {
 		# If user set parameters
 		if ( ( !is.null(top_n) ) & ( !is.null(min_counts) ) ){
 			stop("Set only one of top_n or min_counts")
 		}
-		if ( is.null(top_n) ){
-			x@min_counts <- min_counts
-		} else {
+		if ( is.null(min_counts) ){
 			top_n_ix <- order(dc, decreasing=TRUE)[top_n]
-			x@min_counts <- as.numeric(dc[top_n_ix])
+			min_counts <- as.numeric(dc[top_n_ix])
 		}
 	}
 	# Subset counts matrix and remove 0 mean genes
-	expr <- x@counts[x@de@deg, dc > x@min_counts]
-	keep <- rownames(expr)[Matrix::rowMeans(expr) > 0]
-	expr <- expr[keep,]
-	x <- subset_DE(x, keep)
-	x@diem <- DIEM(counts = x@counts[x@de@deg, dc > x@min_counts])
+	expr <- x@counts[, dc >= min_counts]
+	x@test_droplets <- colnames(expr)
+	x@diem <- DIEM(counts = expr)
 	return(x)
 }
 
@@ -143,8 +140,8 @@ set_labels <- function(x, log_base=2){
 	x@diem@labels <- rep(0, ncol(x@diem@counts))
 	dc <- Matrix::colSums(x@diem@counts)
 	dc_max <- max(dc)
-	x@fix_counts <- dc_max/log_base
-	x@diem@labels[ dc > x@fix_counts ] <- 1
+	min_counts <- dc_max/log_base
+	x@diem@labels[ dc >= min_counts ] <- 1
 	return(x)
 }
 
