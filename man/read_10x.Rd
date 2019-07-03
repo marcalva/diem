@@ -15,5 +15,6 @@ expr Sparse matrix. Expression counts from 10X cell ranger
 }
 \description{
 Read output from 10X into a sparse matrix. Given path, reads 
-files path/matrix.MM path/genes.tsv, and path/barcodes.tsv
+files path/matrix.MM path/genes.tsv and path/barcodes.tsv if v2, 
+or path/matrix.mtx.gz path/features.tsv.gz path/barcodes.tsv.gz
 }

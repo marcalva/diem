@@ -153,11 +153,12 @@ run_mv_em_diag <- function(x,
 	
 	# 1) Initialize parameters
 	set.seed(seedn)
-	params <- init_param(x, k, labels)
-	mu <- params$mu
-	sgma <- params$sgma
-	tau <- params$tau
-	if (!is.null(mu0)){
+	if (is.null(mu0)){
+		params <- init_param(x, k, labels)
+		mu <- params$mu
+		sgma <- params$sgma
+		tau <- params$tau
+	} else {
 		mu <- mu0
 		sgma <- sgma0
 		tau <- tau0

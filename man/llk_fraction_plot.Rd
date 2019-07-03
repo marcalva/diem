@@ -4,12 +4,12 @@
 \alias{llk_fraction_plot}
 \title{Distribution of likelihood fraction}
 \usage{
-llk_fraction_plot(x, return = FALSE)
+llk_fraction_plot(x, ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}
 
-\item{return}{Boolean. Return a ggplot object}
+\item{ret}{Boolean. Return a ggplot object}
 }
 \value{
 Nothing, unless return=TRUE then a ggplot

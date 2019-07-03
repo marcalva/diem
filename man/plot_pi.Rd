@@ -9,7 +9,7 @@ plot_pi(x, color = NULL, ret = FALSE)
 \arguments{
 \item{x}{SCE. SCE object}
 
-\item{return}{Boolean. Return a ggplot object}
+\item{ret}{Boolean. Return a ggplot object}
 }
 \value{
 Nothing, unless return=TRUE then a ggplot

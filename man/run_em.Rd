@@ -4,11 +4,11 @@
 \alias{run_em}
 \title{Run EM on pi features}
 \usage{
-run_em(x, min_iter = 5, max_iter = 1000, eps = 1e-10, n_runs = 10,
-  seedn = NULL, verbose = TRUE)
+run_em(x, pct_tails = 0.05, min_iter = 5, max_iter = 1000,
+  eps = 1e-10, verbose = TRUE)
 }
 \arguments{
-\item{x}{SCE. SCE object with PCs and labels.
+\item{x}{SCE. SCE object with PCs.
 score and the absolute value of the R coefficient must be greater than this threshold.}
 
 \item{min_iter}{Integer. Minimum number of iterations.}
@@ -16,10 +16,6 @@ score and the absolute value of the R coefficient must be greater than this thre
 \item{max_iter}{Integer. Maximum number of iterations.}
 
 \item{eps}{Numeric. Epsilon of log-likilhood change to call convergence.}
-
-\item{n_runs}{Integer. Number of EM initializations to run, with best result returned.}
-
-\item{seedn}{Numeric. Seed for random number generation.}
 
 \item{verbose}{Boolean. Verbosity.}
 }
@@ -31,6 +27,5 @@ Run expectation maximization (EM) using diagonal covariance on pi matrix in an S
 EM is run \code{n_runs} times with random initializations, and parameters with 
 the best log likelihood are output. Within EM, iterate a minimum of \code{min_iter} times and 
 a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
-log likelihood until convergence is reached. \code{seedn} gives the seed for random number generation, 
-which can be used to reproduce results.
+log likelihood until convergence is reached.
 }

@@ -4,7 +4,7 @@
 \alias{call_targets}
 \title{Call targets after EM}
 \usage{
-call_targets(x, lk_fraction = 0.95)
+call_targets(x, lk_fraction = 0.99)
 }
 \arguments{
 \item{x}{SCE. SCE object.}

@@ -8,8 +8,6 @@ plot_pi_marginal(x, alpha = 0.05, pdfname = NULL, w = 7, h = 7)
 }
 \arguments{
 \item{x}{SCE. SCE object}
-
-\item{return}{Boolean. Return a ggplot object}
 }
 \value{
 Nothing, unless return=TRUE then a ggplot

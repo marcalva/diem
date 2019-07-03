@@ -4,14 +4,14 @@
 \alias{barcode_rank_plot}
 \title{Create a barcode rank plot}
 \usage{
-barcode_rank_plot(x, title = "", return = FALSE)
+barcode_rank_plot(x, title = "", ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}
 
 \item{title}{Character}
 
-\item{return}{Boolean. Return a ggplot object}
+\item{ret}{Boolean. Return a ggplot object}
 }
 \value{
 Nothing, unless return=TRUE then a ggplot

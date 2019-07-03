@@ -1,4 +1,9 @@
 
+#' @importClassesFrom Matrix dgCMatrix
+#' @useDynLib diem
+
+setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
+
 #' EMO
 #' @name EMO-class
 #' @rdname EMO-class
@@ -8,6 +13,7 @@ EMO <- setClass(Class = "EMO",
 						  mu = "list", 
 						  sgma = "list", 
 						  tau = "vector", 
+						  assign = "vector",
 						  llks = "vector", 
 						  n_iter = "numeric"))
 
@@ -30,8 +36,8 @@ DE <- setClass(Class = "DE",
 #' @rdname DIEM-class
 #' @exportClass DIEM
 DIEM <- setClass(Class = "DIEM", 
-				slots = c(counts = "dgCMatrix", 
-						  norm = "ANY", 
+				slots = c(counts = "any_matrix", 
+						  norm = "any_matrix", 
 						  pi = "data.frame", 
 						  labels = "vector", 
 						  prev_nuclei = "vector",  
@@ -44,13 +50,13 @@ DIEM <- setClass(Class = "DIEM",
 #' @rdname SCE-class
 #' @exportClass SCE
 SCE <- setClass(Class = "SCE", 
-				slots = c(counts = "dgCMatrix", 
-						  norm = "ANY",
+				slots = c(counts = "any_matrix", 
 						  low_droplets = "vector", 
 						  high_droplets = "vector", 
 						  test_droplets = "vector", 
 						  de = "DE", 
 						  diem = "DIEM", 
+						  prev_iter = "list", 
 						  gene_info = "data.frame",
 						  dropl_info = "data.frame", 
                           name = "character"))

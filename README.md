@@ -1,5 +1,5 @@
 
-# DIEM v0.4
+# DIEM v0.5
 
 Clean out debris-containing droplets from single-cell based data, particularly from 
 single-nucleus RNA-seq of frozen tissue.

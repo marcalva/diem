@@ -12,17 +12,10 @@ divide_by_colsum <- function(x){
 	return(x)
 }
 
-#' Sale rows of a matrix
-#' @export
-scale_matrix <- function(x){
-	exprm <- t(as.matrix(expr))
-	exprm <- scale(exprm)
-	return(t(exprm))
-}
-
 #' Subset DE to genes in keep
 #'
-#' @param x An SCE object.
+#' @param x SCE object.
+#' @param keep Character vector. Names of genes to keep in DE object
 #'
 #' @return An SCE object
 #' @export
@@ -38,39 +31,51 @@ subset_DE <- function(x, keep){
 
 #' Normalize raw counts for droplets being classified.
 #'
-#' Counts are normalized by dividing by total counts per droplet, and log1p-transformed. 
-#' Optionally, counts can be multiplied by a scaling factor \code{scale_factor}.
+#' Counts are normalized by dividing by total counts per droplet. Optionally, droplets can be normalized 
+#' by log1p transformation, with a counts being multiplied by a scaling factor \code{scale_factor}.
+#' Additionally, gene counts can be scaled to mean 0 and variance 1 (default). This is recommended so that 
+#' highly expressed genes do not drive the calculation of pi. Note that, when scaling, genes with 0 mean 
+#' and zero variance will be removed automatically.
 #'
 #' @param x SCE.
+#' @param scale. Boolean. Whether to scale genes to mean 0 and variance 1.
+#' @param de_genes Boolean. Whether to normalize only the DE genes.
 #' @param scale_factor Numeric. A scaling factor to multiply values after division by total count.
+#' @param logt Boolean. Whether to log1p transform expression values.
 #'
 #' @return SCE object
 #' @importFrom Matrix rowMeans
 #' @export
 normalize <- function(x, 
 					  scale.=TRUE,
-					  de_genes=TRUE, 
+					  genes=NULL, 
 					  scale_factor=1,
-					  logt=FALSE,
+					  logt=TRUE,
 					  verbose=FALSE){
 	if (length(x@diem@counts) == 0){
-		stop("Initialize test set with init_test_set function")
+		stop("Specify test set with set_test_set function")
 	}
 	if (verbose) cat("Normalizing\n")
-	expr <- x@diem@counts[x@de@deg,]
+
+	expr <- x@diem@counts
+	if (!is.null(genes)) expr <- expr[genes,]
 	expr <- divide_by_colsum(expr)
 	expr <- expr * scale_factor
 	if (logt) expr <- log1p(expr)
+
 	if (scale.) {
 		genes <- rownames(expr); droplets <- colnames(expr)
 		means <- Matrix::rowMeans(expr); names(means) <- genes
 		vars <- fast_varCPP(x=expr, mu=means); names(vars) <- genes
-		# Remove zero variance genes
-		keep <- genes[vars > 0]
+
+		# Remove zero variance and zero mean genes
+		keep <- genes[vars > 0 & means > 0]
 		means <- means[keep]
 		vars <- vars[keep]
 		expr <- expr[keep,]
 		x <- subset_DE(x, keep)
+
+		# Scale
 		expr <- fast_row_scaleCPP(x=expr, mu=means, sigma_sq=vars)
 		rownames(expr) <- keep
 		colnames(expr) <- droplets
@@ -101,7 +106,7 @@ normalize <- function(x,
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
-init_test_set <- function(x, log_base=10, top_n=NULL, min_counts=NULL){
+set_test_set <- function(x, top_n=1e4, log_base=NULL, min_counts=NULL){
 	dc <- Matrix::colSums(x@counts)
 	dc_max <- max(dc)
 	if (is.null(top_n) & is.null(min_counts)){
@@ -123,12 +128,10 @@ init_test_set <- function(x, log_base=10, top_n=NULL, min_counts=NULL){
 	return(x)
 }
 
-#' Label upper count droplets 
+#' Fix labels of lower and upper count droplets 
 #'
-#' Fix labels of upper count droplets to target according to total counts in a droplet. The threshold 
-#' is set by taking the log of the maximum droplet count, substracting by 1, and exponentiating by 
-#' base of the log. In other words, this divides the max count by \code{log_base} and sets labels of 
-#' droplets with counts greater than this to target.
+#' Fix labels of the upper and lower tails droplets to nuclei and background, respectively.
+#' The top and bottom \code{pct} are then fixed during EM.
 #'
 #' @param x SCE. SCE object.
 #' @param log_base Numeric. The base of log to take
@@ -136,19 +139,24 @@ init_test_set <- function(x, log_base=10, top_n=NULL, min_counts=NULL){
 #' @return An SCE object
 #' @importFrom Matrix colSums
 #' @export
-set_labels <- function(x, log_base=2){
+fix_tails <- function(x, pct=0.05){
 	x@diem@labels <- rep(0, ncol(x@diem@counts))
+	names(x@diem@labels) <- colnames(x@diem@counts)
 	dc <- Matrix::colSums(x@diem@counts)
-	dc_max <- max(dc)
-	min_counts <- dc_max/log_base
-	x@diem@labels[ dc >= min_counts ] <- 1
+	names(dc) <- colnames(x@diem@counts)
+	n <- floor(length(dc)*pct)
+	topn <- names(dc)[order(dc, decreasing=TRUE)[1:n]]
+	botn <- names(dc)[order(dc, decreasing=FALSE)[1:n]]
+	x@diem@labels[topn] <- 1
+	x@diem@labels[botn] <- 2
 	return(x)
 }
 
 #' Read 10X output
 #'
 #' Read output from 10X into a sparse matrix. Given path, reads 
-#' files path/matrix.MM path/genes.tsv, and path/barcodes.tsv
+#' files path/matrix.MM path/genes.tsv and path/barcodes.tsv if v2, 
+#' or path/matrix.mtx.gz path/features.tsv.gz path/barcodes.tsv.gz
 #'
 #' @param path Character. File path prefix to 10X output.
 #'

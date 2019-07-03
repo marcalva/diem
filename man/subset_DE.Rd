@@ -7,7 +7,9 @@
 subset_DE(x, keep)
 }
 \arguments{
-\item{x}{An SCE object.}
+\item{x}{SCE object.}
+
+\item{keep}{Character vector. Names of genes to keep in DE object}
 }
 \value{
 An SCE object

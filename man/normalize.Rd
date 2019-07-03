@@ -4,18 +4,27 @@
 \alias{normalize}
 \title{Normalize raw counts for droplets being classified.}
 \usage{
-normalize(x, scale. = TRUE, de_genes = TRUE, scale_factor = 1,
-  logt = FALSE, verbose = FALSE)
+normalize(x, scale. = TRUE, genes = NULL, scale_factor = 1,
+  logt = TRUE, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE.}
 
+\item{scale.}{Boolean. Whether to scale genes to mean 0 and variance 1.}
+
 \item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
+
+\item{logt}{Boolean. Whether to log1p transform expression values.}
+
+\item{de_genes}{Boolean. Whether to normalize only the DE genes.}
 }
 \value{
 SCE object
 }
 \description{
-Counts are normalized by dividing by total counts per droplet, and log1p-transformed. 
-Optionally, counts can be multiplied by a scaling factor \code{scale_factor}.
+Counts are normalized by dividing by total counts per droplet. Optionally, droplets can be normalized 
+by log1p transformation, with a counts being multiplied by a scaling factor \code{scale_factor}.
+Additionally, gene counts can be scaled to mean 0 and variance 1 (default). This is recommended so that 
+highly expressed genes do not drive the calculation of pi. Note that, when scaling, genes with 0 mean 
+and zero variance will be removed automatically.
 }
