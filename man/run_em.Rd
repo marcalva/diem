@@ -4,18 +4,10 @@
 \alias{run_em}
 \title{Run EM on pi features}
 \usage{
-run_em(x, pct_tails = 0.05, min_iter = 5, max_iter = 1000,
-  eps = 1e-10, verbose = TRUE)
+run_em(x, init_em_tails = 0.05, iteration = NULL, verbose = TRUE)
 }
 \arguments{
-\item{x}{SCE. SCE object with PCs.
-score and the absolute value of the R coefficient must be greater than this threshold.}
-
-\item{min_iter}{Integer. Minimum number of iterations.}
-
-\item{max_iter}{Integer. Maximum number of iterations.}
-
-\item{eps}{Numeric. Epsilon of log-likilhood change to call convergence.}
+\item{x}{SCE. SCE object with PCs.}
 
 \item{verbose}{Boolean. Verbosity.}
 }

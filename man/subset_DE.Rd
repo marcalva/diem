@@ -2,7 +2,7 @@
 % Please edit documentation in R/data.R
 \name{subset_DE}
 \alias{subset_DE}
-\title{Subset DE to genes in keep}
+\title{Subset DE S4 object to genes in keep}
 \usage{
 subset_DE(x, keep)
 }
@@ -15,5 +15,5 @@ subset_DE(x, keep)
 An SCE object
 }
 \description{
-Subset DE to genes in keep
+Subset DE S4 object to genes in keep
 }

@@ -4,17 +4,17 @@
 \alias{fix_tails}
 \title{Fix labels of lower and upper count droplets}
 \usage{
-fix_tails(x, pct = 0.05)
+fix_tails(x, pct = 0)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
 
-\item{log_base}{Numeric. The base of log to take}
+\item{pct}{Numeric. Pct of tails to fix, fraction from 0 to 1.}
 }
 \value{
 An SCE object
 }
 \description{
-Fix labels of the upper and lower tails droplets to nuclei and background, respectively.
+Fix labels of the upper and lower tails droplets to signal and background, respectively.
 The top and bottom \code{pct} are then fixed during EM.
 }

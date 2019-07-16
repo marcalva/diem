@@ -4,16 +4,18 @@
 \alias{call_targets}
 \title{Call targets after EM}
 \usage{
-call_targets(x, lk_fraction = 0.99)
+call_targets(x, iteration = NULL)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
 
-\item{lk_fraction}{Numeric. Select droplets that have a fraction of target likelihood greater than this number.}
+\item{interation}{Integer. DIEM iteration number to use for calliing targets}
 }
 \value{
 SCE object
 }
 \description{
-Call targets from droplets if the log-likelihood membership probability is higher than \code{lk_fraction}.
+Call targets from droplets if the log-likelihood membership 
+probability is higher than \code{lk_fraction} given during 
+initialization.
 }

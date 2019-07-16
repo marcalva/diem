@@ -4,28 +4,21 @@
 \alias{set_test_set}
 \title{Subset droplets for EM testing}
 \usage{
-set_test_set(x, top_n = 10000, log_base = NULL, min_counts = NULL)
+set_test_set(x, top_n = 10000, min_counts = 100)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
 
 \item{top_n}{Numeric. Only the top \code{top_n} droplets ranked by total counts are classified.}
 
-\item{log_base}{Numeric. Base of log to take.}
-
-\item{min_counts}{Integer. Only droplets with at least this number of total counts are classified.}
+\item{min_counts}{Integer. Only droplets with at least this number of total counts are classified. 
+Can override \code{top_n} if \code{top_n} includes droplets with less than \code{min_counts}.}
 }
 \value{
 An SCE object.
 }
 \description{
-Sets the threshold for testing droplets and subsets counts matrix. Only droplets with a total number 
-of counts of at least \code{min_counts} are included in the semi-supervised EM and assigned as either 
-background or target. By default, this number is calculated by taking 2 orders of magnitude lower than
-the maximum droplet count in the data. The order of magnitude is set by \code{log_base}. In other words, 
-this divides the max droplet count by the square of \code{log_base} and sets this as the minimum count. 
-The minimum number of counts can be set using the \code{top_n} parameter instead, so that only the 
-\code{top_n} droplets ranked by total counts are used in testing. Another way is to directly set the 
-minimum counts through \code{min_counts}. The count matrix is subset to droplets having total counts greater 
-than this threshold.
+Sets the threshold for testing droplets and subsets counts matrix. Includes the top \code{top_n} 
+droplets for testing (inclduing any ties), and removing any droplets with total counts 
+less than \code{min_counts}. The count matrix is subset to these droplets for EM testing
 }

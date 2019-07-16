@@ -4,7 +4,7 @@
 \alias{pi_init_tails}
 \title{Initialize EM parameters for k=2 low and high groups}
 \usage{
-pi_init_tails(x, pct = 0.05)
+pi_init_tails(x, pim, pct = 0.05)
 }
 \arguments{
 \item{x}{SCE. SCE object with pi calculated}
@@ -21,6 +21,7 @@ A list with 3 components
 The first and second element of the lists of mu0 and sgma0 are for the high and low groups respectively
 }
 \description{
-Initialize the means and variances of the 2 Gaussians, as well as tau, 
-the mixing parameter.
+Initialize the means, variances of the 2 Gaussians, as well as tau, 
+the mixing parameter. Means and variances are intialized to the sample medians 
+and variances of top 5% and bottom 5% (or by given \code{pct}).
 }

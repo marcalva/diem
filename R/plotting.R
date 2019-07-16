@@ -45,10 +45,22 @@ barcode_rank_plot <- function(x, title="", ret=FALSE){
 #' @import ggplot2
 #' @importFrom Matrix colSums rowSums
 #' @export
-de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE, main=NULL){
-	dc <- Matrix::colSums(x@counts)
-	low_p <- Matrix::rowSums(x@counts[, x@low_droplets])
-	high_p <- Matrix::rowSums(x@counts[, x@high_droplets])
+de_cor_plot <- function(x, scale_factor=1e4, iteration=NULL, ret=FALSE){
+	if (length(x@iter_use) == 0) {
+		iter_use <- length(x@diem)
+	} else {
+		iter_use <- x@iter_use
+	}
+	if (is.null(iteration)){
+		iteration <- iter_use
+	}
+	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
+		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+
+	}
+
+	low_p <- x@diem[[iteration]]@de@low_means
+	high_p <- x@diem[[iteration]]@de@high_means
 	low_p <- log1p(scale_factor*low_p/sum(low_p))
 	high_p <- log1p(scale_factor*high_p/sum(high_p))
 
@@ -66,27 +78,18 @@ de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE, main=NULL){
 
 	limits <- c(min(min(low_p), min(high_p)), max(max(low_p), max(high_p)))
 
-    if (is.null(main)){
-        if (is.null(x@name)){
-            main = ""
-        } else {
-            main <- x@name
-        }
-    }
-
 	p <- ggplot(data=df, aes(x=low, y=high)) + 
 	geom_point() + 
 	theme_minimal() + 
 	xlim(limits) + ylim(limits) + 
-	xlab("Debris-enriched") + 
-	ylab("Nuclear-enriched") + 
-	annotate("text", x=limits[1], y=limits[2], label=anno, hjust=0, vjust=1) + 
-	ggtitle(main)
+	xlab("Debris") + 
+	ylab("Signal") + 
+	annotate("text", x=limits[1], y=limits[2], label=anno, hjust=0, vjust=1)
 	if (ret) return(p)
 	else print(p)
 }
 
-#' Distribution of likelihood fraction
+#' Plot posterior probability against pi_low - pi_high
 #'
 #' @param x SCE. SCE object
 #' @param ret Boolean. Return a ggplot object
@@ -94,17 +97,96 @@ de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE, main=NULL){
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-llk_fraction_plot <- function(x, ret=FALSE){
-	llfs <- sort(sce@emo@Z[,x@diem@emo@assign["Target"]], decreasing=TRUE)
-	df <- data.frame(Rank=1:length(llfs), llf=llfs)
-	p <- ggplot(df, aes(x=Rank, y=llf)) + 
+llk_fraction_plot <- function(x, iteration=NULL, ret=FALSE){
+	if (length(x@iter_use) == 0) {
+		iter_use <- length(x@diem)
+	} else {
+		iter_use <- x@iter_use
+	}
+	if (is.null(iteration)){
+		iteration <- iter_use
+	}
+	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
+		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+
+	}
+
+	Z <- x@diem[[iteration]]@emo[["Z"]]
+	asgn <- x@diem[[iteration]]@emo[["assign"]]
+	pidf <- as.data.frame(x@diem[[iteration]]@pi)
+	pi_all <- pidf[,"pi_l"] - pidf[,"pi_h"]
+
+	ord <- order(pi_all, decreasing=FALSE)
+
+	llfs <- Z[ord,asgn["Signal"]]
+	df <- data.frame(pi_all=pi_all[ord], llf=llfs)
+	p <- ggplot(df, aes(x=pi_all, y=llf)) + 
 	geom_point() + 
+	xlab(expression(paste(pi[low],"-",pi[high],''))) + 
+	ylab("Posterior Probability") + 
 	theme_bw()
 	if (ret) return(p)
 	else print(p)
 }
 
-#' Scatterplot of pi with density plots on the margin
+#' Heatmap of pi-gene expression correlations
+#'
+#' @param x SCE. SCE object
+#' @param ret Boolean. Return a ggplot object
+#'
+#' @return Nothing, unless ret=TRUE then a ggplot
+#' @import ggplot2
+#' @export
+heatmap_pi_genes <- function(x, top_n=15, iterations=NULL, ret=FALSE){
+	if (is.null(iterations)){
+		iterations <- 1:length(x@diem)
+	}
+
+	cors <- lapply(iterations, function(y){
+		genes <- c(x@diem[[y]]@de@deg_low, x@diem[[y]]@de@deg_high)
+		dcor <- cor(t(as.matrix(x@norm[genes,])), x@diem[[y]]@pi)
+		dcor <- as.data.frame(dcor)
+		dcormax <- abs(apply(dcor, 1, max))
+		# dcor <- dcor[order(dcormax, decreasing=TRUE),,drop=FALSE]
+		dcor[,"Iteration"] <- rep(y, nrow(dcor))
+		dcor[,"Gene"] <- rownames(dcor)
+		return(dcor)
+	})
+
+	# Sort by last dcor
+	dcor <- cors[[x@iter_use]]
+	genesl <- rownames(dcor)[order(dcor[,"pi_l"], decreasing=TRUE)][1:top_n]
+	genesh <- rownames(dcor)[order(dcor[,"pi_h"], decreasing=TRUE)][1:top_n]
+	genes <- c(genesl, rev(genesh))
+	genes_ord <- genes
+
+	corsdf <- do.call(rbind, cors)
+	corsdf <- corsdf[corsdf[,"Gene"] %in% genes,,drop=FALSE]
+	corsdf <- reshape2::melt(corsdf, id.vars=c("Iteration", "Gene"))
+
+
+    hmcol = colorRampPalette(RColorBrewer::brewer.pal(9, "RdBu"))(100)
+    ylab <- c(expression(paste(pi[low],'')),
+    		  expression(paste(pi[high],'')))
+
+    p <- ggplot(data=corsdf, aes(x=variable, y=Gene, fill=value)) + 
+    facet_wrap(~Iteration, nrow=1, strip.position="bottom") + 
+	geom_tile() + 
+    theme_classic() +
+    scale_fill_gradientn(colours=hmcol, limits=c(-1, 1), name=expression(italic("R"))) + 
+    scale_x_discrete(position = "top", labels=ylab)  + 
+    scale_y_discrete(limits=genes) + 
+    xlab("") +
+    theme(text=element_text(size=18), 
+    	  axis.text.x=element_text(angle=90, size=22, vjust=0.5, hjust=0),
+          axis.ticks=element_blank(),
+          axis.line=element_blank())
+    
+    if (ret) return(p)
+	else print(p)
+}
+
+#' Scatterplot of pi
 #'
 #' @param x SCE. SCE object
 #' @param ret Boolean. Return a ggplot object
@@ -112,15 +194,33 @@ llk_fraction_plot <- function(x, ret=FALSE){
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-plot_pi <- function(x, color=NULL, ret=FALSE){
-	df <- subset(x@dropl_info, !is.na(x@dropl_info$pi_l))
+plot_pi <- function(x, color=NULL, alpha=0.1, iteration=NULL, ret=FALSE){
+	if (length(x@iter_use) == 0) {
+		iter_use <- length(x@diem)
+	} else {
+		iter_use <- x@iter_use
+	}
+	if (is.null(iteration)){
+		iteration <- iter_use
+	}
+	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
+		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
 
-	p <- ggplot(df, aes_string(x="pi_l", y="pi_h")) + geom_point(alpha=0.5, aes(color=Call)) + 
-	theme_minimal() + 
-	xlab(expression(paste(pi[low],''))) + 
+	}
+
+	df <- as.data.frame(x@diem[[iteration]]@pi)
+	df[,"Call"] <- x@diem[[iteration]]@calls
+	di <- x@dropl_info[rownames(df),]
+	di <- di[, !(colnames(di) %in% colnames(df))]
+	df <- cbind(df, di)
+
+
+	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(color=Call)) + 
+	xlab(expression(paste(pi[low],''))) +
 	ylab(expression(paste(pi[high],''))) + 
-	theme(text=element_text(size=22), axis.text=element_blank())
-
+	theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
+	scale_color_discrete(name="Droplet") + 
+	guides(color = guide_legend(override.aes = list(alpha = 1)))
 	if (ret) return(p)
 	else print(p)
 }
@@ -134,8 +234,21 @@ plot_pi <- function(x, color=NULL, ret=FALSE){
 #' @importFrom grid grid.draw
 #' @importFrom gridExtra grid.arrange
 #' @export
-plot_pi_marginal <- function(x, alpha=0.05, pdfname=NULL, w=7, h=7){
-	df <- subset(x@dropl_info, !is.na(x@dropl_info$pi_l))
+plot_pi_marginal <- function(x, alpha=0.05, pdfname="pi_marginal.pdf", iteration=NULL, w=7, h=7){
+	if (length(x@iter_use) == 0) {
+		iter_use <- length(x@diem)
+	} else {
+		iter_use <- x@iter_use
+	}
+	if (is.null(iteration)){
+		iteration <- iter_use
+	}
+	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
+		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+
+	}
+
+	df <- as.data.frame(x@diem[[iteration]]@pi)
 
 	common_theme <- theme_minimal() + 
 	theme(axis.text=element_blank(), text=element_text(size=22))
@@ -156,7 +269,9 @@ plot_pi_marginal <- function(x, alpha=0.05, pdfname=NULL, w=7, h=7){
 	p2 <- ggplot(df, aes_string(x="pi_l", y="pi_h")) + geom_point(alpha=alpha) + 
 	xlab(expression(paste(pi[low],''))) + 
 	ylab(expression(paste(pi[high],''))) + 
-	common_theme
+	common_theme + theme(axis.title.y=element_blank(), 
+				panel.grid.major = element_blank(), 
+		panel.grid.minor = element_blank())
 
 	p3 <- ggplot(df, aes(x=pi_h)) + 
 	geom_density() + 
@@ -185,15 +300,32 @@ plot_pi_marginal <- function(x, alpha=0.05, pdfname=NULL, w=7, h=7){
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-plot_pi_tails <- function(x, pct=5, ret=FALSE){
-	df <- x@dropl_info
-	df <- df[!is.na(df$Call),]
-	top_n <- floor(nrow(df)*pct/100)
+plot_pi_tails <- function(x, pct=0.05, iteration=NULL, ret=FALSE){
+	if (length(x@iter_use) == 0) {
+		iter_use <- length(x@diem)
+	} else {
+		iter_use <- x@iter_use
+	}
+	if (is.null(iteration)){
+		iteration <- iter_use
+	}
+	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
+		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+
+	}
+
+	df <- as.data.frame(x@diem[[iteration]]@pi)
+	df[,"Call"] <- x@diem[[iteration]]@calls
+	di <- x@dropl_info[rownames(df),]
+	di <- di[, !(colnames(di) %in% colnames(df))]
+	df <- cbind(df, di)
+
+	top_n <- floor(nrow(df)*pct)
 	top_drop <- rownames(df)[order(df$total_counts, decreasing=TRUE)[1:top_n]]
 	bot_drop <- rownames(df)[order(df$total_counts, decreasing=FALSE)[1:top_n]]
 	df$Rank <- rep("", nrow(df))
-	df[top_drop, "Rank"] <- paste0("Top ", as.character(pct), "%")
-	df[bot_drop, "Rank"] <- paste0("Bottom ", as.character(pct), "%")
+	df[top_drop, "Rank"] <- paste0("Top ", as.character(100*pct), "%")
+	df[bot_drop, "Rank"] <- paste0("Bottom ", as.character(100*pct), "%")
 	df <- df[order(df$Rank),]
 	df <- df[df$Rank != "",]
 
@@ -209,7 +341,7 @@ plot_pi_tails <- function(x, pct=5, ret=FALSE){
 	else print(p)
 }
 
-#' Contour plot of pi values
+#' Contour plot of MVN densities for the 2 groups
 #'
 #' @param x SCE. SCE object
 #' @param ret Boolean. Return a ggplot object
@@ -218,41 +350,87 @@ plot_pi_tails <- function(x, pct=5, ret=FALSE){
 #' @import ggplot2
 #' @import reshape2
 #' @export
-plot_pi_contour <- function(x, ret=FALSE){
-	df <- subset(x@dropl_info, !is.na(x@dropl_info$pi_l))
+plot_mvn_contour <- function(x, length.out=1e2, iteration=NULL, ret=FALSE){
+	if (length(x@iter_use) == 0) {
+		iter_use <- length(x@diem)
+	} else {
+		iter_use <- x@iter_use
+	}
+	if (is.null(iteration)){
+		iteration <- iter_use
+	}
+	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
+		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
 
-	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=0.1, aes(color=Call)) + 
-	geom_density2d(aes(color=factor(Call))) + 
-	xlab(expression(paste(pi[low],''))) +
+	}
+
+	mins <- apply(x@diem[[iteration]]@pi, 2, min)
+	maxs <- apply(x@diem[[iteration]]@pi, 2, max)
+	dl1 <- (maxs[1] - mins[1])/10
+	dl2 <- (maxs[2] - mins[2])/10
+	mins[1] <- mins[1]-dl1; mins[2] <- mins[2]-dl2
+	maxs[1] <- maxs[1]+dl1; maxs[2] <- maxs[2]+dl2
+
+	x1seq <- seq(mins[1], maxs[1], length.out=length.out)
+	x2seq <- seq(mins[2], maxs[2], length.out=length.out)
+	z1 <- matrix(nrow=length.out, ncol=length.out)
+	colnames(z1) <- x2seq; rownames(z1) <- x1seq
+	z2 <- matrix(nrow=length.out, ncol=length.out)
+	colnames(z2) <- x2seq; rownames(z2) <- x1seq
+
+	emo <- x@diem[[iteration]]@emo
+
+	for (i in 1:length(x1seq)){
+		for (j in 1:length(x2seq)){
+			z1[i,j] <- EMCluster::dmvn(c(x1seq[i],x2seq[j]), 
+					mu=emo[["Mu"]][1,], 
+					LTsigma=emo[["LTSigma"]][1,])
+			z2[i,j] <- EMCluster::dmvn(c(x1seq[i],x2seq[j]), 
+					mu=emo[["Mu"]][2,], 
+					LTsigma=emo[["LTSigma"]][2,])
+
+		}
+	}
+	c1m <- reshape2::melt(z1)
+	c1m[,"Droplet"] <- "Signal"
+	c2m <- reshape2::melt(z2)
+	c2m[,"Droplet"] <- "Background"
+	cm <- rbind(c1m, c2m)
+
+	p <- ggplot(cm, aes(x=Var1, y=Var2, z=value, color=Droplet)) + 
+	geom_contour() + 
+	xlim(mins[1]-dl1, maxs[1]+dl1) + 
+	ylim(mins[2]-dl2, maxs[2]+dl2) + 
+	xlab(expression(paste(pi[low],''))) + 
 	ylab(expression(paste(pi[high],''))) + 
-	theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
-	scale_color_discrete(name="Droplet")
+	theme_minimal()
+
 	if (ret) return(p)
 	else print(p)
 }
 
-#' Contour plot of pi values through iterations
+#' Plot through iterations, return a list of ggplot2 objects
 #'
 #' @param x SCE. SCE object
-#' @param ret Boolean. Return a ggplot object
+#' @param FUN character string. Name of function for plotting. Can be one of 
+#'  of the following:
+#'  \itemize{
+#'		\item de_cor_plot
+#'		\item llk_fraction_plot
+#'		\item plot_pi
+#'		\item plot_mvn_contour
+#'  }
+#' @param ret Logical. If TRUE, return the list of ggplots, else, print them
 #'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @import reshape2
+#' @return Nothing
 #' @export
-plot_pi_contour_iter <- function(x, ret=FALSE){
+plot_iter <- function(x, FUN, ret=FALSE, ...){
+	if (length(x@name) == 0) x@name <- ""
+	FUN <- match.fun(FUN)
 	to_ret <- list()
-	for (i in 1:length(x@prev_iter)){
-		df <- x@prev_iter[[i]]
-		df <- df[!is.na(df$pi_l), ]
-
-		p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=0.1, aes(color=Call)) + 
-		geom_density2d(aes(color=factor(Call))) + 
-		xlab(expression(paste(pi[low],''))) +
-		ylab(expression(paste(pi[high],''))) + 
-		theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
-		scale_color_discrete(name="Droplet")
-		to_ret[[i]] <- p
+	for (iteration in 1:length(x@diem)){
+		p <- FUN(x, iteration=iteration, ret=TRUE, ...) + ggtitle(paste0(x@name, " Iteration ", as.character(iteration)))
+		to_ret[[iteration]] <- p
 	}
 	if (ret) return(to_ret)
 	else{
@@ -262,18 +440,20 @@ plot_pi_contour_iter <- function(x, ret=FALSE){
 	}
 }
 
-#' Plot of pi values through iterations in a gif
+#' Plot through iterations in a gif
 #'
 #' @param x SCE. SCE object
+#' @param FUN character string. Name of function for plotting. See \code{plot_iter} for more details.
+#' @param prefix character string. Prefix of GIF output file name.
 #'
 #' @return Nothing
 #' @export
-plot_pi_iter_gif <- function(x, prefix="pi_iter"){
+plot_iter_gif <- function(x, FUN, prefix="iter", ...){
 	png(paste0(prefix, ".tmp.%03d.png"))
-	plots <- plot_pi_contour_iter(x, ret=TRUE)
+	FUN <- match.fun(FUN)
+	plots <- plot_iter(x, FUN, ret=TRUE, ...)
 	for (p in plots){ print(p) }
 	dev.off()
 	system(paste0("convert -delay 50 ", prefix, ".tmp.*.png", " ", prefix, ".gif"))
 	system(paste0("rm ", prefix, ".tmp.*.png"))
 }
-

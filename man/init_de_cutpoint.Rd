@@ -4,7 +4,7 @@
 \alias{init_de_cutpoint}
 \title{Set count cutpoint for DE testing between low and high count droplets}
 \usage{
-init_de_cutpoint(x, log_base = 50, de_cutpoint = NULL,
+init_de_cutpoint(x, log_base = NULL, de_cutpoint = NULL,
   verbose = FALSE)
 }
 \arguments{
@@ -20,7 +20,7 @@ init_de_cutpoint(x, log_base = 50, de_cutpoint = NULL,
 SCE object.
 }
 \description{
-In order to find genes enriched in the background or the nucleus, we need to 
+In order to find genes enriched in the background or the signal, we need to 
 determine how to group droplets for DE. This function initializes a cut point 
 to decide which droplets are assigned to either the high or low group. This number 
 is determined by dividing the maximum droplet count by \code{log_base}. 

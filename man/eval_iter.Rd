@@ -2,9 +2,9 @@
 % Please edit documentation in R/diem.R
 \name{eval_iter}
 \alias{eval_iter}
-\title{Evaluate results from iteration}
+\title{Evaluate results from iteration for convergence}
 \usage{
-eval_iter(x, thresh = 0.05, verbose = FALSE)
+eval_iter(x, thresh = 0.01, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE object.}
@@ -14,8 +14,8 @@ eval_iter(x, thresh = 0.05, verbose = FALSE)
 \item{verbose}{Boolean. Verbosity.}
 }
 \value{
-A boolean indicating whether the change in nuclei droplets is under the threshold.
+A boolean indicating whether the change in signal droplets is under the threshold.
 }
 \description{
-Evaluate results from iteration
+Evaluate results from iteration for convergence
 }

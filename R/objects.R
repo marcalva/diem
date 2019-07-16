@@ -1,21 +1,6 @@
 
 #' @importClassesFrom Matrix dgCMatrix
-#' @useDynLib diem
-
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
-
-#' EMO
-#' @name EMO-class
-#' @rdname EMO-class
-#' @exportClass EMO
-EMO <- setClass(Class = "EMO", 
-				slots = c(Z = "matrix", 
-						  mu = "list", 
-						  sgma = "list", 
-						  tau = "vector", 
-						  assign = "vector",
-						  llks = "vector", 
-						  n_iter = "numeric"))
 
 #' DE
 #' @name DE-class
@@ -24,9 +9,6 @@ EMO <- setClass(Class = "EMO",
 DE <- setClass(Class = "DE",
 			   slots = c(low_means = "numeric",
 			   			 high_means = "numeric", 
-			   			 low_n = "numeric", 
-			   			 high_n = "numeric", 
-			   			 deg = "character", 
 			   			 deg_low = "character", 
 			   			 deg_high = "character", 
 			   			 log2fc = "numeric"))
@@ -36,12 +18,21 @@ DE <- setClass(Class = "DE",
 #' @rdname DIEM-class
 #' @exportClass DIEM
 DIEM <- setClass(Class = "DIEM", 
-				slots = c(counts = "any_matrix", 
-						  norm = "any_matrix", 
-						  pi = "data.frame", 
-						  labels = "vector", 
-						  prev_nuclei = "vector",  
-						  emo = "EMO"))
+				 slots = c(de = "DE", 
+						   pi = "matrix", 
+						   emo = "list", 
+						   calls = "character"))
+
+# emo contains the EM output of each iteration.
+# Each element of this list contains
+#    Z matrix  n x k of posterior probabilities
+#    Mu Matrix k x p of class centers
+#    LTSigma Matrix k x p*(p+1)/2 of lower triangular Sigma covariance
+#    pi vector of mixing coefficients
+#    llhdval log likelihood value
+#    conv.iter Number of iterations to convergene
+#    assign Character vector of length k, giving "Signal" or "Background"
+#    ovl Numeric specifying fraction of the area that overlaps the 2 distributions
 
 #' SCE
 #'
@@ -51,12 +42,14 @@ DIEM <- setClass(Class = "DIEM",
 #' @exportClass SCE
 SCE <- setClass(Class = "SCE", 
 				slots = c(counts = "any_matrix", 
-						  low_droplets = "vector", 
-						  high_droplets = "vector", 
-						  test_droplets = "vector", 
-						  de = "DE", 
-						  diem = "DIEM", 
-						  prev_iter = "list", 
+						  norm = "any_matrix", 
+						  test_IDs = "vector", 
+						  de_cut_init = "numeric", 
+						  labels = "numeric", 
+						  diem = "list", 
+						  iter_use = "numeric", 
+						  converged = "logical", 
+						  p_thresh = "numeric", 
 						  gene_info = "data.frame",
 						  dropl_info = "data.frame", 
                           name = "character"))
@@ -101,6 +94,9 @@ create_SCE <- function(x, name="SCE"){
 	}else{
 		sce <- SCE(counts = x)
 	}
+	rownames(sce@counts) <- make.unique(rownames(sce@counts))
+	colnames(sce@counts) <- make.unique(colnames(sce@counts))
+	
 	sce@gene_info <- data.frame(row.names=rownames(sce@counts))
 	sce@dropl_info <- data.frame(row.names=colnames(sce@counts))
 	# rownames(sce@gene_info) <- rownames(sce@counts)
@@ -125,7 +121,6 @@ create_SCE <- function(x, name="SCE"){
 #' @param meta Boolean. Place information in dropl_info slot into meta.data in Seurat object
 #' @param ... Arguments to \code{\link[Seurat]{CreateSeuratObject}}, such as \code{project} for project name
 #'
-#' @importFrom Seurat CreateSeuratObject
 #' @return A Seurat object
 #' @export
 convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
@@ -133,7 +128,7 @@ convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
 		stop("Package \"Seurat\" needed for this function to work. Please install it.",
 		    	       call. = FALSE)
 	}
-	if (targets) keep <- rownames(x@dropl_info)[ grep("Nucleus", x@dropl_info[,"Call"]) ]
+	if (targets) keep <- rownames(x@dropl_info)[ grep("Signal", x@dropl_info[,"Call"]) ]
 	else keep <- rownames(x@dropl_info)
 	if (meta) meta.data <- x@dropl_info[keep,,drop=FALSE]
 	else meta.data <- NULL

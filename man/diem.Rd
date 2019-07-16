@@ -4,34 +4,25 @@
 \alias{diem}
 \title{Run diem pipeline}
 \usage{
-diem(sce, top_n = 10000, init_de_log_base = 50,
-  init_de_cutpoint = NULL, logt = TRUE, cpm_thresh = 3,
-  log2fc_thresh = 0.25, pct_tails = 0.05, min_iter_em = 5,
-  max_iter_em = 1000, eps_em = 1e-10, lk_fraction = 0.99,
-  max_iter_diem = 25, eps_iter_diem = 0.05, verbose = TRUE)
+diem(sce, top_n = 10000, min_counts = 100, init_de_log_base = 50,
+  init_de_cutpoint = NULL, cpm_thresh = 3, log2fc_thresh = 0,
+  init_em_tails = 0.05, lk_fraction = 0.95, max_iter_diem = 25,
+  eps_iter_diem = 0.001, ss_pct = 0, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
 
-\item{top_n}{Numeric. Only run EM classification on the top top_n droplets ranked by total counts.}
+\item{top_n}{Numeric. Only the top \code{top_n} droplets ranked by total counts are classified.}
+
+\item{min_counts}{Integer. Only droplets with at least this number of total counts are classified. 
+Can override \code{top_n} if \code{top_n} includes droplets with less than \code{min_counts}.}
 
 \item{init_de_log_base}{Numeric. Take droplets with counts within 2 logs below the max droplet size using this log base
 for initializing the DE cutpoint.}
 
-\item{logt}{Boolean. Log1p transform counts during normalization.}
-
 \item{cpm_thresh}{Numeric. Calculate pi from genes with counts per million mapped reads (CPM) above this threshold.}
 
 \item{log2fc_thresh}{Numeric. Calculate pi from genes with log2 fold changes above this threshold.}
-
-\item{pct_tails}{Numeric. Value from 0 to 0.5. Initialize means of low and high groups using bottom and top percentiles, 
-respectively}
-
-\item{min_iter_em}{Numeric. Minimum number of iterations during EM.}
-
-\item{max_iter_em}{Numeric. Maximum number of iterations during EM.}
-
-\item{eps_em}{Numeric. Epsilon of log-likilhood change to call convergence in EM.}
 
 \item{lk_fraction}{Numeric. Select droplets that have a fraction of target likelihood greater than this number.}
 

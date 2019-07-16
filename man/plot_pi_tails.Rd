@@ -4,7 +4,7 @@
 \alias{plot_pi_tails}
 \title{Scatterplot of pi colored by tails}
 \usage{
-plot_pi_tails(x, pct = 5, ret = FALSE)
+plot_pi_tails(x, pct = 0.05, iteration = NULL, ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}

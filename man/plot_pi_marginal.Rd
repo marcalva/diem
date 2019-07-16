@@ -4,7 +4,8 @@
 \alias{plot_pi_marginal}
 \title{Scatterplot of pi with density plots on the margin}
 \usage{
-plot_pi_marginal(x, alpha = 0.05, pdfname = NULL, w = 7, h = 7)
+plot_pi_marginal(x, alpha = 0.05, pdfname = "pi_marginal.pdf",
+  iteration = NULL, w = 7, h = 7)
 }
 \arguments{
 \item{x}{SCE. SCE object}

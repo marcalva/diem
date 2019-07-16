@@ -2,9 +2,9 @@
 % Please edit documentation in R/plotting.R
 \name{llk_fraction_plot}
 \alias{llk_fraction_plot}
-\title{Distribution of likelihood fraction}
+\title{Plot posterior probability against pi_low - pi_high}
 \usage{
-llk_fraction_plot(x, ret = FALSE)
+llk_fraction_plot(x, iteration = NULL, ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}
@@ -15,5 +15,5 @@ llk_fraction_plot(x, ret = FALSE)
 Nothing, unless return=TRUE then a ggplot
 }
 \description{
-Distribution of likelihood fraction
+Plot posterior probability against pi_low - pi_high
 }

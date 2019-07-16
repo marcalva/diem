@@ -4,7 +4,8 @@
 \alias{get_log2fc}
 \title{Run differential expression between high and low read count droplets}
 \usage{
-get_log2fc(x, cpm_thresh = 3, log2fc_thresh = 0.25, verbose = FALSE)
+get_log2fc(x, cpm_thresh = 3, log2fc_thresh = 0, iteration = NULL,
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
@@ -16,7 +17,7 @@ get_log2fc(x, cpm_thresh = 3, log2fc_thresh = 0.25, verbose = FALSE)
 \item{verbose}{Boolean.}
 }
 \value{
-SCE object.
+DE object.
 }
 \description{
 Find differentially expressed genes between low and high read count droplets. Groups droplets into

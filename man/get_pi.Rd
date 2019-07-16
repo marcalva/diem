@@ -2,15 +2,15 @@
 % Please edit documentation in R/debris_id.R
 \name{get_pi}
 \alias{get_pi}
-\title{Get pi}
+\title{Get pi projection of normalized data}
 \usage{
-get_pi(x)
+get_pi(x, iteration = NULL)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
 }
 \value{
-An SCE object.
+An matrix of pi values
 }
 \description{
 This function calculates pi_low and pi_high, defined as the inner products of 

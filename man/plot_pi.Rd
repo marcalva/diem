@@ -2,9 +2,10 @@
 % Please edit documentation in R/plotting.R
 \name{plot_pi}
 \alias{plot_pi}
-\title{Scatterplot of pi with density plots on the margin}
+\title{Scatterplot of pi}
 \usage{
-plot_pi(x, color = NULL, ret = FALSE)
+plot_pi(x, color = NULL, alpha = 0.1, iteration = NULL,
+  ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}
@@ -15,5 +16,5 @@ plot_pi(x, color = NULL, ret = FALSE)
 Nothing, unless return=TRUE then a ggplot
 }
 \description{
-Scatterplot of pi with density plots on the margin
+Scatterplot of pi
 }

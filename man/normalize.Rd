@@ -4,19 +4,15 @@
 \alias{normalize}
 \title{Normalize raw counts for droplets being classified.}
 \usage{
-normalize(x, scale. = TRUE, genes = NULL, scale_factor = 1,
-  logt = TRUE, verbose = FALSE)
+normalize(x, genes = NULL, scale_factor = 1, logt = TRUE,
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE.}
 
-\item{scale.}{Boolean. Whether to scale genes to mean 0 and variance 1.}
-
 \item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
 
 \item{logt}{Boolean. Whether to log1p transform expression values.}
-
-\item{de_genes}{Boolean. Whether to normalize only the DE genes.}
 }
 \value{
 SCE object

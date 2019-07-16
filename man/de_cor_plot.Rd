@@ -4,7 +4,7 @@
 \alias{de_cor_plot}
 \title{Correlation plot of low vs high expression}
 \usage{
-de_cor_plot(x, scale_factor = 10000, ret = FALSE, main = NULL)
+de_cor_plot(x, scale_factor = 10000, iteration = NULL, ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}

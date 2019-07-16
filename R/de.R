@@ -1,44 +1,7 @@
 
-#' Set low and high droplet labels
-#'
-#' Set the droplet IDs to be used as the low and high groups for 
-#' DE testing. By default, the high group is set as the nuclei called 
-#' by the previous iteration of DIEM, while the low group is set as 
-#' everything else. If \code{low} and \code{high} are given, as in 
-#' during initialization when nuclei haven't been called yet, the low 
-#' and high groups are set to these for logFC calculation.
-#'
-#' @param x SCE. SCE object.
-#' @param low Character. Droplet IDs to set as the low group.
-#' @param high Character. Droplet IDs to set as the high group.
-#'
-#' @return SCE object.
-#' @export
-set_de_groups <- function(x, low=NULL, high=NULL){
-
-	# Set DE from calls in droplet info
-	if (is.null(low)){
-		low <- rownames(x@dropl_info)[x@dropl_info[,"Call"] %in% "Debris"]
-	}
-	if (is.null(high)){
-		high <- rownames(x@dropl_info)[x@dropl_info[,"Call"] %in% "Nucleus"]
-	}
-
-	# Incorporate droplets below test set into background
-	dc <- x@dropl_info[,"total_counts"]
-	names(dc) <- rownames(x@dropl_info)
-	min_count <- min(dc[x@test_droplets])
-
-	below_test <- names(dc)[dc < min_count]
-
-	x@low_droplets <- union(low, below_test)
-	x@high_droplets <- high
-	return(x)
-}
-
 #' Set count cutpoint for DE testing between low and high count droplets
 #'
-#' In order to find genes enriched in the background or the nucleus, we need to 
+#' In order to find genes enriched in the background or the signal, we need to 
 #' determine how to group droplets for DE. This function initializes a cut point 
 #' to decide which droplets are assigned to either the high or low group. This number 
 #' is determined by dividing the maximum droplet count by \code{log_base}. 
@@ -50,31 +13,38 @@ set_de_groups <- function(x, low=NULL, high=NULL){
 #' @param verbose Boolean. Verbosity.
 #'
 #' @return SCE object.
+#' @importFrom DropletUtils barcodeRanks
 #' @export
 init_de_cutpoint <- function(x, 
-							log_base=50, 
+							log_base=NULL, 
 							de_cutpoint=NULL, 
 							verbose=FALSE){
 	if (verbose) cat("Setting DE cutpoint\n")
 
-	dc <- x@dropl_info[,"total_counts"]
-	names(dc) <- rownames(x@dropl_info)
+	dc <- Matrix::colSums(x@counts)
+	
+	# 	max_count <- max(dc)
+	# 	de_cutpoint <- max_count/log_base
+	#} 
+	
+	br.out <- barcodeRanks(x@counts[,x@test_IDs])
+	de_cutpoint <- br.out$inflection
 
-	if (is.null(de_cutpoint)){
-		max_count <- max(dc)
-		de_cutpoint <- max_count/log_base
-	}
 	n_over <- sum(dc > de_cutpoint)
+	n_less <- sum(dc < de_cutpoint)
 	if (n_over < 10){
-		stop("Less than 10 droplets are over the DE cutpoint. Set to a lower value.\n")
+		stop("Less than 10 droplets are over the DE cutpoint. Set to a lower value.")
+	}
+	if (n_less < 10){
+		stop("Less than 10 droplets are under the DE cutpoint. Set to a higher value.")
 	}
 
-	if (verbose) cat(paste0("Initialized DE cutpoint at ", as.character(de_cutpoint), " counts\n"))
+	if (verbose) cat(paste0("Initialized DE cutpoint at ", as.character(de_cutpoint), " counts.\n"))
 
-	dc <- dc[order(dc, decreasing=TRUE)]
-
-	x <- set_de_groups(x, low=names(dc)[dc <= de_cutpoint], high=names(dc)[(dc > de_cutpoint)])
-
+	# dc <- dc[order(dc, decreasing=TRUE)]
+	
+	x@de_cut_init <- de_cutpoint
+	
 	return(x)
 }
 
@@ -90,41 +60,74 @@ init_de_cutpoint <- function(x,
 #' @param log2fc_thresh Numeric. Call DE genes with log2 fold change above or below this threshold.
 #' @param verbose Boolean.
 #'
-#' @return SCE object.
+#' @return DE object.
 #' @importFrom Matrix rowMeans rowSums
 #' @export
 get_log2fc <- function(x, 
 	cpm_thresh=3, 
-	log2fc_thresh=0.25, 
+	log2fc_thresh=0, 
+	iteration=NULL, 
 	verbose=FALSE){
 	
-	if (length(x@high_droplets) == 0){
+	if (length(x@de_cut_init) == 0){
 		stop("Initialize DE cutpoint first")
 	}
 
-	low_sum <- Matrix::rowSums(x@counts[, x@low_droplets])
-	high_sum <- Matrix::rowSums(x@counts[, x@high_droplets])
+	if (length(x@diem) == 0){
+		x@diem[[1]] <- DIEM()
+	}
 
-	low_sum <- 1e6*low_sum/sum(low_sum)
-	high_sum <- 1e6*high_sum/sum(high_sum)
+	if (is.null(iteration)){
+		iteration <- length(x@diem)
+	} else {
+		if (iteration > length(x@diem)) stop("Iteration cannot be larger than the number of DIEM iterations run.")
+	}
+
+	dc <- Matrix::colSums(x@counts)
+
+	bg_member <- rep(1, ncol(x@counts))
+	names(bg_member) <- colnames(x@counts)
+	tg_member <- rep(0, ncol(x@counts))
+	names(tg_member) <- colnames(x@counts)
+
+	if (iteration == 1){
+		# Set hard threshold from initialization
+		high_droplets <- dc > x@de_cut_init
+		bg_member[high_droplets] <- 0
+		tg_member[high_droplets] <- 1
+	} else {
+		# Use soft threshold of posterior probabilities if available from previous iteration
+		Z <- x@diem[[iteration-1]]@emo[["Z"]]
+		asgn <- x@diem[[iteration-1]]@emo[["assign"]]
+
+		bg_member[rownames(Z)] <- Z[,asgn["Background"]]
+		tg_member[rownames(Z)] <- Z[,asgn["Signal"]]
+	}
+
+	low_sum <- x@counts %*% bg_member; low_sum <- low_sum[,1]
+	low_sum <- low_sum/sum(low_sum)
+	low_cpm <- 1e6*low_sum
+
+	high_sum <- x@counts %*% tg_member; high_sum <- high_sum[,1]
+	high_sum <- high_sum/sum(high_sum)
+	high_cpm <- 1e6*high_sum
 
 	genes <- rownames(x@counts)
-	genes_expr <- genes[ low_sum > cpm_thresh & high_sum > cpm_thresh ]
+	genes_expr <- genes[ low_cpm > cpm_thresh & high_cpm > cpm_thresh ]
+
 	low_sum <- low_sum[genes_expr]; high_sum <- high_sum[genes_expr]
-	log2fc <- log2(low_sum) - log2(high_sum)
+	low_cpm <- low_cpm[genes_expr]; high_cpm <- high_cpm[genes_expr]
+	log2fc <- log2(low_cpm) - log2(high_cpm)
 	names(log2fc) <- genes_expr
 
 	deg_low <- genes_expr[ log2fc > log2fc_thresh ]
 	deg_high <- genes_expr[ log2fc < -log2fc_thresh ]
-	deg <- c(deg_low, deg_high)
 
 	# Save in DE
-	de_obj <- DE(low_means=low_sum[deg],
-				 high_means=high_sum[deg],
-				 deg=deg, 
-				 deg_low=deg_low, 
-				 deg_high=deg_high,
-				 log2fc=log2fc[deg])
-	x@de <- de_obj
+	x@diem[[iteration]]@de <- DE(low_means=low_sum[c(deg_low, deg_high)],
+								 high_means=high_sum[c(deg_low, deg_high)],
+								 deg_low=deg_low, 
+								 deg_high=deg_high,
+								 log2fc=log2fc[c(deg_low, deg_high)])
 	return(x)
 }
