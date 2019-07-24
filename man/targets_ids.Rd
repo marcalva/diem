@@ -4,7 +4,7 @@
 \alias{targets_ids}
 \title{Return target IDs}
 \usage{
-targets_ids(x, iteration = NULL)
+targets_ids(x)
 }
 \arguments{
 \item{x}{SCE. SCE object}

@@ -4,7 +4,7 @@
 \alias{heatmap_pi_genes}
 \title{Heatmap of pi-gene expression correlations}
 \usage{
-heatmap_pi_genes(x, top_n = 15, iterations = NULL, ret = FALSE)
+heatmap_pi_genes(x, top_n = 15, ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}

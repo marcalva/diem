@@ -19,6 +19,7 @@ Imports:
 	Matrix, 
     scales, 
     reshape2,
+    edgeR, 
     EMCluster, 
     DropletUtils
 Suggests:

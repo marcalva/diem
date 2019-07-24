@@ -4,7 +4,7 @@
 \alias{set_test_set}
 \title{Subset droplets for EM testing}
 \usage{
-set_test_set(x, top_n = 10000, min_counts = 100)
+set_test_set(x, top_n = 10000, min_counts = 30, verbose = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
@@ -19,6 +19,6 @@ An SCE object.
 }
 \description{
 Sets the threshold for testing droplets and subsets counts matrix. Includes the top \code{top_n} 
-droplets for testing (inclduing any ties), and removing any droplets with total counts 
+droplets for testing (including any ties), and removing any droplets with total counts 
 less than \code{min_counts}. The count matrix is subset to these droplets for EM testing
 }

@@ -45,22 +45,10 @@ barcode_rank_plot <- function(x, title="", ret=FALSE){
 #' @import ggplot2
 #' @importFrom Matrix colSums rowSums
 #' @export
-de_cor_plot <- function(x, scale_factor=1e4, iteration=NULL, ret=FALSE){
-	if (length(x@iter_use) == 0) {
-		iter_use <- length(x@diem)
-	} else {
-		iter_use <- x@iter_use
-	}
-	if (is.null(iteration)){
-		iteration <- iter_use
-	}
-	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
-		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE){
 
-	}
-
-	low_p <- x@diem[[iteration]]@de@low_means
-	high_p <- x@diem[[iteration]]@de@high_means
+	low_p <- x@diem[[iteration]]@de@low_prop
+	high_p <- x@diem[[iteration]]@de@high_prop
 	low_p <- log1p(scale_factor*low_p/sum(low_p))
 	high_p <- log1p(scale_factor*high_p/sum(high_p))
 
@@ -97,32 +85,16 @@ de_cor_plot <- function(x, scale_factor=1e4, iteration=NULL, ret=FALSE){
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-llk_fraction_plot <- function(x, iteration=NULL, ret=FALSE){
-	if (length(x@iter_use) == 0) {
-		iter_use <- length(x@diem)
-	} else {
-		iter_use <- x@iter_use
-	}
-	if (is.null(iteration)){
-		iteration <- iter_use
-	}
-	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
-		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+pp_plot <- function(x, ret=FALSE){
 
-	}
-
-	Z <- x@diem[[iteration]]@emo[["Z"]]
-	asgn <- x@diem[[iteration]]@emo[["assign"]]
-	pidf <- as.data.frame(x@diem[[iteration]]@pi)
-	pi_all <- pidf[,"pi_l"] - pidf[,"pi_h"]
-
-	ord <- order(pi_all, decreasing=FALSE)
-
-	llfs <- Z[ord,asgn["Signal"]]
-	df <- data.frame(pi_all=pi_all[ord], llf=llfs)
-	p <- ggplot(df, aes(x=pi_all, y=llf)) + 
+	Z <- x@diem@emo[["Z"]]
+	asgn <- x@diem@emo[["assign"]]
+	pidf <- as.data.frame(x@diem@pi)
+	llfs <- sort(Z[,asgn["Signal"]])
+	df <- data.frame(Rank=1:length(llfs), llf=llfs)
+	p <- ggplot(df, aes(x=Rank, y=llf)) + 
 	geom_point() + 
-	xlab(expression(paste(pi[low],"-",pi[high],''))) + 
+	xlab("Rank") + 
 	ylab("Posterior Probability") + 
 	theme_bw()
 	if (ret) return(p)
@@ -137,24 +109,17 @@ llk_fraction_plot <- function(x, iteration=NULL, ret=FALSE){
 #' @return Nothing, unless ret=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-heatmap_pi_genes <- function(x, top_n=15, iterations=NULL, ret=FALSE){
-	if (is.null(iterations)){
-		iterations <- 1:length(x@diem)
-	}
+heatmap_pi_genes <- function(x, top_n=15, ret=FALSE){
 
-	cors <- lapply(iterations, function(y){
-		genes <- c(x@diem[[y]]@de@deg_low, x@diem[[y]]@de@deg_high)
-		dcor <- cor(t(as.matrix(x@norm[genes,])), x@diem[[y]]@pi)
-		dcor <- as.data.frame(dcor)
-		dcormax <- abs(apply(dcor, 1, max))
-		# dcor <- dcor[order(dcormax, decreasing=TRUE),,drop=FALSE]
-		dcor[,"Iteration"] <- rep(y, nrow(dcor))
-		dcor[,"Gene"] <- rownames(dcor)
-		return(dcor)
-	})
+
+
+	genes <- x@diem@DE@diff_genes
+	dcor <- cor(t(as.matrix(x@norm[genes,])), x@diem@pi)
+	dcor <- as.data.frame(dcor)
+	dcormax <- abs(apply(dcor, 1, max))
+	dcor[,"Gene"] <- rownames(dcor)
 
 	# Sort by last dcor
-	dcor <- cors[[x@iter_use]]
 	genesl <- rownames(dcor)[order(dcor[,"pi_l"], decreasing=TRUE)][1:top_n]
 	genesh <- rownames(dcor)[order(dcor[,"pi_h"], decreasing=TRUE)][1:top_n]
 	genes <- c(genesl, rev(genesh))
@@ -162,7 +127,7 @@ heatmap_pi_genes <- function(x, top_n=15, iterations=NULL, ret=FALSE){
 
 	corsdf <- do.call(rbind, cors)
 	corsdf <- corsdf[corsdf[,"Gene"] %in% genes,,drop=FALSE]
-	corsdf <- reshape2::melt(corsdf, id.vars=c("Iteration", "Gene"))
+	corsdf <- reshape2::melt(corsdf, id.vars="Gene")
 
 
     hmcol = colorRampPalette(RColorBrewer::brewer.pal(9, "RdBu"))(100)
@@ -170,7 +135,6 @@ heatmap_pi_genes <- function(x, top_n=15, iterations=NULL, ret=FALSE){
     		  expression(paste(pi[high],'')))
 
     p <- ggplot(data=corsdf, aes(x=variable, y=Gene, fill=value)) + 
-    facet_wrap(~Iteration, nrow=1, strip.position="bottom") + 
 	geom_tile() + 
     theme_classic() +
     scale_fill_gradientn(colours=hmcol, limits=c(-1, 1), name=expression(italic("R"))) + 
@@ -189,38 +153,103 @@ heatmap_pi_genes <- function(x, top_n=15, iterations=NULL, ret=FALSE){
 #' Scatterplot of pi
 #'
 #' @param x SCE. SCE object
+#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
 #' @param ret Boolean. Return a ggplot object
 #'
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-plot_pi <- function(x, color=NULL, alpha=0.1, iteration=NULL, ret=FALSE){
-	if (length(x@iter_use) == 0) {
-		iter_use <- length(x@diem)
-	} else {
-		iter_use <- x@iter_use
-	}
-	if (is.null(iteration)){
-		iteration <- iter_use
-	}
-	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
-		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+plot_pi_call <- function(x, alpha=0.1, ret=FALSE){
 
-	}
-
-	df <- as.data.frame(x@diem[[iteration]]@pi)
-	df[,"Call"] <- x@diem[[iteration]]@calls
+	df <- as.data.frame(x@diem@pi)
+	df <- df[x@test_IDs,]
+	df[names(x@diem@calls),"Call"] <- x@diem@calls
 	di <- x@dropl_info[rownames(df),]
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)
 
 
-	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(color=Call)) + 
+	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(color="Call")) + 
 	xlab(expression(paste(pi[low],''))) +
 	ylab(expression(paste(pi[high],''))) + 
 	theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
-	scale_color_discrete(name="Droplet") + 
+	scale_color_discrete(name="Call") + 
 	guides(color = guide_legend(override.aes = list(alpha = 1)))
+	if (ret) return(p)
+	else print(p)
+}
+
+#' Scatterplot of pi colored by posterior probability
+#'
+#' @param x SCE. SCE object
+#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
+#' @param ret Boolean. Return a ggplot object
+#'
+#' @return Nothing, unless return=TRUE then a ggplot
+#' @import ggplot2
+#' @export
+plot_pi_pp <- function(x, alpha=0.1, ret=FALSE){
+
+	df <- as.data.frame(x@diem@pi)
+	df <- df[x@test_IDs,]
+	df[names(x@diem@calls),"Call"] <- x@diem@calls
+	di <- x@dropl_info[rownames(df),]
+	di <- di[, !(colnames(di) %in% colnames(df))]
+	df <- cbind(df, di)
+
+	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(colour=PP)) + 
+	xlab(expression(paste(pi[low],''))) +
+	ylab(expression(paste(pi[high],''))) + 
+	theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
+	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
+	if (ret) return(p)
+	else print(p)
+}
+
+#' Scatterplot of genes vs. UMI counts, colored by posterior probability
+#'
+#' @param x SCE. SCE object
+#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
+#' @param ret Boolean. Return a ggplot object
+#'
+#' @return Nothing, unless return=TRUE then a ggplot
+#' @import ggplot2
+#' @export
+plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
+
+	df <- x@dropl_info[x@test_IDs,]
+
+	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=PP)) + 
+	xlab("UMI Counts") +
+	ylab("Genes Detected") + 
+	scale_x_log10() + scale_y_log10() + 
+	theme_minimal() + theme(text=element_text(size=22)) + 
+	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
+	if (ret) return(p)
+	else print(p)
+}
+
+#' Scatterplot of pi colored by posterior probability
+#'
+#' @param x SCE. SCE object
+#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
+#' @param ret Boolean. Return a ggplot object
+#'
+#' @return Nothing, unless return=TRUE then a ggplot
+#' @import ggplot2
+#' @export
+plot_scatter_pp <- function(sce, x, y, alpha=0.1, ret=FALSE){
+
+	df <- as.data.frame(sce@diem@pi)
+	df <- df[sce@test_IDs,]
+	df[names(sce@diem@calls),"Call"] <- sce@diem@calls
+	di <- sce@dropl_info[rownames(df),]
+	di <- di[, !(colnames(di) %in% colnames(df))]
+	df <- cbind(df, di)
+
+	p <- ggplot(df, aes_string(x=x, y=y)) + geom_point(alpha=alpha, aes(colour=PP)) + 
+	theme_minimal() + theme(text=element_text(size=22)) + 
+	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
 	if (ret) return(p)
 	else print(p)
 }
@@ -234,21 +263,9 @@ plot_pi <- function(x, color=NULL, alpha=0.1, iteration=NULL, ret=FALSE){
 #' @importFrom grid grid.draw
 #' @importFrom gridExtra grid.arrange
 #' @export
-plot_pi_marginal <- function(x, alpha=0.05, pdfname="pi_marginal.pdf", iteration=NULL, w=7, h=7){
-	if (length(x@iter_use) == 0) {
-		iter_use <- length(x@diem)
-	} else {
-		iter_use <- x@iter_use
-	}
-	if (is.null(iteration)){
-		iteration <- iter_use
-	}
-	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
-		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+plot_pi_marginal <- function(x, alpha=0.05, pdfname="pi_marginal.pdf", w=7, h=7){
 
-	}
-
-	df <- as.data.frame(x@diem[[iteration]]@pi)
+	df <- as.data.frame(x@diem@pi)
 
 	common_theme <- theme_minimal() + 
 	theme(axis.text=element_blank(), text=element_text(size=22))
@@ -300,22 +317,10 @@ plot_pi_marginal <- function(x, alpha=0.05, pdfname="pi_marginal.pdf", iteration
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-plot_pi_tails <- function(x, pct=0.05, iteration=NULL, ret=FALSE){
-	if (length(x@iter_use) == 0) {
-		iter_use <- length(x@diem)
-	} else {
-		iter_use <- x@iter_use
-	}
-	if (is.null(iteration)){
-		iteration <- iter_use
-	}
-	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
-		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
+plot_pi_tails <- function(x, pct=0.05, ret=FALSE){
 
-	}
-
-	df <- as.data.frame(x@diem[[iteration]]@pi)
-	df[,"Call"] <- x@diem[[iteration]]@calls
+	df <- as.data.frame(x@diem@pi)
+	df[,"Call"] <- x@diem@calls
 	di <- x@dropl_info[rownames(df),]
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)
@@ -339,121 +344,4 @@ plot_pi_tails <- function(x, pct=0.05, iteration=NULL, ret=FALSE){
 
 	if (ret) return(p)
 	else print(p)
-}
-
-#' Contour plot of MVN densities for the 2 groups
-#'
-#' @param x SCE. SCE object
-#' @param ret Boolean. Return a ggplot object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @import reshape2
-#' @export
-plot_mvn_contour <- function(x, length.out=1e2, iteration=NULL, ret=FALSE){
-	if (length(x@iter_use) == 0) {
-		iter_use <- length(x@diem)
-	} else {
-		iter_use <- x@iter_use
-	}
-	if (is.null(iteration)){
-		iteration <- iter_use
-	}
-	if ( (iteration > length(x@diem)) | (iteration < 1 ) ){
-		stop("Iteration cannot be larger than the number of DIEM iterations run or smaller than 0.")
-
-	}
-
-	mins <- apply(x@diem[[iteration]]@pi, 2, min)
-	maxs <- apply(x@diem[[iteration]]@pi, 2, max)
-	dl1 <- (maxs[1] - mins[1])/10
-	dl2 <- (maxs[2] - mins[2])/10
-	mins[1] <- mins[1]-dl1; mins[2] <- mins[2]-dl2
-	maxs[1] <- maxs[1]+dl1; maxs[2] <- maxs[2]+dl2
-
-	x1seq <- seq(mins[1], maxs[1], length.out=length.out)
-	x2seq <- seq(mins[2], maxs[2], length.out=length.out)
-	z1 <- matrix(nrow=length.out, ncol=length.out)
-	colnames(z1) <- x2seq; rownames(z1) <- x1seq
-	z2 <- matrix(nrow=length.out, ncol=length.out)
-	colnames(z2) <- x2seq; rownames(z2) <- x1seq
-
-	emo <- x@diem[[iteration]]@emo
-
-	for (i in 1:length(x1seq)){
-		for (j in 1:length(x2seq)){
-			z1[i,j] <- EMCluster::dmvn(c(x1seq[i],x2seq[j]), 
-					mu=emo[["Mu"]][1,], 
-					LTsigma=emo[["LTSigma"]][1,])
-			z2[i,j] <- EMCluster::dmvn(c(x1seq[i],x2seq[j]), 
-					mu=emo[["Mu"]][2,], 
-					LTsigma=emo[["LTSigma"]][2,])
-
-		}
-	}
-	c1m <- reshape2::melt(z1)
-	c1m[,"Droplet"] <- "Signal"
-	c2m <- reshape2::melt(z2)
-	c2m[,"Droplet"] <- "Background"
-	cm <- rbind(c1m, c2m)
-
-	p <- ggplot(cm, aes(x=Var1, y=Var2, z=value, color=Droplet)) + 
-	geom_contour() + 
-	xlim(mins[1]-dl1, maxs[1]+dl1) + 
-	ylim(mins[2]-dl2, maxs[2]+dl2) + 
-	xlab(expression(paste(pi[low],''))) + 
-	ylab(expression(paste(pi[high],''))) + 
-	theme_minimal()
-
-	if (ret) return(p)
-	else print(p)
-}
-
-#' Plot through iterations, return a list of ggplot2 objects
-#'
-#' @param x SCE. SCE object
-#' @param FUN character string. Name of function for plotting. Can be one of 
-#'  of the following:
-#'  \itemize{
-#'		\item de_cor_plot
-#'		\item llk_fraction_plot
-#'		\item plot_pi
-#'		\item plot_mvn_contour
-#'  }
-#' @param ret Logical. If TRUE, return the list of ggplots, else, print them
-#'
-#' @return Nothing
-#' @export
-plot_iter <- function(x, FUN, ret=FALSE, ...){
-	if (length(x@name) == 0) x@name <- ""
-	FUN <- match.fun(FUN)
-	to_ret <- list()
-	for (iteration in 1:length(x@diem)){
-		p <- FUN(x, iteration=iteration, ret=TRUE, ...) + ggtitle(paste0(x@name, " Iteration ", as.character(iteration)))
-		to_ret[[iteration]] <- p
-	}
-	if (ret) return(to_ret)
-	else{
-		for (i in 1:length(to_ret)){
-			print(to_ret[[i]])
-		}
-	}
-}
-
-#' Plot through iterations in a gif
-#'
-#' @param x SCE. SCE object
-#' @param FUN character string. Name of function for plotting. See \code{plot_iter} for more details.
-#' @param prefix character string. Prefix of GIF output file name.
-#'
-#' @return Nothing
-#' @export
-plot_iter_gif <- function(x, FUN, prefix="iter", ...){
-	png(paste0(prefix, ".tmp.%03d.png"))
-	FUN <- match.fun(FUN)
-	plots <- plot_iter(x, FUN, ret=TRUE, ...)
-	for (p in plots){ print(p) }
-	dev.off()
-	system(paste0("convert -delay 50 ", prefix, ".tmp.*.png", " ", prefix, ".gif"))
-	system(paste0("rm ", prefix, ".tmp.*.png"))
 }

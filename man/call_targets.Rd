@@ -4,7 +4,7 @@
 \alias{call_targets}
 \title{Call targets after EM}
 \usage{
-call_targets(x, iteration = NULL)
+call_targets(x, pp_thresh = 0.95, min_genes = 200)
 }
 \arguments{
 \item{x}{SCE. SCE object.}

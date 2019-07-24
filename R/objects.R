@@ -7,11 +7,10 @@ setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 #' @rdname DE-class
 #' @exportClass DE
 DE <- setClass(Class = "DE",
-			   slots = c(low_means = "numeric",
-			   			 high_means = "numeric", 
-			   			 deg_low = "character", 
-			   			 deg_high = "character", 
-			   			 log2fc = "numeric"))
+			   slots = c(low_prop = "numeric",
+			   			 high_prop = "numeric", 
+			   			 diff_genes = "character", 
+			   			 prop_diff = "numeric"))
 
 #' DIEM
 #' @name DIEM-class
@@ -19,20 +18,23 @@ DE <- setClass(Class = "DE",
 #' @exportClass DIEM
 DIEM <- setClass(Class = "DIEM", 
 				 slots = c(de = "DE", 
-						   pi = "matrix", 
+				 		   diff_table = "data.frame", 
+				 		   diff_genes = "character", 
 						   emo = "list", 
-						   calls = "character"))
+						   pi = "matrix", 
+						   PP = "matrix", 
+						   calls = "character", 
+						   assign = "vector", 
+						   converged = "logical"))
 
 # emo contains the EM output of each iteration.
 # Each element of this list contains
 #    Z matrix  n x k of posterior probabilities
-#    Mu Matrix k x p of class centers
-#    LTSigma Matrix k x p*(p+1)/2 of lower triangular Sigma covariance
-#    pi vector of mixing coefficients
-#    llhdval log likelihood value
+#	 mnpl is another list with Mu and Pi elements
+#    loglks is a list of log likelihood value
 #    conv.iter Number of iterations to convergene
 #    assign Character vector of length k, giving "Signal" or "Background"
-#    ovl Numeric specifying fraction of the area that overlaps the 2 distributions
+#	 converged Logical indicating whether EM converged or not
 
 #' SCE
 #'
@@ -43,13 +45,14 @@ DIEM <- setClass(Class = "DIEM",
 SCE <- setClass(Class = "SCE", 
 				slots = c(counts = "any_matrix", 
 						  norm = "any_matrix", 
+						  pcs = "ANY", 
 						  test_IDs = "vector", 
-						  de_cut_init = "numeric", 
+						  test_thresh = "numeric", 
+						  diff_thresh = "numeric", 
 						  labels = "numeric", 
-						  diem = "list", 
-						  iter_use = "numeric", 
+						  diem = "DIEM", 
 						  converged = "logical", 
-						  p_thresh = "numeric", 
+						  pp_thresh = "numeric", 
 						  gene_info = "data.frame",
 						  dropl_info = "data.frame", 
                           name = "character"))

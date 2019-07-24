@@ -4,12 +4,13 @@
 \alias{fix_tails}
 \title{Fix labels of lower and upper count droplets}
 \usage{
-fix_tails(x, pct = 0)
+fix_tails(x, pct_low = 0, pct_high = 0)
 }
 \arguments{
 \item{x}{SCE. SCE object.}
 
-\item{pct}{Numeric. Pct of tails to fix, fraction from 0 to 1.}
+\item{pct}{Numeric. Fraction of total test barcodes in each tail to fix
+as the background or signal.}
 }
 \value{
 An SCE object

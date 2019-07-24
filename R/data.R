@@ -63,10 +63,76 @@ normalize <- function(x,
 	return(x)
 }
 
+#' Get pi projection of normalized data
+#'
+#' This function calculates pi_low and pi_high, defined as the inner products of 
+#' normalized gene expression and log fold changes for DE genes enriched in the low (background-enriched) 
+#' and high (target-enriched) count droplets, respectively.
+#'
+#' @param x SCE. SCE object.
+#'
+#' @return An matrix of pi values
+#' @importFrom Matrix Matrix t
+#' @export
+get_pi <- function(x){
+
+	x <- normalize(x) # Set @norm
+
+	if (length(x@diem@de@prop_diff) == 0){
+		x <- set_diff_genes(x)
+	}
+
+	de_obj <- x@diem@de
+
+	log2fc <- log2(1e6*de_obj@low_prop) - log2(1e6*de_obj@high_prop)
+	log2fc_l <- log2fc[log2fc > 0]
+	log2fc_h <- log2fc[log2fc < 0]
+
+	if (any(is.na(log2fc_l)) | any(is.na(log2fc_h))){
+		stop("Fold changes cannot be NA.")
+	}
+	if (any(is.infinite(log2fc_l)) | any(is.infinite(log2fc_h))){
+		stop("Fold changes cannot be infinite.")
+	}
+
+	genes_low <- intersect(rownames(x@norm), names(log2fc_l))
+	genes_high <- intersect(rownames(x@norm), names(log2fc_h))
+
+	if ( (length(genes_low) == 0) | (length(genes_high) == 0) ){
+		stop("No differential genes between background and signal.")
+	}
+
+	# log2fc_l is positive. log2fc_h is negative (so take negative)
+	pi_l <- t(x@norm[genes_low,]) %*% log2fc_l[genes_low]
+	pi_h <- t(x@norm[genes_high,]) %*% -log2fc_h[genes_high]
+
+	pi_df <- as.data.frame(cbind(pi_l, pi_h))
+	rownames(pi_df) <- colnames(x@norm)
+	colnames(pi_df) <- c("pi_l", "pi_h")
+
+	x@diem@pi <- as.matrix(pi_df)
+
+	return(x)
+}
+
+#' Get PCs
+#'
+#' @return SCE object.
+#' @export
+get_pcs <- function(x, n_pcs=30){
+	x <- normalize(x) # Set @norm
+	genes <- x@diem@de@diff_genes
+	drops <- x@test_IDs
+	counts <- Matrix::Matrix(x@norm[genes, drops], sparse=TRUE)
+	counts <- Matrix::t(counts)
+	sce@pcs <- prcomp(as.matrix(counts), scale.=TRUE)
+	return(sce)
+}
+
 #' Subset droplets for EM testing
 #'
 #' Sets the threshold for testing droplets and subsets counts matrix. Includes the top \code{top_n} 
-#' droplets for testing (inclduing any ties), and removing any droplets with total counts 
+#' droplets for testing (including any ties), and removing any droplets with total counts 
 #' less than \code{min_counts}. The count matrix is subset to these droplets for EM testing 
 #'
 #' @param x SCE. SCE object.
@@ -77,12 +143,37 @@ normalize <- function(x,
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
-set_test_set <- function(x, top_n=1e4, min_counts=100){
+set_test_set <- function(x, top_n=1e4, min_counts=30, verbose=FALSE){
+	if (is.null(top_n)){
+		top_n <- ncol(x@counts)
+	}
+	if (is.null(min_counts)){
+		min_counts <- 1
+	}
+
+	if (top_n < 0){
+		stop("top_n must be greater than 0")
+	}
+	if (min_counts < 0){
+		stop("min_counts must be greater than 0")
+	}
+
 	dc <- Matrix::colSums(x@counts)
 	top_n_ix <- order(dc, decreasing=TRUE)[top_n]
 	min_counts <- max(dc[top_n_ix], min_counts)
+
 	dc <- dc[dc >= min_counts]
+	if (length(dc) < 50){
+		stop("Less than 50 barcodes pass filtering. Choose less stringent top_n and min_counts parameters.")
+	}
+
 	x@test_IDs <- names(dc)
+	x@test_thresh <- min_counts
+
+	if (verbose){
+		cat(paste0("Testing ", as.character(length(dc)), " barcodes that have counts greater than or equal to ",
+				   as.character(min_counts), ".\n"))
+	}
 	return(x)
 }
 
@@ -92,26 +183,35 @@ set_test_set <- function(x, top_n=1e4, min_counts=100){
 #' The top and bottom \code{pct} are then fixed during EM.
 #'
 #' @param x SCE. SCE object.
-#' @param pct Numeric. Pct of tails to fix, fraction from 0 to 1.
+#' @param pct Numeric. Fraction of total test barcodes in each tail to fix
+#'  as the background or signal.
 #'
 #' @return An SCE object
 #' @importFrom Matrix colSums
 #' @export
-fix_tails <- function(x, pct=0){
+fix_tails <- function(x, n_top=1e4, pct_low=0, pct_high=0){
 	if (length(x@test_IDs) == 0){
 		stop("No test IDs.")
 	}
+
 	x@labels <- rep(0, length(x@test_IDs))
 	names(x@labels) <- x@test_IDs
-	if (pct == 0){
-		return(x)
-	}
+
 	dc <- Matrix::colSums(x@counts[,x@test_IDs])
-	n <- floor(length(dc)*(pct))
-	topn <- names(dc)[order(dc, decreasing=TRUE)[1:n]]
-	botn <- names(dc)[order(dc, decreasing=FALSE)[1:n]]
-	x@labels[topn] <- 1
-	x@labels[botn] <- 2
+	n_low <- floor(length(dc)*(pct_low))
+	n_high <- floor(length(dc)*(pct_high))
+
+	if (pct_low > 0){
+		n_low <- floor(length(dc)*(pct_low))
+		botn <- names(dc)[order(dc, decreasing=FALSE)[1:n_low]]
+		x@labels[botn] <- 2
+	}
+
+	if (pct_high > 0){
+		n_high <- floor(length(dc)*(pct_high))
+		topn <- names(dc)[order(dc, decreasing=TRUE)[1:n_high]]
+		x@labels[topn] <- 1
+	}
 	return(x)
 }
 

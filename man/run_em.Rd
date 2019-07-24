@@ -4,12 +4,11 @@
 \alias{run_em}
 \title{Run EM on pi features}
 \usage{
-run_em(x, init_em_tails = 0.05, iteration = NULL, verbose = TRUE)
+run_em(x, eps = 1e-08, max_iter = 1000, labels = NULL,
+  verbose = TRUE)
 }
 \arguments{
-\item{x}{SCE. SCE object with PCs.}
-
-\item{verbose}{Boolean. Verbosity.}
+\item{x}{SCE object}
 }
 \value{
 SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details

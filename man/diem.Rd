@@ -4,10 +4,11 @@
 \alias{diem}
 \title{Run diem pipeline}
 \usage{
-diem(sce, top_n = 10000, min_counts = 100, init_de_log_base = 50,
-  init_de_cutpoint = NULL, cpm_thresh = 3, log2fc_thresh = 0,
-  init_em_tails = 0.05, lk_fraction = 0.95, max_iter_diem = 25,
-  eps_iter_diem = 0.001, ss_pct = 0, verbose = TRUE)
+diem(sce, top_n = 10000, min_counts = 30, top_n_de = 10000,
+  diff_thresh = NULL, cpm_thresh = 3, log2fc_thresh = 0,
+  n_genes = 100, init_em_tails = 0.05, pp_thresh = 0.95,
+  max_iter = 100, eps = 1e-06, ss_pct_low = 0, ss_pct_high = 0,
+  min_gene_call = 200, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
@@ -17,22 +18,22 @@ diem(sce, top_n = 10000, min_counts = 100, init_de_log_base = 50,
 \item{min_counts}{Integer. Only droplets with at least this number of total counts are classified. 
 Can override \code{top_n} if \code{top_n} includes droplets with less than \code{min_counts}.}
 
-\item{init_de_log_base}{Numeric. Take droplets with counts within 2 logs below the max droplet size using this log base
-for initializing the DE cutpoint.}
+\item{diff_thresh}{Numeric. Manually set the initialization of the DE cutpoint. If not NULL, it is calculated from the data.}
 
 \item{cpm_thresh}{Numeric. Calculate pi from genes with counts per million mapped reads (CPM) above this threshold.}
 
 \item{log2fc_thresh}{Numeric. Calculate pi from genes with log2 fold changes above this threshold.}
+
+\item{verbose}{Boolean. Verbosity.}
+
+\item{init_de_log_base}{Numeric. Take droplets with counts within 2 logs below the max droplet size using this log base
+for initializing the DE cutpoint.}
 
 \item{lk_fraction}{Numeric. Select droplets that have a fraction of target likelihood greater than this number.}
 
 \item{max_iter_diem}{Numeric. Maximum number of iterations during DIEM until convergence of labeling.}
 
 \item{eps_iter_diem}{Numeric. Percent threshold for change in labeling until convergence.}
-
-\item{verbose}{Boolean. Verbosity.}
-
-\item{de_cutpoint}{Numeric. Manually set the initialization of the DE cutpoint. If not NULL, it is calculated from the data.}
 }
 \value{
 SCE object.

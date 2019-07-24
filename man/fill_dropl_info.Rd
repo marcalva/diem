@@ -4,7 +4,7 @@
 \alias{fill_dropl_info}
 \title{Insert pi and calls to dropl_info}
 \usage{
-fill_dropl_info(x, iteration = NULL)
+fill_dropl_info(x)
 }
 \arguments{
 \item{x}{SCE. SCE object}

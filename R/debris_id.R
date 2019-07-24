@@ -1,105 +1,34 @@
 
-#' Get pi projection of normalized data
-#'
-#' This function calculates pi_low and pi_high, defined as the inner products of 
-#' normalized gene expression and log fold changes for DE genes enriched in the low (background-enriched) 
-#' and high (target-enriched) count droplets, respectively.
-#'
-#' @param x SCE. SCE object.
-#'
-#' @return An matrix of pi values
-#' @importFrom Matrix Matrix t
-#' @export
-get_pi <- function(x, iteration=NULL){
-	if (is.null(iteration)){
-		iteration <- length(x@diem)
-	} else {
-		if (iteration > length(x@diem)) stop("iteration cannot be larger than the number of DIEM iterations run.")
-	}
-
-	if (length(x@norm) == 0){
-		stop("Normalize counts data before calculating pi.")
-	}
-
-	de_obj <- x@diem[[iteration]]@de
-
-	if (length(de_obj@log2fc) == 0){
-		stop("No genes with log fold changes available, they have either not been calculated or no genes meet the criteria.")
-	}
-
-	log2fc_l <- de_obj@log2fc[de_obj@deg_low]
-	log2fc_h <- de_obj@log2fc[de_obj@deg_high]
-
-	if (any(is.na(log2fc_l)) | any(is.na(log2fc_h))){
-		stop("Fold changes cannot be NA.")
-	}
-	if (any(is.infinite(log2fc_l)) | any(is.infinite(log2fc_h))){
-		stop("Fold changes cannot be infinite.")
-	}
-
-	genes_low <- intersect(rownames(x@norm), de_obj@deg_low)
-	genes_high <- intersect(rownames(x@norm), de_obj@deg_high)
-
-	if ( (length(genes_low) == 0) | (length(genes_high) == 0) ){
-		stop("No differential genes between background and signal.")
-	}
-
-	# log2fc_l is positive. log2fc_h is negative (so take negative)
-	pi_l <- t(x@norm[genes_low,]) %*% log2fc_l[genes_low]
-	pi_h <- t(x@norm[genes_high,]) %*% -log2fc_h[genes_high]
-
-	pi_df <- as.data.frame(cbind(pi_l, pi_h))
-	rownames(pi_df) <- colnames(x@norm)
-	colnames(pi_df) <- c("pi_l", "pi_h")
-
-	x@diem[[iteration]]@pi <- as.matrix(pi_df)
-
-	return(x)
-}
-
 #' Initialize EM parameters for k=2 low and high groups
 #'
-#' Initialize the means, variances of the 2 Gaussians, as well as tau, 
-#' the mixing parameter. Means and variances are intialized to the sample medians 
-#' and variances of top 5% and bottom 5% (or by given \code{pct}).
+#' Initialize the means of the two multinomial groups.
 #' 
 #' @param x SCE. SCE object with pi calculated
 #' @param pct Numeric. Percent of droplets at each tail to fix. A number from 0 to 1.
 #'
-#' @return A list with 3 components
-#' \itemize{
-#' \item{"mu0"}{"A list of size 2, with each element being a size 2 vector containing the means of pi_l and pi_h."}
-#' \item{"sgma0"}{"A list of size 2, with each element being a size 2 vector containing the variances of pi_l and pi_h."}
-#' \item{"tau0"}{"A numeric of size 2, containing the tau mixing coefficients."}
-#'}
-#' The first and second element of the lists of mu0 and sgma0 are for the high and low groups respectively
+#' @return List with mu0 a p x 2 matrix and tau0 a length 2 numeric
+#'
 #' @importFrom Matrix colSums
 #' @export
-pi_init_tails <- function(x, pim, pct=0.05){
-	if (pct <= 0 | pct > 0.5) pct <- 0.05
+init_tails <- function(x, counts, pct=0.1){
 	
-	if (length(pim) == 0){
-		stop("Pi matrix is empty.")
-	}
+	dc <- Matrix::colSums(x@counts)
+	dc <- dc[colnames(counts)]
+	n <- ncol(counts)
+	n_tail <- round(n*pct)
+	topn <- (names(dc)[order(dc, decreasing=TRUE)])[1:n_tail]
+	botn <- (names(dc)[order(dc, decreasing=FALSE)])[1:n_tail]
 
-	n <- floor(nrow(pim) * pct)
-	dc <- Matrix::colSums(x@counts[,rownames(pim)])
-	topn <- names(dc)[order(dc, decreasing=TRUE)[1:n]]
-	botn <- names(dc)[order(dc, decreasing=FALSE)[1:n]]
+	mu_top <- Matrix::rowSums(counts[,topn,drop=FALSE])
+	mu_top <- mu_top/sum(mu_top)
+	mu_bot <- Matrix::rowSums(counts[,botn,drop=FALSE])
+	mu_bot <- mu_bot/sum(mu_bot)
 
-	mu_top <- apply(pim[topn,,drop=FALSE], 2, median)
-	mu_bot <- apply(pim[botn,,drop=FALSE], 2, median)
-	sgma_top <- cov(pim[topn,,drop=FALSE])
-	sgma_bot <- cov(pim[botn,,drop=FALSE])
-	# sgma_top <- apply(dat[topn,,drop=FALSE], 2, var)
-	# sgma_bot <- apply(dat[botn,,drop=FALSE], 2, var)
-	# mu0 <- list(mu_top, mu_bot)
-	# sgma0 <- list(sgma_top, sgma_bot)
-	mu0 <- rbind(mu_top, mu_bot)
-	sgma0 <- rbind(sgma_top[lower.tri(sgma_top, diag=TRUE)],
-				   sgma_bot[lower.tri(sgma_bot, diag=TRUE)])
+	mu0 <- matrix(cbind(mu_top, mu_bot), ncol=2)
+	colnames(mu0) <- c("Signal", "Background")
+	rownames(mu0) <- rownames(counts)
 	tau0 <- c(0.5, 0.5)
-	ret <- list(Mu=mu0, LTSigma=sgma0, pi=tau0)
+	ret <- list(Mu=mu0, Pi=tau0)
 	return(ret)
 }
 
@@ -112,64 +41,163 @@ fraction_log <- function(x){
 	return(frac);
 }
 
-# mu1, mu2 - vectors of length 2
-# Sigma1, Sigma2 - symmetric matrices of size 2 by 2
-# Returns the Overlapping Coefficient (OVL) of the two distributions defined by (mu1, Sigma1) and (mu2, Sigma2)
-#' @importFrom EMCluster dmvn
-#' @importFrom pracma integral2
-#' @export  
-calc_ovl <- function(mu1, mu2, Sigma1, Sigma2){
-	# define the integration boundaries based on 10 standard deviations of the larget element in Sigma1, Sigma2 and the largest component in mu1, mu2
-	boundary <- max(max(abs(mu1)),max(abs(mu2))) + max(max(Sigma1),max(Sigma2))*10
-	min.mvns <- function(x, mu1, mu2, Sigma1, Sigma2){
-		f1.x <- EMCluster::dmvn(x=x, mu1, Sigma1, log=FALSE)
-		f2.x <- EMCluster::dmvn(x=x, mu2, Sigma2, log=FALSE)
-		return(min(f1.x, f2.x))
+#' x is a vector
+#' @export
+sum_log <- function(x){
+	max_x <- max(x)
+	x_c = x - max_x
+	x_sum <- log(sum(exp(x_c))) + max_x
+	return(x_sum);
+}
+
+#' Get multinomial log prob of columns in X 
+#'
+#' @param X sparseMatrix. A sample by feature matrix of counts.
+#' @param prob Numeric
+#'
+#' @import Matrix
+#' @export
+dmultinom_sparse <- function(X, prob){
+	if (length(prob) != ncol(X)){
+		stop("Length of prob and rows in X must be the same.")
 	}
-	f <- function(x,y) (min.mvns(c(x,y), mu1 = mu1, mu2 = mu2, Sigma1 = Sigma1, Sigma2 = Sigma2))
-	ovl <- pracma::integral2(fun = f, -boundary, boundary, -boundary, boundary, vectorized = FALSE)
-	return(ovl$Q)
+	X <- as(X, "dgCMatrix")
+	Xlg <- X
+	Xlg@x <- lgamma(Xlg@x + 1) # Get log gamma
+
+	m <- lgamma(Matrix::rowSums(X) + 1)
+	xls <- Matrix::rowSums(Xlg)
+
+	px <- as.numeric(X %*% log(prob))
+
+	prob <- m - xls + px
+	return(prob)
 }
 
-lower_to_full <- function(x){
-	lx <- length(x)
-	p <- (-1+sqrt(1+(8*lx)))/2
-	y <- matrix(nrow=p, ncol=p)
-	y[lower.tri(y, diag=TRUE)] <- x
-	y[upper.tri(y)] <- t(y)[upper.tri(y)]
-	return(y)
+#' Computed density of multinomial mixture for a matrix
+#'
+#' Given an n x p matrix of count data \code{x}, as well as a 
+#' p x k matrix of probabilities \code{p}, return the probabilities 
+#' of each sample for the k groups in a n x k matrix. If \code{x} 
+#' has any non-integer values, they are rounded to the nearest integer.
+#'
+#' @param x sparseMatrix. A sample by feature matrix of counts.
+#' @param p numeric matrix. A feature by group matrix of probabilities.
+#' @param log Logical. If TRUE, return matrix with log probabilities.
+#'
+#' @return a numeric matrix with n samples by x variables.
+#' @export
+dmmn <- function(x, p, tau, labels=NULL){
+	if (ncol(x) != nrow(p)) stop("Number of columns in x must be the same as the number of rows in p.")
+	if (length(tau) != ncol(p)) stop("Length of tau must be the same as the number of columns in p.")
+	if ( any(round(colSums(p), 1) != 1) ) stop("Probability columns in p must sum to 1.")
+	if (round(sum(tau), 1) != 1) stop("Mixture probabilities in tau must sum to 1.")
+	if ( any(Matrix::rowSums(x) == 0) ) stop("Sample rows of x must have at least 1 count.")
+
+	n <- nrow(x)
+	k <- ncol(p)
+
+	if (is.null(labels)) labels <- numeric(n)
+	if (length(labels) != n){
+		stop("Size of labels must be the same as the number of rows in x.")
+	}
+	if ( any(is.na(labels)) ){
+		stop("Labels must not contain any NA values.")
+	}
+	ks <- sort(unique(labels))
+	if (max(ks) > k){
+		stop("Labels must have a max integer value no more than the number of columns in p.")
+	}
+	ks <- ks[ks != 0]
+
+	r <- matrix(nrow=n, ncol=k)
+	colnames(r) <- colnames(p)
+	rownames(r) <- rownames(x)
+	for (ki in 1:k){
+		r[,ki] <- dmultinom_sparse(X=x, prob=p[,ki])
+		tau_v <- rep(x=log(tau[[ki]]), times=n) # Add log of mixture coefficient
+		tau_v[(labels != 0) & (labels != ki)] <- -Inf
+		r[,ki] <- r[,ki] + tau_v
+	}
+	return(r)
 }
 
-#' Check initial separation of tails
+#' Computed log likelihood of multinomial mixture for a matrix
+#'
+#' Given an n x p matrix of count data \code{x}, as well as a 
+#' p x k matrix of probabilities \code{p}, return the probabilities 
+#' of each sample for the k groups in a n x k matrix. If \code{x} 
+#' has any non-integer values, they are rounded to the nearest integer.
+#'
+#' @param x sparseMatrix. A sample by feature matrix of counts.
+#' @param p numeric matrix. A feature by group matrix of probabilities.
+#' @param log Logical. If TRUE, return matrix with log probabilities.
+#'
+#' @return a numeric matrix with n samples by x variables.
+#' @export
+dmmn_llk <- function(x, p, tau, probs=NULL, labels=NULL){
+	if (is.null(probs)) probs <- dmmn(x=x, p=p, tau=tau, labels=labels)
+	probs[apply(probs, 1, function(i) all(is.infinite(i))), ] <- c(0,0)
+	probs_sum <- apply(probs, 1, sum_log)
+	llk <- sum(probs_sum)
+	return(llk)
+}
+
+#' Computed expected log likelihood of multinomial mixture
+#'
+#' Given an n x p matrix of count data \code{x}, as well as a 
+#' p x k matrix of probabilities \code{p}, return the responsibilities 
+#' of each sample for the k groups in a n x k matrix. If \code{x} 
+#' has any non-integer values, they are rounded to the nearest integer.
+#'
+#' @param x sparseMatrix. A sample by feature matrix of counts.
+#' @param p numeric matrix. A feature by group matrix of probabilities.
+#' @param tau numeric. Mixture coefficients
+#' @param log Logical. If TRUE, return matrix with log probabilities.
+#'
+#' @return a numeric matrix with n samples by k groups.
+#' @export
+e_step_mn <- function(x, p, tau, probs=NULL, labels=NULL){
+	if (is.null(probs)) probs <- dmmn(x=x, p=p, tau=tau, labels=labels)
+	probs[apply(probs, 1, function(i) all(is.infinite(i))), ] <- c(0,0)
+	r <- t(apply(probs, 1, fraction_log))
+	if (any(is.infinite(r))) stop("One or more responsibilities are infinite, probably from dividing by 0.")
+	return(r)
+}
+
+#' Maximize multinomial parameters in EM
+#'
+#' Given an n x p matrix of count data, as well as a 
+#' n x k matrix of responsibilities, return the maximum 
+#' likelihood estimate (MLE) of p for each k group in 
+#' a p x k matrix.
 #'
 #'
 #' @export
-check_init_sep <- function(x, pct=0.05){
-	if (pct <= 0 | pct > 0.5) pct <- 0.05
-
-	pim <- x@diem[[1]]@pi
-	
-	if (length(pim) == 0){
-		stop("Pi matrix is empty.")
+m_step_mn <- function(x, r, labels=NULL){
+	n <- nrow(x)
+	k <- ncol(r)
+	# Semi-supervised
+	if (!is.null(labels)){
+		if (length(labels) != nrow(r)){
+			stop("Size of labels must be the same as the number of rows in r.")
+		}
+		ks <- sort(unique(labels))
+		if (max(ks) > k){
+			stop("Labels must have a max integer value no more than the number of columns in p.")
+		}
+		ks <- ks[ks != 0]
+		for (k in ks){
+			p <- numeric(ncol(r))
+			p[k] <- 1
+			r[labels == k, ] <- p
+		}
 	}
-
-	n <- floor(nrow(pim) * pct)
-	dc <- Matrix::colSums(x@counts[,rownames(pim)])
-	topn <- names(dc)[order(dc, decreasing=TRUE)[1:n]]
-	botn <- names(dc)[order(dc, decreasing=FALSE)[1:n]]
-
-	mu_top <- apply(pim[topn,,drop=FALSE], 2, median)
-	mu_bot <- apply(pim[botn,,drop=FALSE], 2, median)
-	sgma_top <- cov(pim[topn,,drop=FALSE])
-	sgma_bot <- cov(pim[botn,,drop=FALSE])
-	
-	mu <- rbind(mu_top, mu_bot)
-	sgma <- rbind(sgma_top[lower.tri(sgma_top, diag=TRUE)],
-				  sgma_bot[lower.tri(sgma_bot, diag=TRUE)])
-
-	ovl <- calc_ovl(mu1=mu[1,], mu2=mu[2,], Sigma1=sgma[1,], Sigma2=sgma[2,])
-
-	cat(paste0("Overlap of +/- 5% tails is ", as.character(round(ovl, 2)*100), "%.\n"))
+	wm <- as.matrix(Matrix::t(x) %*% r)
+	Mu <- sweep(wm, 2, colSums(wm), "/")
+	tau <- colSums(r)
+	tau <- tau/sum(tau)
+	return(list(Mu=Mu, Pi=tau))
 }
 
 #' Run EM on pi features
@@ -180,114 +208,87 @@ check_init_sep <- function(x, pct=0.05){
 #' a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
 #' log likelihood until convergence is reached.
 #'
-#' @param x SCE. SCE object with PCs.
-#' @param verbose Boolean. Verbosity.
+#' @param x SCE object
 #'
 #' @return SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
 #' @importFrom EMCluster emcluster
 #' @importFrom mvtnorm dmvnorm
 #' @export
-run_em <- function(x, init_em_tails=0.05, iteration=NULL, verbose=TRUE){
-	if (is.null(iteration)){
-		iteration <- length(x@diem)
-	} else {
-		if (iteration > length(x@diem)) stop("iteration cannot be larger than the number of DIEM iterations run.\n")
+run_em <- function(x, eps=1e-8, max_iter=1e3, labels=NULL, verbose=TRUE){
+	
+	# Store EM output
+	emo <- list()
+	x@diem@converged  <- FALSE
+
+	genes <- x@diem@de@diff_genes
+	drops <- x@test_IDs
+	counts <- Matrix::Matrix(x@counts[genes, drops], sparse=TRUE)
+
+	if (verbose){
+		cat("Running EM on ", as.character(nrow(counts)), " genes and ", as.character(ncol(counts)), " droplets.\n")
 	}
 
-	pim <- x@diem[[iteration]]@pi
-
-	if (length(pim) == 0){
-		stop("Calculate pi before running EM")
+	no_counts <- Matrix::colSums(counts) == 0
+	if (sum(no_counts) > 0){
+		cat(paste0("Warning: removing ", as.character(sum(no_counts)), " droplets with no diff genes detected.\n"))
+		x@test_IDs <- x@test_IDs[!no_counts]
+		counts <- counts[,!no_counts]
+		labels <- labels[!no_counts]
 	}
 
 	# Run EM
-	eminit <- pi_init_tails(x, pim, pct=init_em_tails)
-	require(EMCluster)
-	if (sum(x@labels) > 0){
-		if (verbose) cat("Running semi-supervised EM\n")
-		emo <- emcluster(pim, eminit, lab=x@labels)
-	} else {
-		if (verbose) cat("Running unsupervised EM\n")
-		emo <- emcluster(pim, eminit)
+	mn_params <- init_tails(x, counts)
+	loglk <- -Inf
+	loglks <- c(loglk)
+	iter <- 1
+	counts <- Matrix::t(counts)
+	probs <- dmmn(x=counts, p=mn_params$Mu, tau=mn_params$Pi, labels=labels)
+	while (iter < max_iter){
+		# E step
+		resp <- e_step_mn(x=counts, p=mn_params$Mu, tau=mn_params$Pi, probs=probs, labels=labels)
+
+		# Store in EMO
+		# M step
+#		bg_IDs <- base::setdiff(colnames(x@counts), x@test_IDs)
+#		bg_counts <- x@counts[,bg_IDs]
+#		bg_sums <- Matrix::rowSums(bg_counts)
+#		respm <- as.matrix(data.frame(Signal=rep(0, ncol(x@counts)), Background=rep(1, ncol(x@counts))), ncol=2)
+#		rownames(respm) <- colnames(x@counts)
+#		respm[rownames(resp),] <- resp
+#		labelsm <- rep(2, ncol(x@counts)); names(labelsm) <- colnames(x@counts)
+#		labelsm[names(labels)] <- labels
+#		mn_params <- m_step_mn(x=Matrix::t(x@counts[genes,]), r=respm)
+		mn_params <- m_step_mn(x=counts, r=resp)
+		probs <- dmmn(x=counts, p=mn_params$Mu, tau=mn_params$Pi, labels=labels)
+
+		# Evaluate log likelihood
+		loglk <- loglks[[iter]] <- dmmn_llk(x=counts, p=mn_params$Mu, tau=mn_params$Pi, probs=probs, labels=labels)
+
+		emo[[iter]] <- list(Z=resp, Mu=mn_params$Mu, Pi=mn_params$Pi, loglk=loglk)
+
+		if (verbose){
+			cat(paste0("Iteration ", as.character(iter), "; llk ", as.character(loglk), "\n"))
+		}
+
+		if (iter > 1){
+			dloglk <- (loglks[[iter]] - loglks[[iter-1]])/abs(loglks[[iter-1]])
+			if (dloglk < 0){
+				cat("Warning: Likelihood decreased.\n")
+			}
+			if (dloglk < eps){
+				x@diem@converged  <- TRUE
+				if (verbose) cat("Converged!\n")
+				break
+			}
+		}
+		iter <- iter + 1
 	}
-	emo <- list(Mu=emo$Mu,
-				LTSigma=emo$LTSigma, 
-				pi=emo$pi, 
-				llhdval=emo$llhdval, 
-				conv.iter=emo$conv.iter)
+	probs <- dmmn(x=counts, p=mn_params$Mu, tau=mn_params$Pi)
+	x@diem@PP <- e_step_mn(x=counts, p=mn_params$Mu, tau=mn_params$Pi, probs=probs) # No labels
 
-	# Get likelihoods
-	Signal <- apply(pim, 1, function(a){
-					k=1
-					mvtnorm::dmvnorm(x=a, 
-					mean=emo$Mu[k,], 
-					sigma=lower_to_full(emo$LTSigma[k,]), 
-					log=TRUE) + log(emo$pi[k])
-					})
-	names(Signal) <- rownames(pim)
-	Background <- apply(pim, 1, function(a){
-					k=2
-					mvtnorm::dmvnorm(x=a, 
-					mean=emo$Mu[k,], 
-					sigma=lower_to_full(emo$LTSigma[k,]), 
-					log=TRUE) + log(emo$pi[k])
-					})
-	names(Background) <- rownames(pim)
+	x@diem@assign <- c("Signal"=1, "Background"=2)
 
-	z <- cbind(Signal, Background)
-	zp <- t(apply(z, 1, fraction_log)) # Get the responsibilities (posterior probabilities)
-	emo$Z <- as.matrix(zp)
-
-	# Overlap of estimated MVNs
-	ovl <- calc_ovl(mu1=emo$Mu[1,], mu2=emo$Mu[2,], Sigma1=emo$LTSigma[1,], Sigma2=emo$LTSigma[2,])
-
-	if (ovl > 0.25){
-		cat("========================================================================\n")
-		cat(paste0("Warning: Overlap of estimated distributions is ", 
-					as.character(round(ovl, 2)*100), "%.\n"))
-		cat("         Check if data separates into clusters\n")
-		cat("========================================================================\n")
-	}
-
-	emo$ovl <- ovl
-
-	emo$assign <- c("Signal"=1, "Background"=2)
-
-	if (emo$Mu[emo$assign["Signal"],1] > emo$Mu[emo$assign["Background"],1] & 
-		emo$Mu[emo$assign["Signal"],2] < emo$Mu[emo$assign["Background"],2]){
-		cat("========================================================================\n")
-		cat("Warning: Centers of Signal and Background have flipped.\n")
-		cat("         Flipping labels\n")
-		cat("         Check if data separates into clusters, and/or try running as semi-supervised.\n")
-		cat("========================================================================\n")
-		emo$assign <- emo$assign[c(2,1)]
-	} else if (emo$Mu[emo$assign["Signal"],1] > emo$Mu[emo$assign["Background"],1]){
-		cat("========================================================================\n")
-		cat("Warning: pi_low mu of signal is greater than that of background\n")
-		cat("         Check if data separates into clusters\n")
-		cat("========================================================================\n")
-	} else if (emo$Mu[emo$assign["Signal"],2] < emo$Mu[emo$assign["Background"],2]){
-		cat("========================================================================\n")
-		cat("Warning: pi_high mu of signal is less than that of background\n")
-		cat("         Check if data separates into clusters\n")
-		cat("========================================================================\n")
-	}
-
-	# Check if any signal calls are below the background center
-	signal_cells <- rownames(zp[zp[,emo$assign["Signal"]] > x@p_thresh,])
-	pi_signal <- pim[signal_cells,]
-	pi_lb <- pi_signal[,"pi_l"] > emo$Mu[emo$assign["Background"],1]
-	pi_hb <- pi_signal[,"pi_h"] < emo$Mu[emo$assign["Background"],2]
-	pi_crossd <- pi_lb & pi_hb
-	if (any(pi_crossd)){
-		cat("========================================================================\n")
-		cat("Warning: Tail density of signal crossed over and above density of background.\n")
-		cat("         Misclassification of background as signal!!!\n")
-		cat("         Check if data separates into clusters\n")
-		cat("========================================================================\n")
-	}
-
-	x@diem[[iteration]]@emo <- emo
+	x@diem@emo <- emo
 	if (verbose){
 		cat("Finished EM\n")
 	}
@@ -305,24 +306,19 @@ run_em <- function(x, init_em_tails=0.05, iteration=NULL, verbose=TRUE){
 #'
 #' @return SCE object
 #' @export
-call_targets <- function(x, iteration=NULL){
-	if (is.null(iteration)){
-		iteration <- length(x@diem)
-	} else {
-		if (iteration > length(x@diem)) stop("iteration cannot be larger than the number of DIEM iterations run.\n")
-	}
+call_targets <- function(x, pp_thresh=0.95, min_genes=200){
 
-	Z <- x@diem[[iteration]]@emo[["Z"]]
-	asgn <- x@diem[[iteration]]@emo[["assign"]]
+	Z <- x@diem@PP
+	asgn <- x@diem@assign
 
 	calls <- rep("Debris", nrow(Z))
 	names(calls) <- rownames(Z)
 
-	tb <- Z[,asgn["Signal"]] > x@p_thresh
+	tb <- (Z[,asgn["Signal"]] > pp_thresh) & (x@dropl_info[rownames(Z),"n_genes"] >= min_genes)
 	target_names <- rownames(Z)[tb]
 	calls[tb] <- "Signal"
 
-	x@diem[[iteration]]@calls <- calls
+	x@diem@calls <- calls
 
 	return(x)
 }
@@ -333,14 +329,8 @@ call_targets <- function(x, iteration=NULL){
 #'
 #' @return Character vector with droplet IDs of called targets
 #' @export
-targets_ids <- function(x, iteration=NULL){
-	if (is.null(iteration)){
-		iteration <- length(x@diem)
-	} else {
-		if (iteration > length(x@diem)) stop("iteration cannot be larger than the number of DIEM iterations run.\n")
-	}
-
-	calls <- x@diem[[iteration]]@calls
+targets_ids <- function(x){
+	calls <- x@diem@calls
 
 	return(names(calls)[calls == "Signal"])
 }
@@ -351,26 +341,12 @@ targets_ids <- function(x, iteration=NULL){
 #'
 #' @return Character vector with droplet IDs of called targets
 #' @export
-fill_dropl_info <- function(x, iteration=NULL){
-	if (is.null(iteration)){
-		iteration <- length(x@diem)
-	} else {
-		if (iteration > length(x@diem)) stop("iteration cannot be larger than the number of DIEM iterations run.\n")
-	}
-
+fill_dropl_info <- function(x){
 	# Fill calls
-	x@dropl_info[,"Call"] <- rep(NA, nrow(x@dropl_info))
-	calls <- x@diem[[iteration]]@calls
-	x@dropl_info[names(calls),"Call"] <- calls
+	x@dropl_info[names(x@diem@calls),"Call"] <- x@diem@calls
 
-	# Fill pi
-	pi_df <- as.data.frame(x@diem[[iteration]]@pi)
-	pi_df[,"pi"] <- pi_df[,"pi_l"] - pi_df[,"pi_h"]
-	x@dropl_info[,"pi_l"] <- rep(NA, nrow(x@dropl_info))
-	x@dropl_info[,"pi_h"] <- rep(NA, nrow(x@dropl_info))
-	x@dropl_info[rownames(pi_df),"pi_l"] <- pi_df[,"pi_l"]
-	x@dropl_info[rownames(pi_df),"pi_h"] <- pi_df[,"pi_h"]
-	x@dropl_info[rownames(pi_df),"pi"] <- pi_df[,"pi"]
+	# Fill PP
+	x@dropl_info[rownames(x@diem@PP),"PP"] <- x@diem@PP[,1,drop=FALSE]
 
 	return(x)
 
