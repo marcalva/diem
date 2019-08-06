@@ -4,7 +4,7 @@
 \alias{m_step_mn}
 \title{Maximize multinomial parameters in EM}
 \usage{
-m_step_mn(x, r, labels = NULL)
+m_step_mn(x, r)
 }
 \description{
 Given an n x p matrix of count data, as well as a 

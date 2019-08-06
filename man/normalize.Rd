@@ -2,23 +2,27 @@
 % Please edit documentation in R/data.R
 \name{normalize}
 \alias{normalize}
-\title{Normalize raw counts for droplets being classified.}
+\title{Normalize raw counts.}
 \usage{
-normalize(x, genes = NULL, scale_factor = 1, logt = TRUE,
-  verbose = FALSE)
+normalize(x, genes = NULL, scale_factor = 1, logt = TRUE)
 }
 \arguments{
 \item{x}{SCE.}
 
-\item{scale_factor}{Numeric. A scaling factor to multiply values after division by total count.}
+\item{genes}{A character vector to subset count data to. Normalization will only be run for these genes.}
 
-\item{logt}{Boolean. Whether to log1p transform expression values.}
+\item{scale_factor}{A numeric scaling factor to multiply counts after division by column sum
+Default is 1.}
+
+\item{logt}{Logical indicating whether to log1p transform expression values.
+Default is TRUE}
 }
 \value{
 SCE object
 }
 \description{
-Counts are normalized by dividing by total counts per droplet. Optionally, droplets can be normalized 
+Counts are normalized by dividing by total counts per droplet. Note that this only normalizes 
+droplets that are candidates in the test set. Optionally, droplets can be normalized 
 by log1p transformation, with a counts being multiplied by a scaling factor \code{scale_factor}.
 Additionally, gene counts can be scaled to mean 0 and variance 1 (default). This is recommended so that 
 highly expressed genes do not drive the calculation of pi. Note that, when scaling, genes with 0 mean 

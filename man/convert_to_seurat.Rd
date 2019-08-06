@@ -2,25 +2,30 @@
 % Please edit documentation in R/objects.R
 \name{convert_to_seurat}
 \alias{convert_to_seurat}
-\title{Convert SCE object to Seurat}
+\title{Convert an SCE object to Seurat}
 \usage{
 convert_to_seurat(x, targets = TRUE, meta = TRUE, ...)
 }
 \arguments{
-\item{x}{SCE object}
+\item{x}{An SCE object.}
 
-\item{targets}{Boolean. If \code{TRUE}, then output droplets that are specified as targets}
+\item{targets}{Logical indicating whether to remove droplets called as debris. Default is TRUE.}
 
-\item{meta}{Boolean. Place information in dropl_info slot into meta.data in Seurat object}
+\item{meta}{Logical that indicates whether to place the data from dropl_info into meta.data in the 
+resulting Seurat object. Default is TRUE.}
 
-\item{...}{Arguments to \code{\link[Seurat]{CreateSeuratObject}}, such as \code{project} for project name}
+\item{...}{Arguments to \code{\link[Seurat]{CreateSeuratObject}}, such as \code{project} for project name.}
 }
 \value{
 A Seurat object
 }
 \description{
-Convert SCE object to Seurat. if \code{targets} is true (default), outputs only droplets that are 
-called targets. In addition, outputs meta information calculated, such as bg_score. Additional arguments to 
-this function are passed onto \code{\link[Seurat]{CreateSeuratObject}}. Common arguments include 
-"min.cells = 3" and "min.features = 200".
+Convert an SCE object to a Seurat object. if \code{targets} is true (default), output only droplets that are 
+called as not debris. If \code{meta} is TRUE, then output meta data from dropl_info to the meta.data 
+slot in the Seurat object. Additional functions \code{...} to this function are passed onto 
+\code{\link[Seurat]{CreateSeuratObject}}. Common arguments include \code{min.cells = 3} and 
+\code{min.features = 200}.
+}
+\examples{
+mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
 }

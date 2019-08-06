@@ -4,16 +4,11 @@
 \alias{init_tails}
 \title{Initialize EM parameters for k=2 low and high groups}
 \usage{
-init_tails(x, counts, pct = 0.1)
-}
-\arguments{
-\item{x}{SCE. SCE object with pi calculated}
-
-\item{pct}{Numeric. Percent of droplets at each tail to fix. A number from 0 to 1.}
+init_tails(counts, labels)
 }
 \value{
-List with mu0 a p x 2 matrix and tau0 a length 2 numeric
+List with mu0 a p x 2 matrix and mc0 a length 2 numeric
 }
 \description{
-Initialize the means of the two multinomial groups.
+Initialize the means of the two multinomial groups. Labels=2 are debris
 }

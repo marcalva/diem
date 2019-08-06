@@ -2,20 +2,25 @@
 % Please edit documentation in R/debris_id.R
 \name{get_gene_pct}
 \alias{get_gene_pct}
-\title{Get percent of reads aligning to given genes}
+\title{Get percent of reads aligning to given genes.}
 \usage{
 get_gene_pct(x, genes, name)
 }
 \arguments{
-\item{x}{SCE.}
+\item{x}{An SCE object.}
 
-\item{genes}{Character. Genes to calculate percentage of in counts}
+\item{genes}{Genes to calculate percentage of in counts.}
 
-\item{name}{Character. Column name to place in dropl_info}
+\item{name}{Column name to place in dropl_info.}
 }
 \value{
-SCE object
+An SCE object.
 }
 \description{
-Get percent of reads aligning to given genes
+Get percent of reads aligning to given genes.
+}
+\examples{
+mm_seur <- get_gene_pct(x=mb_sce, genes="Malat1", name="pct.malat1")
+mt_genes <- grep(pattern="^mt-", x=rownames(mb_sce), ignore.case=TRUE)
+mm_seur <- get_gene_pct(x=mb_sce, genes=mt_genes, name="pct.mt")
 }

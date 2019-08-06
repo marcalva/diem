@@ -2,16 +2,16 @@
 % Please edit documentation in R/debris_id.R
 \name{fill_dropl_info}
 \alias{fill_dropl_info}
-\title{Insert pi and calls to dropl_info}
+\title{Add calls, PP, and LLK to dropl_info.}
 \usage{
 fill_dropl_info(x)
 }
 \arguments{
-\item{x}{SCE. SCE object}
+\item{x}{An SCE object.}
 }
 \value{
-Character vector with droplet IDs of called targets
+An SCE object with call info, PP, and log-likilhood added to dropl_info.
 }
 \description{
-Insert pi and calls to dropl_info
+Add calls, PP, and LLK to dropl_info.
 }

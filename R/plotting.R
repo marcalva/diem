@@ -22,11 +22,14 @@ set_breaks_10 <- function(x){
 #' @export
 barcode_rank_plot <- function(x, title="", ret=FALSE){
 	counts <- x@dropl_info[order(x@dropl_info[,"total_counts"], decreasing=TRUE), "total_counts"]
+	counts <- sort(counts, decreasing=TRUE)
 	ranks <- seq(length(counts))
+	counts[duplicated(counts)] <- NA
+	ranks[duplicated(counts)] <- NA
 	df <- data.frame(Rank=ranks, Count=counts)
-	df <- df[order(df[,"Rank"]),]
+	df <- df[!is.na(df[,2]),,drop=FALSE]
 	p <- ggplot(df, aes(x=Rank, y=Count)) + 
-	geom_line() + 
+	geom_point() + 
 	scale_x_continuous(trans='log10', breaks=set_breaks_10, labels=scales::comma) + 
 	scale_y_continuous(name="Droplet size", trans='log10', labels=scales::comma)  + 
 	theme_minimal() + theme(plot.title=element_text(hjust=0.5),
@@ -87,10 +90,9 @@ de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE){
 #' @export
 pp_plot <- function(x, ret=FALSE){
 
-	Z <- x@diem@emo[["Z"]]
-	asgn <- x@diem@emo[["assign"]]
+	Z <- x@diem@PP
 	pidf <- as.data.frame(x@diem@pi)
-	llfs <- sort(Z[,asgn["Signal"]])
+	llfs <- sort(Z[,1])
 	df <- data.frame(Rank=1:length(llfs), llf=llfs)
 	p <- ggplot(df, aes(x=Rank, y=llf)) + 
 	geom_point() + 
@@ -160,14 +162,15 @@ heatmap_pi_genes <- function(x, top_n=15, ret=FALSE){
 #' @import ggplot2
 #' @export
 plot_pi_call <- function(x, alpha=0.1, ret=FALSE){
+	if (length(x@diem@pi) == 0){
+		x <- get_pi(x)
+	}
 
 	df <- as.data.frame(x@diem@pi)
-	df <- df[x@test_IDs,]
-	df[names(x@diem@calls),"Call"] <- x@diem@calls
+	df[,"Call"] <- x@diem@calls[rownames(df)]
 	di <- x@dropl_info[rownames(df),]
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)
-
 
 	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(color="Call")) + 
 	xlab(expression(paste(pi[low],''))) +
@@ -189,10 +192,12 @@ plot_pi_call <- function(x, alpha=0.1, ret=FALSE){
 #' @import ggplot2
 #' @export
 plot_pi_pp <- function(x, alpha=0.1, ret=FALSE){
+	if (length(x@diem@pi) == 0){
+		x <- get_pi(x)
+	}
 
 	df <- as.data.frame(x@diem@pi)
-	df <- df[x@test_IDs,]
-	df[names(x@diem@calls),"Call"] <- x@diem@calls
+	df[,"Call"] <- x@diem@calls[rownames(df)]
 	di <- x@dropl_info[rownames(df),]
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)
@@ -217,7 +222,7 @@ plot_pi_pp <- function(x, alpha=0.1, ret=FALSE){
 #' @export
 plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
 
-	df <- x@dropl_info[x@test_IDs,]
+	df <- x@dropl_info[x@labels != 2,]
 
 	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=PP)) + 
 	xlab("UMI Counts") +
@@ -239,10 +244,12 @@ plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
 #' @import ggplot2
 #' @export
 plot_scatter_pp <- function(sce, x, y, alpha=0.1, ret=FALSE){
+	if (length(x@diem@pi) == 0){
+		x <- get_pi(x)
+	}
 
-	df <- as.data.frame(sce@diem@pi)
-	df <- df[sce@test_IDs,]
-	df[names(sce@diem@calls),"Call"] <- sce@diem@calls
+	df <- as.data.frame(x@diem@pi)
+	df[,"Call"] <- x@diem@calls[rownames(df)]
 	di <- sce@dropl_info[rownames(df),]
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)
@@ -252,6 +259,51 @@ plot_scatter_pp <- function(sce, x, y, alpha=0.1, ret=FALSE){
 	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
 	if (ret) return(p)
 	else print(p)
+}
+
+#' Barplot of KL-divergence between low-count and 1. debris and 2. signal means
+#'
+#' @param x SCE. SCE object
+#' @param ret Boolean. Return a ggplot object
+#'
+#' @return Nothing, unless return=TRUE then a ggplot
+#' @import ggplot2
+#' @export
+plot_kld <- function(x, ret=FALSE){
+	require(grid)
+	kld <- kl_background(x)
+	kld <- data.frame("Distribution"=names(kld), "KLD"=kld)
+
+
+	p <- ggplot(kld, aes(x=Distribution, y=KLD)) + geom_bar(stat="identity") + 
+	theme_minimal() + theme(text=element_text(size=18)) + 
+	xlab("Distribution from EM") + 
+	ylab(paste0("Kullback-Leibler divergence\nagainst droplets below ", as.character(x@min_counts), " counts")) + 
+	theme(plot.margin = unit(c(1,10,1,1), "lines"))
+
+	# Get total number of UMIs for each distribution
+	ymax <- max(kld$KLD)
+	lc_names <- names(x@labels)[x@labels==2]
+	sg_names <- names(x@diem@calls)[x@diem@calls == "Signal"]
+	bg_names <- names(x@diem@calls)[x@diem@calls == "Debris"]
+	lc <- sum(Matrix::rowSums(x@counts[,lc_names]))
+	sg <- sum(Matrix::rowSums(x@counts[,sg_names]))
+	bg <- sum(Matrix::rowSums(x@counts[,bg_names]))
+
+	n_counts <- c("LowCount"=lc, "Debris"=bg, "Signal"=sg)
+	ys <- c(ymax*.6, ymax*.5, ymax*.4)
+	pre_text <- c("Low-count:\n", "Debris:\n", "Signal:\n")
+	for (i in 1:3){
+		at <- as.character(round(n_counts[i]))
+		p <- p + annotation_custom(grob=textGrob(label=paste0(pre_text[i], at)), 
+			xmin=3, xmax=3, ymin=ys[i], ymax=ys[i])
+	}
+
+	gt <- ggplot_gtable(ggplot_build(p))
+	gt$layout$clip[gt$layout$name == "panel"] <- "off"
+
+	if (ret) return(gt)
+	else print(grid.draw(gt))
 }
 
 #' Scatterplot of pi with density plots on the margin
@@ -264,6 +316,9 @@ plot_scatter_pp <- function(sce, x, y, alpha=0.1, ret=FALSE){
 #' @importFrom gridExtra grid.arrange
 #' @export
 plot_pi_marginal <- function(x, alpha=0.05, pdfname="pi_marginal.pdf", w=7, h=7){
+	if (length(x@diem@pi) == 0){
+		x <- get_pi(x)
+	}
 
 	df <- as.data.frame(x@diem@pi)
 
@@ -318,9 +373,12 @@ plot_pi_marginal <- function(x, alpha=0.05, pdfname="pi_marginal.pdf", w=7, h=7)
 #' @import ggplot2
 #' @export
 plot_pi_tails <- function(x, pct=0.05, ret=FALSE){
+	if (length(x@diem@pi) == 0){
+		x <- get_pi(x)
+	}
 
 	df <- as.data.frame(x@diem@pi)
-	df[,"Call"] <- x@diem@calls
+	df[,"Call"] <- x@diem@calls[rownames(df)]
 	di <- x@dropl_info[rownames(df),]
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)

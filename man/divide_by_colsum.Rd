@@ -2,7 +2,7 @@
 % Please edit documentation in R/data.R
 \name{divide_by_colsum}
 \alias{divide_by_colsum}
-\title{Divide elements of a column in a sparse matrix by the column's sum}
+\title{Divide elements of a column by the column's sum in a sparse matrix}
 \usage{
 divide_by_colsum(x)
 }
@@ -13,5 +13,5 @@ divide_by_colsum(x)
 The Sparse Matrix x with columns summing to 1.
 }
 \description{
-Divide elements of a column in a sparse matrix by the column's sum
+Divide elements of a column by the column's sum in a sparse matrix
 }

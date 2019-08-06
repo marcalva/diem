@@ -2,18 +2,23 @@
 % Please edit documentation in R/objects.R
 \name{create_SCE}
 \alias{create_SCE}
-\title{Create SCE object from sparse matrix}
+\title{Create an SCE object from a sparse matrix}
 \usage{
 create_SCE(x, name = "SCE")
 }
 \arguments{
-\item{x}{Sparse matrix. Raw expression counts from single-cell experiment, genes in rows, droplets in columns}
+\item{x}{A sparse matrix consisting of raw expression counts from a single-cell experiment, 
+with genes in the rows and droplets in the columns.}
 
-\item{name}{Character. Name for SCE object.}
+\item{name}{Character name for the SCE object.}
 }
 \value{
 SCE object
 }
 \description{
-Create SCE object from sparse matrix
+Create an SCE object from a sparse matrix
+}
+\examples{
+counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
+mb_sce <- create_SCE(x=counts, name="Mouse Brain")
 }

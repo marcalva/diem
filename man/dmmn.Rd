@@ -2,16 +2,22 @@
 % Please edit documentation in R/debris_id.R
 \name{dmmn}
 \alias{dmmn}
-\title{Computed density of multinomial mixture for a matrix}
+\title{Compute density of multinomial mixture for a matrix}
 \usage{
-dmmn(x, p, tau, labels = NULL)
+dmmn(x, p, mc, labels = NULL)
 }
 \arguments{
-\item{x}{sparseMatrix. A sample by feature matrix of counts.}
+\item{x}{A sparseMatrix that is a sample by feature matrix of counts.}
 
-\item{p}{numeric matrix. A feature by group matrix of probabilities.}
+\item{p}{Matrix with probability parameters of multinomials for each group.
+Number of rows must be same as number of columns in X}
 
-\item{log}{Logical. If TRUE, return matrix with log probabilities.}
+\item{mc}{Numeric vector with mixture coefficients. Length must be same as 
+number of columns in \code{p}.}
+
+\item{labels}{Numeric vector of same length as number of rows in x. Fixed 
+the group probabilities of the integer in this vector element to 1. In 
+other words, the latent variable for these samples are treated as known.}
 }
 \value{
 a numeric matrix with n samples by x variables.

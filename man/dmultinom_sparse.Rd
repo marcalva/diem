@@ -2,15 +2,16 @@
 % Please edit documentation in R/debris_id.R
 \name{dmultinom_sparse}
 \alias{dmultinom_sparse}
-\title{Get multinomial log prob of columns in X}
+\title{Get log multinomial density of columns in a sparse matrix.}
 \usage{
 dmultinom_sparse(X, prob)
 }
 \arguments{
-\item{X}{sparseMatrix. A sample by feature matrix of counts.}
+\item{X}{A sparseMatrix that is a sample by feature matrix of counts.}
 
-\item{prob}{Numeric}
+\item{prob}{Probability parameter of multinomial. Must be same size as 
+number of columns in X.}
 }
 \description{
-Get multinomial log prob of columns in X
+Get log multinomial density of columns in a sparse matrix.
 }

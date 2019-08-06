@@ -14,7 +14,13 @@ expr Sparse matrix. Expression counts from 10X cell ranger
  with cells in the columns and genes in the rows.
 }
 \description{
-Read output from 10X into a sparse matrix. Given path, reads 
-files path/matrix.MM path/genes.tsv and path/barcodes.tsv if v2, 
-or path/matrix.mtx.gz path/features.tsv.gz path/barcodes.tsv.gz
+Read output from 10X into a sparse matrix. Given a 10X output path, 
+containing the output files from 10X CellRanger. These should be the 
+raw output files \code{barcodes.tsv} \code{genes.tsv} \code{matrix.mtx} 
+if using CellRanger v2, or \code{barcodes.tsv.gz} \code{features.tsv.gz} 
+\code{matrix.mtx.gz} if using CellRanger v3.
+}
+\examples{
+counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
+
 }

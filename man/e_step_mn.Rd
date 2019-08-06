@@ -4,14 +4,17 @@
 \alias{e_step_mn}
 \title{Computed expected log likelihood of multinomial mixture}
 \usage{
-e_step_mn(x, p, tau, probs = NULL, labels = NULL)
+e_step_mn(x, p, mc, Llks = NULL, labels = NULL)
 }
 \arguments{
 \item{x}{sparseMatrix. A sample by feature matrix of counts.}
 
 \item{p}{numeric matrix. A feature by group matrix of probabilities.}
 
-\item{tau}{numeric. Mixture coefficients}
+\item{mc}{numeric. Mixture coefficients}
+
+\item{Llks}{If log likelihood was computed for the mixture, provide the 
+matrix here.}
 
 \item{log}{Logical. If TRUE, return matrix with log probabilities.}
 }

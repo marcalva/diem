@@ -2,21 +2,35 @@
 % Please edit documentation in R/debris_id.R
 \name{run_em}
 \alias{run_em}
-\title{Run EM on pi features}
+\title{Run EM on counts to estimate multinomial mixture model}
 \usage{
-run_em(x, eps = 1e-08, max_iter = 1000, labels = NULL,
-  verbose = TRUE)
+run_em(x, eps = 1e-08, max_iter = 1000, verbose = TRUE)
 }
 \arguments{
-\item{x}{SCE object}
+\item{x}{An SCE object.}
+
+\item{eps}{Numeric threshold. The EM algorithm converges when the percent change in log likihood is 
+less than \code{eps}.}
+
+\item{max_iter}{The maximum number of iterations allowed to run.}
+
+\item{verbose}{Logical indicating verbosity.}
 }
 \value{
-SCE object with EM output in the \code{emo} slot. See \code{\link{run_mv_em_diag}} for details
+An SCE object with EM output.
 }
 \description{
-Run expectation maximization (EM) using diagonal covariance on pi matrix in an SCE object with k=2 groups. 
-EM is run \code{n_runs} times with random initializations, and parameters with 
-the best log likelihood are output. Within EM, iterate a minimum of \code{min_iter} times and 
-a maximum of \code{max_iter} times. The \code{eps} value gives the threshold of percentage change in 
-log likelihood until convergence is reached.
+Run expectation maximization (EM) to estimate the parameters of the multinomial 
+mixture model. This function takes an SCE object as input, and returns an SCE 
+object with diem information. First genes with no expression are removed. This is 
+to make sure the entire data likelihood doesn't collapse to 0. However, during the 
+EM run, a gene may cease to be expressed in either of the groups, collapsing the 
+likelihood to 0 and causing the run to fail. If this happens, it is necessary to 
+increase \code{cpm_threshold} in \code{\link{diem}}. Then, droplets with 0 
+counts in the resulting genes are removed. To initialize EM, the emprical means 
+are calculated from the droplets that are fixed as debris and those that are 
+unlabeled for the debris and clean groups, respectively. The parameters of 
+of the multinomial are re-estimated after each run, and the algorithm converges
+when the percent change in log likihood is less than \code{eps}. If the 
+algorithm doesn't converge by \code{max_iter}, it breaks off.
 }

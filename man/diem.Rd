@@ -2,42 +2,43 @@
 % Please edit documentation in R/diem.R
 \name{diem}
 \alias{diem}
-\title{Run diem pipeline}
+\title{Run DIEM pipeline}
 \usage{
-diem(sce, top_n = 10000, min_counts = 30, top_n_de = 10000,
-  diff_thresh = NULL, cpm_thresh = 3, log2fc_thresh = 0,
-  n_genes = 100, init_em_tails = 0.05, pp_thresh = 0.95,
-  max_iter = 100, eps = 1e-06, ss_pct_low = 0, ss_pct_high = 0,
-  min_gene_call = 200, verbose = TRUE)
+diem(sce, top_n = 10000, min_counts = 100, top_thresh = NULL,
+  cpm_thresh = 25, eps = 1e-08, max_iter = 100, pp_thresh = 0.95,
+  gene_thresh = 200, verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
 
-\item{top_n}{Numeric. Only the top \code{top_n} droplets ranked by total counts are classified.}
+\item{top_n}{Numeric value specifying the  droplets below \code{top_n} (ranked by total counts) 
+are fixed to debris.}
 
-\item{min_counts}{Integer. Only droplets with at least this number of total counts are classified. 
-Can override \code{top_n} if \code{top_n} includes droplets with less than \code{min_counts}.}
+\item{min_counts}{A numeric value that specifies that all droplets below this count threshold are 
+always fixed to debris.}
 
-\item{diff_thresh}{Numeric. Manually set the initialization of the DE cutpoint. If not NULL, it is calculated from the data.}
+\item{top_thresh}{A numeric value specifying any droplets above this count threshold are 
+fixed to nuclei. No droplets are fixed to nuclei by default.}
 
-\item{cpm_thresh}{Numeric. Calculate pi from genes with counts per million mapped reads (CPM) above this threshold.}
+\item{cpm_thresh}{The minimum CPM expression threshold in both groups.}
 
-\item{log2fc_thresh}{Numeric. Calculate pi from genes with log2 fold changes above this threshold.}
+\item{eps}{Numeric threshold. The EM algorithm converges when the percent change in log likihood is 
+less than \code{eps}.}
 
-\item{verbose}{Boolean. Verbosity.}
+\item{max_iter}{The maximum number of iterations allowed to run.}
 
-\item{init_de_log_base}{Numeric. Take droplets with counts within 2 logs below the max droplet size using this log base
-for initializing the DE cutpoint.}
+\item{pp_thresh}{Numeric threshold, where clean droplets must have a 
+posterior probability of at least \code{pp_thresh}.}
 
-\item{lk_fraction}{Numeric. Select droplets that have a fraction of target likelihood greater than this number.}
+\item{verbose}{Logical indicating verbosity.}
 
-\item{max_iter_diem}{Numeric. Maximum number of iterations during DIEM until convergence of labeling.}
-
-\item{eps_iter_diem}{Numeric. Percent threshold for change in labeling until convergence.}
+\item{min_genes}{Numeric threshold, where clean droplets must have at least 
+\code{min_genes} genes detected.}
 }
 \value{
 SCE object.
 }
 \description{
-Run DIEM pipeline on an SCE object, typically returned from \code{\link{read_10x}} function.
+Run DIEM pipeline on an SCE object, (see \code{\link{read_10x}} and 
+\code{\link{create_SCE}} functions).
 }

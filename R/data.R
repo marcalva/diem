@@ -1,10 +1,9 @@
-#' Divide elements of a column in a sparse matrix by the column's sum
+#' Divide elements of a column by the column's sum in a sparse matrix
 #'
 #' @param x Sparse Matrix
 #'
 #' @return The Sparse Matrix x with columns summing to 1.
 #' @importFrom Matrix Diagonal colSums
-#' @export
 divide_by_colsum <- function(x){
 	cs <- Matrix::colSums(x = x)
 	d <- Matrix::Diagonal(x = 1/cs)
@@ -12,145 +11,82 @@ divide_by_colsum <- function(x){
 	return(x)
 }
 
-#' Subset DE S4 object to genes in keep
+#' Normalize counts of a sparse matrix
 #'
-#' @param x SCE object.
-#' @param keep Character vector. Names of genes to keep in DE object
+#' @param counts Sparse Matrix
+#' @param scale_factor Numeric. A scaling factor to multiply values after division by total count.
+#'  Default is 1.
+#' @param logt Boolean. Log transform after normalizing for columns to sum to 1 and multiplying by scaling factor.
+#'  Default is TRUE
 #'
-#' @return An SCE object
-#' @export
-subset_DE <- function(x, keep){
-	x@de@low_means <- x@de@low_means[intersect(names(x@de@low_means), keep)]
-	x@de@high_means <- x@de@high_means[intersect(names(x@de@high_means), keep)]
-	x@de@deg_low <- intersect(x@de@deg_low, keep)
-	x@de@deg_high <- intersect(x@de@deg_high, keep)
-	x@de@log2fc <- x@de@log2fc[intersect(names(x@de@log2fc), keep)]
-	return(x)
+#' @return Sparse Matrix
+norm_counts <- function(counts, scale_factor=1, logt=TRUE){
+	counts <- divide_by_colsum(counts)
+	counts <- counts * scale_factor
+	if (logt) counts <- log1p(counts)
+	return(counts)
 }
 
-#' Normalize raw counts for droplets being classified.
+#' Normalize raw counts.
 #'
-#' Counts are normalized by dividing by total counts per droplet. Optionally, droplets can be normalized 
+#' Counts are normalized by dividing by total counts per droplet. Note that this only normalizes 
+#' droplets that are candidates in the test set. Optionally, droplets can be normalized 
 #' by log1p transformation, with a counts being multiplied by a scaling factor \code{scale_factor}.
 #' Additionally, gene counts can be scaled to mean 0 and variance 1 (default). This is recommended so that 
 #' highly expressed genes do not drive the calculation of pi. Note that, when scaling, genes with 0 mean 
 #' and zero variance will be removed automatically.
 #'
 #' @param x SCE.
-#' @param scale_factor Numeric. A scaling factor to multiply values after division by total count.
-#' @param logt Boolean. Whether to log1p transform expression values.
+#' @param genes A character vector to subset count data to. Normalization will only be run for these genes.
+#' @param scale_factor A numeric scaling factor to multiply counts after division by column sum
+#'  Default is 1.
+#' @param logt Logical indicating whether to log1p transform expression values.
+#'  Default is TRUE
+#'
 #' @return SCE object
 #' @importFrom Matrix rowMeans
 #' @export
 normalize <- function(x, 
 					  genes=NULL, 
 					  scale_factor=1,
-					  logt=TRUE,
-					  verbose=FALSE){
-	if (length(x@test_IDs) == 0){
+					  logt=TRUE){
+	if (sum(x@labels) == 0){
 		stop("Specify test set with set_test_set function")
 	}
-	if (verbose) cat("Normalizing\n")
 
-	expr <- x@counts[,x@test_IDs]
+	expr <- x@counts[,sum(x@labels) == 0]
 	if (!is.null(genes)) expr <- expr[genes,]
-	expr <- divide_by_colsum(expr)
-	expr <- expr * scale_factor
-	if (logt) expr <- log1p(expr)
-	x@norm <- expr
-	if (verbose) cat("Normalized\n")
+
+	x@norm <- norm_counts(expr, scale_factor, logt=logt)
 
 	return(x)
 }
 
-#' Get pi projection of normalized data
+#' Set droplets for EM testing
 #'
-#' This function calculates pi_low and pi_high, defined as the inner products of 
-#' normalized gene expression and log fold changes for DE genes enriched in the low (background-enriched) 
-#' and high (target-enriched) count droplets, respectively.
+#' Sets the count threshold \emph{T} for testing droplets. Droplets with counts below \emph{T} 
+#' are fixed as debris, while droplets greater than or equal to \emph{T} are set as unlabeled. The 
+#' threshold \emph{T} is found by ranking droplets in order of decreasing size (total read/UMI counts) 
+#' and taking the read/UMI count size of the \code{top_n} barcode. If this ranked count is less than 
+#' \code{min_counts}, then set \emph{T} to \code{min_counts} instead. In addition to fixing the labels 
+#' of debris droplets, it is possible to fix droplets as clean. Droplets with counts above \code{top_thresh} 
+#' are fixed to nuclei. By default, no droplets are fixed as clean and this is not recommended.
 #'
-#' @param x SCE. SCE object.
-#'
-#' @return An matrix of pi values
-#' @importFrom Matrix Matrix t
-#' @export
-get_pi <- function(x){
-
-	x <- normalize(x) # Set @norm
-
-	if (length(x@diem@de@prop_diff) == 0){
-		x <- set_diff_genes(x)
-	}
-
-	de_obj <- x@diem@de
-
-	log2fc <- log2(1e6*de_obj@low_prop) - log2(1e6*de_obj@high_prop)
-	log2fc_l <- log2fc[log2fc > 0]
-	log2fc_h <- log2fc[log2fc < 0]
-
-	if (any(is.na(log2fc_l)) | any(is.na(log2fc_h))){
-		stop("Fold changes cannot be NA.")
-	}
-	if (any(is.infinite(log2fc_l)) | any(is.infinite(log2fc_h))){
-		stop("Fold changes cannot be infinite.")
-	}
-
-	genes_low <- intersect(rownames(x@norm), names(log2fc_l))
-	genes_high <- intersect(rownames(x@norm), names(log2fc_h))
-
-	if ( (length(genes_low) == 0) | (length(genes_high) == 0) ){
-		stop("No differential genes between background and signal.")
-	}
-
-	# log2fc_l is positive. log2fc_h is negative (so take negative)
-	pi_l <- t(x@norm[genes_low,]) %*% log2fc_l[genes_low]
-	pi_h <- t(x@norm[genes_high,]) %*% -log2fc_h[genes_high]
-
-	pi_df <- as.data.frame(cbind(pi_l, pi_h))
-	rownames(pi_df) <- colnames(x@norm)
-	colnames(pi_df) <- c("pi_l", "pi_h")
-
-	x@diem@pi <- as.matrix(pi_df)
-
-	return(x)
-}
-
-#' Get PCs
-#'
-#' @return SCE object.
-#' @export
-get_pcs <- function(x, n_pcs=30){
-	x <- normalize(x) # Set @norm
-	genes <- x@diem@de@diff_genes
-	drops <- x@test_IDs
-	counts <- Matrix::Matrix(x@norm[genes, drops], sparse=TRUE)
-	counts <- Matrix::t(counts)
-	sce@pcs <- prcomp(as.matrix(counts), scale.=TRUE)
-	return(sce)
-}
-
-#' Subset droplets for EM testing
-#'
-#' Sets the threshold for testing droplets and subsets counts matrix. Includes the top \code{top_n} 
-#' droplets for testing (including any ties), and removing any droplets with total counts 
-#' less than \code{min_counts}. The count matrix is subset to these droplets for EM testing 
-#'
-#' @param x SCE. SCE object.
-#' @param top_n Numeric. Only the top \code{top_n} droplets ranked by total counts are classified.
-#' @param min_counts Integer. Only droplets with at least this number of total counts are classified. 
-#'  Can override \code{top_n} if \code{top_n} includes droplets with less than \code{min_counts}.
+#' @param x An SCE object.
+#' @param top_n Numeric value specifying the  droplets below \code{top_n} (ranked by total counts) 
+#'  are fixed to debris.
+#' @param min_counts A numeric value that specifies that all droplets below this count threshold are 
+#'  always fixed to debris.
+#' @param top_thresh A numeric value specifying any droplets above this count threshold are 
+#' fixed to nuclei. No droplets are fixed to nuclei by default.
 #'
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
-set_test_set <- function(x, top_n=1e4, min_counts=30, verbose=FALSE){
+set_test_set <- function(x, top_n=1e4, min_counts=100, top_thresh=NULL){
 	if (is.null(top_n)){
 		top_n <- ncol(x@counts)
 	}
-	if (is.null(min_counts)){
-		min_counts <- 1
-	}
-
 	if (top_n < 0){
 		stop("top_n must be greater than 0")
 	}
@@ -158,68 +94,80 @@ set_test_set <- function(x, top_n=1e4, min_counts=30, verbose=FALSE){
 		stop("min_counts must be greater than 0")
 	}
 
+	x@labels <- rep(2, ncol(x@counts))
+	names(x@labels) <- colnames(x@counts)
+
 	dc <- Matrix::colSums(x@counts)
-	top_n_ix <- order(dc, decreasing=TRUE)[top_n]
-	min_counts <- max(dc[top_n_ix], min_counts)
+	top_n_count <- dc[order(dc, decreasing=TRUE)[top_n]]
+	min_counts <- max(min_counts, top_n_count)
+	test_set <- names(dc)[dc >= min_counts]
+	x@labels[test_set] <- 0
 
-	dc <- dc[dc >= min_counts]
-	if (length(dc) < 50){
-		stop("Less than 50 barcodes pass filtering. Choose less stringent top_n and min_counts parameters.")
+	if (!is.null(top_thresh)){
+		signal_set <- names(dc)[dc >= top_thresh]
+		x@labels[signal_set] <- 1
+	} else {
+		top_thresh <- Inf
 	}
 
-	x@test_IDs <- names(dc)
-	x@test_thresh <- min_counts
+	x@min_counts <- min_counts
+	x@top_thresh <- top_thresh
 
-	if (verbose){
-		cat(paste0("Testing ", as.character(length(dc)), " barcodes that have counts greater than or equal to ",
-				   as.character(min_counts), ".\n"))
-	}
 	return(x)
 }
 
-#' Fix labels of lower and upper count droplets 
+#' Filter out lowly expressed features
 #'
-#' Fix labels of the upper and lower tails droplets to signal and background, respectively.
-#' The top and bottom \code{pct} are then fixed during EM.
+#' This function removes genes that are lowly expressed in 
+#' either the nuclear or background group. Read/UMI counts are summed across 
+#' droplets in the nuclear-enriched and background-enriched groups. The 
+#' background-enriched droplets are those with labels fixed to debris, 
+#' (see \code{\link{set_test_set}}). Counts per million mapped reads (CPM) 
+#' are calculated for the two groups, and only genes with a CPM of at least 
+#' \code{cpm_thresh} in both groups are kept. This function ensures that 
+#' the likelihood of the multinomial mixture does not collapse to 0, since 
+#' a gene with 0 counts has a likelihood of 0. This creates a logical 
+#' vector in the gene_info slot that indicates whether a gene passes the 
+#' threshold or not.
 #'
-#' @param x SCE. SCE object.
-#' @param pct Numeric. Fraction of total test barcodes in each tail to fix
-#'  as the background or signal.
+#' @param x An SCE object.
+#' @param cpm_thresh The minimum CPM expression threshold in both groups.
 #'
 #' @return An SCE object
-#' @importFrom Matrix colSums
+#' @importFrom Matrix rowSums
 #' @export
-fix_tails <- function(x, n_top=1e4, pct_low=0, pct_high=0){
-	if (length(x@test_IDs) == 0){
-		stop("No test IDs.")
+filter_genes <- function(x, cpm_thresh=25){
+	if (length(x@labels) == 0){
+		stop("Fix labels with set_test_set before calling filter_genes.")
+	}
+	bg_drops <- names(x@labels)[x@labels == 2]
+	nbg_drops <- names(x@labels)[x@labels != 2]
+
+	if (length(bg_drops) == 0 | length(nbg_drops) == 0){
+		stop("No droplets in the background-enriched or nuclear-enriched groups.")
 	}
 
-	x@labels <- rep(0, length(x@test_IDs))
-	names(x@labels) <- x@test_IDs
+	bg_expr <- Matrix::rowSums(x@counts[,bg_drops])
+	nbg_expr <- Matrix::rowSums(x@counts[,nbg_drops])
 
-	dc <- Matrix::colSums(x@counts[,x@test_IDs])
-	n_low <- floor(length(dc)*(pct_low))
-	n_high <- floor(length(dc)*(pct_high))
+	bg_cpm <- 1e6*bg_expr/sum(bg_expr)
+	nbg_cpm <- 1e6*nbg_expr/sum(nbg_expr)
 
-	if (pct_low > 0){
-		n_low <- floor(length(dc)*(pct_low))
-		botn <- names(dc)[order(dc, decreasing=FALSE)[1:n_low]]
-		x@labels[botn] <- 2
+	keep <- (bg_cpm >= cpm_thresh) & (nbg_cpm >= cpm_thresh)
+	if (sum(keep) == 0){
+		stop("No genes pass cpm_thresh threshold.")
 	}
-
-	if (pct_high > 0){
-		n_high <- floor(length(dc)*(pct_high))
-		topn <- names(dc)[order(dc, decreasing=TRUE)[1:n_high]]
-		x@labels[topn] <- 1
-	}
+	x@gene_info[,"exprsd"] <- keep
 	return(x)
 }
 
 #' Read 10X output
 #'
-#' Read output from 10X into a sparse matrix. Given path, reads 
-#' files path/matrix.MM path/genes.tsv and path/barcodes.tsv if v2, 
-#' or path/matrix.mtx.gz path/features.tsv.gz path/barcodes.tsv.gz
+#' Read output from 10X into a sparse matrix. Given a 10X output path, 
+#' containing the output files from 10X CellRanger. These should be the 
+#' raw output files \code{barcodes.tsv} \code{genes.tsv} \code{matrix.mtx} 
+#' if using CellRanger v2, or \code{barcodes.tsv.gz} \code{features.tsv.gz} 
+#' \code{matrix.mtx.gz} if using CellRanger v3.
 #'
 #' @param path Character. File path prefix to 10X output.
 #'
@@ -228,6 +176,10 @@ fix_tails <- function(x, n_top=1e4, pct_low=0, pct_high=0){
 #'
 #' @import Matrix
 #' @export
+#'
+#' @examples
+#' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
+#'
 read_10x <- function(path){
 	files <- list.files(path, full.names=TRUE)
 	files_names <- list.files(path, full.names=FALSE)

@@ -2,23 +2,31 @@
 % Please edit documentation in R/data.R
 \name{set_test_set}
 \alias{set_test_set}
-\title{Subset droplets for EM testing}
+\title{Set droplets for EM testing}
 \usage{
-set_test_set(x, top_n = 10000, min_counts = 30, verbose = FALSE)
+set_test_set(x, top_n = 10000, min_counts = 100, top_thresh = NULL)
 }
 \arguments{
-\item{x}{SCE. SCE object.}
+\item{x}{An SCE object.}
 
-\item{top_n}{Numeric. Only the top \code{top_n} droplets ranked by total counts are classified.}
+\item{top_n}{Numeric value specifying the  droplets below \code{top_n} (ranked by total counts) 
+are fixed to debris.}
 
-\item{min_counts}{Integer. Only droplets with at least this number of total counts are classified. 
-Can override \code{top_n} if \code{top_n} includes droplets with less than \code{min_counts}.}
+\item{min_counts}{A numeric value that specifies that all droplets below this count threshold are 
+always fixed to debris.}
+
+\item{top_thresh}{A numeric value specifying any droplets above this count threshold are 
+fixed to nuclei. No droplets are fixed to nuclei by default.}
 }
 \value{
 An SCE object.
 }
 \description{
-Sets the threshold for testing droplets and subsets counts matrix. Includes the top \code{top_n} 
-droplets for testing (including any ties), and removing any droplets with total counts 
-less than \code{min_counts}. The count matrix is subset to these droplets for EM testing
+Sets the count threshold \emph{T} for testing droplets. Droplets with counts below \emph{T} 
+are fixed as debris, while droplets greater than or equal to \emph{T} are set as unlabeled. The 
+threshold \emph{T} is found by ranking droplets in order of decreasing size (total read/UMI counts) 
+and taking the read/UMI count size of the \code{top_n} barcode. If this ranked count is less than 
+\code{min_counts}, then set \emph{T} to \code{min_counts} instead. In addition to fixing the labels 
+of debris droplets, it is possible to fix droplets as clean. Droplets with counts above \code{top_thresh} 
+are fixed to nuclei. By default, no droplets are fixed as clean and this is not recommended.
 }

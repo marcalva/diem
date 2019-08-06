@@ -2,20 +2,23 @@
 % Please edit documentation in R/debris_id.R
 \name{call_targets}
 \alias{call_targets}
-\title{Call targets after EM}
+\title{Call clean droplets after running EM}
 \usage{
 call_targets(x, pp_thresh = 0.95, min_genes = 200)
 }
 \arguments{
-\item{x}{SCE. SCE object.}
+\item{x}{An SCE object.}
 
-\item{interation}{Integer. DIEM iteration number to use for calliing targets}
+\item{pp_thresh}{Numeric threshold, where clean droplets must have a 
+posterior probability of at least \code{pp_thresh}.}
+
+\item{min_genes}{Numeric threshold, where clean droplets must have at least 
+\code{min_genes} genes detected.}
 }
 \value{
-SCE object
+An SCE object.
 }
 \description{
 Call targets from droplets if the log-likelihood membership 
-probability is higher than \code{lk_fraction} given during 
-initialization.
+probability (the posterior probability) is higher than \code{pp_thresh}.
 }

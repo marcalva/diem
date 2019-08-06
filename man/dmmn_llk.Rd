@@ -4,14 +4,23 @@
 \alias{dmmn_llk}
 \title{Computed log likelihood of multinomial mixture for a matrix}
 \usage{
-dmmn_llk(x, p, tau, probs = NULL, labels = NULL)
+dmmn_llk(x, p, mc, Llks = NULL, labels = NULL)
 }
 \arguments{
 \item{x}{sparseMatrix. A sample by feature matrix of counts.}
 
-\item{p}{numeric matrix. A feature by group matrix of probabilities.}
+\item{p}{Matrix with probability parameters of multinomials for each group.
+Number of rows must be same as number of columns in X}
 
-\item{log}{Logical. If TRUE, return matrix with log probabilities.}
+\item{mc}{Numeric vector with mixture coefficients. Length must be same as 
+number of columns in \code{p}.}
+
+\item{Llks}{If log likelihood was computed for the mixture, provide the 
+matrix here.}
+
+\item{labels}{Numeric vector of same length as number of rows in x. Fixed 
+the group probabilities of the integer in this vector element to 1. In 
+other words, the latent variable for these samples are treated as known.}
 }
 \value{
 a numeric matrix with n samples by x variables.
