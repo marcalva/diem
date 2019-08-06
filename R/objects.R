@@ -7,11 +7,11 @@ setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 #' @rdname DIEM-class
 #' @exportClass DIEM
 DIEM <- setClass(Class = "DIEM", 
-				 slots = c(emo = "list", 
-						   pi = "matrix", 
-						   PP = "matrix", 
-						   calls = "character", 
-						   converged = "logical"))
+                 slots = c(emo = "list", 
+                           pi = "matrix", 
+                           PP = "matrix", 
+                           calls = "character", 
+                           converged = "logical"))
 
 # emo contains the EM output of each iteration.
 # Each element of this list contains
@@ -28,33 +28,33 @@ DIEM <- setClass(Class = "DIEM",
 #' @rdname SCE-class
 #' @exportClass SCE
 SCE <- setClass(Class = "SCE", 
-				slots = c(counts = "any_matrix", 
-						  norm = "any_matrix", 
-						  min_counts = "numeric", 
-						  top_thresh = "numeric", 						  
-						  labels = "numeric", 
-						  diem = "DIEM", 
-						  pp_thresh = "numeric", 
-						  gene_info = "data.frame",
-						  dropl_info = "data.frame", 
+                slots = c(counts = "any_matrix", 
+                          norm = "any_matrix", 
+                          min_counts = "numeric", 
+                          top_thresh = "numeric", 						  
+                          labels = "numeric", 
+                          diem = "DIEM", 
+                          pp_thresh = "numeric", 
+                          gene_info = "data.frame",
+                          dropl_info = "data.frame", 
                           name = "character"))
 
 #' @method dim SCE
 #' @export
 dim.SCE <- function(x){
-	return(dim(x@counts))
+    return(dim(x@counts))
 }
 
 #' @method rownames SCE
 #' @export
 rownames.SCE <- function(x){
-	return(rownames(x@counts))
+    return(rownames(x@counts))
 }
 
 #' @method colnames SCE
 #' @export
 colnames.SCE <- function(x){
-	return(colnames(x@counts))
+    return(colnames(x@counts))
 }
 
 #' Fill information from raw counts
@@ -63,14 +63,14 @@ colnames.SCE <- function(x){
 #'
 #' @importFrom Matrix Matrix rowMeans rowSums colSums
 fill_counts <- function(x){
-	x@gene_info <- x@gene_info[rownames(x@counts), , drop=FALSE]; rownames(x@gene_info) <- rownames(x@counts)
-	x@dropl_info <- x@dropl_info[colnames(x@counts), , drop=FALSE]; rownames(x@dropl_info) <- colnames(x@counts)
-	x@gene_info[,"mean"] <- Matrix::rowMeans(x@counts)
-	x@gene_info[,"total_counts"] <- Matrix::rowSums(x@counts)
-	x@gene_info[,"n_cells"] <- Matrix::rowSums(x@counts > 0)
-	x@dropl_info[,"total_counts"] <- Matrix::colSums(x@counts)
-	x@dropl_info[,"n_genes"] <- Matrix::colSums(x@counts > 0)
-	return(x)
+    x@gene_info <- x@gene_info[rownames(x@counts), , drop=FALSE]; rownames(x@gene_info) <- rownames(x@counts)
+    x@dropl_info <- x@dropl_info[colnames(x@counts), , drop=FALSE]; rownames(x@dropl_info) <- colnames(x@counts)
+    x@gene_info[,"mean"] <- Matrix::rowMeans(x@counts)
+    x@gene_info[,"total_counts"] <- Matrix::rowSums(x@counts)
+    x@gene_info[,"n_cells"] <- Matrix::rowSums(x@counts > 0)
+    x@dropl_info[,"total_counts"] <- Matrix::colSums(x@counts)
+    x@dropl_info[,"n_genes"] <- Matrix::colSums(x@counts > 0)
+    return(x)
 }
 
 #' Create an SCE object from a sparse matrix
@@ -86,30 +86,30 @@ fill_counts <- function(x){
 #' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
 #' mb_sce <- create_SCE(x=counts, name="Mouse Brain")
 create_SCE <- function(x, name="SCE"){
-	if (is.null(rownames(x))) rownames(x) <- paste0("Gene", seq_len(nrow(x)))
-	if (is.null(colnames(x))) colnames(x) <- paste0("Drop", seq_len(ncol(x)))
-	
-	# Get sparse matrix
-	if (!inherits(x, what="dgCMatrix")){
-		sce <- SCE(counts = Matrix(x, sparse=TRUE))
-	}else{
-		sce <- SCE(counts = x)
-	}
+    if (is.null(rownames(x))) rownames(x) <- paste0("Gene", seq_len(nrow(x)))
+    if (is.null(colnames(x))) colnames(x) <- paste0("Drop", seq_len(ncol(x)))
 
-	rownames(sce@counts) <- make.unique(rownames(sce@counts))
-	colnames(sce@counts) <- make.unique(colnames(sce@counts))
-	
-	sce@gene_info <- data.frame(row.names=rownames(sce@counts))
-	sce@dropl_info <- data.frame(row.names=colnames(sce@counts))
-	sce <- fill_counts(sce)
+    # Get sparse matrix
+    if (!inherits(x, what="dgCMatrix")){
+        sce <- SCE(counts = Matrix(x, sparse=TRUE))
+    }else{
+        sce <- SCE(counts = x)
+    }
 
-	keep <- sce@dropl_info[,"total_counts"] > 0
-	sce@counts <- sce@counts[,keep]
-	sce@dropl_info <- sce@dropl_info[keep,]
+    rownames(sce@counts) <- make.unique(rownames(sce@counts))
+    colnames(sce@counts) <- make.unique(colnames(sce@counts))
 
-	sce@name <- name
+    sce@gene_info <- data.frame(row.names=rownames(sce@counts))
+    sce@dropl_info <- data.frame(row.names=colnames(sce@counts))
+    sce <- fill_counts(sce)
 
-	return(sce)
+    keep <- sce@dropl_info[,"total_counts"] > 0
+    sce@counts <- sce@counts[,keep]
+    sce@dropl_info <- sce@dropl_info[keep,]
+
+    sce@name <- name
+
+    return(sce)
 }
 
 #' Convert an SCE object to Seurat
@@ -131,20 +131,20 @@ create_SCE <- function(x, name="SCE"){
 #' @examples
 #' mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
 convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
-	if (!requireNamespace("Seurat", quietly = TRUE)) {
-		stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
-		    	       call. = FALSE)
-	}
+    if (!requireNamespace("Seurat", quietly = TRUE)) {
+        stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
+             call. = FALSE)
+    }
 
-	if (targets){
-		if (length(x@diem@calls) == 0) stop("Run DIEM before converting to Seurat with targets=TRUE.")
-		keep <- get_clean_ids(x)
-	}
-	else keep <- rownames(x@dropl_info)
+    if (targets){
+        if (length(x@diem@calls) == 0) stop("Run DIEM before converting to Seurat with targets=TRUE.")
+        keep <- get_clean_ids(x)
+    }
+    else keep <- rownames(x@dropl_info)
 
-	if (meta) meta.data <- x@dropl_info[keep,,drop=FALSE]
-	else meta.data <- NULL
+    if (meta) meta.data <- x@dropl_info[keep,,drop=FALSE]
+    else meta.data <- NULL
 
-	seur <- Seurat::CreateSeuratObject(counts=x@counts[,keep], meta.data=meta.data, ...)
-	return(seur)
+    seur <- Seurat::CreateSeuratObject(counts=x@counts[,keep], meta.data=meta.data, ...)
+    return(seur)
 }

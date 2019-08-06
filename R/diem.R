@@ -28,33 +28,34 @@
 #' mb_sce <- diem(mb_sce)
 #' mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
 diem <- function(sce,
-				 top_n=1e4, 
-				 min_counts=100, 
-				 top_thresh=NULL, 
-				 cpm_thresh=25,  
-				 eps=1e-8, 
-				 max_iter=100, 
-				 pp_thresh=0.95, 
-				 gene_thresh=200, 
-				 verbose=TRUE){
-	if ((pp_thresh < 0) | (pp_thresh > 1)){
-		stop("pp_thresh must be between 0 and 1")
-	}
-	sce@pp_thresh <- pp_thresh
+                 top_n=1e4, 
+                 min_counts=100, 
+                 top_thresh=NULL, 
+                 cpm_thresh=25,  
+                 eps=1e-8, 
+                 max_iter=100, 
+                 pp_thresh=0.95, 
+                 gene_thresh=200, 
+                 verbose=TRUE){
+    if ((pp_thresh < 0) | (pp_thresh > 1)){
+        stop("pp_thresh must be between 0 and 1")
+    }
+    sce@pp_thresh <- pp_thresh
 
-	sce <- set_test_set(sce, top_n=top_n, min_counts=min_counts, top_thresh=top_thresh)
-	sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
-	sce <- run_em(x=sce, eps=eps, max_iter=max_iter, verbose=verbose)
-	sce <- call_targets(sce, pp_thresh=sce@pp_thresh, min_genes=gene_thresh)
-	sce <- fill_dropl_info(sce)
+    sce <- set_test_set(sce, top_n=top_n, min_counts=min_counts, top_thresh=top_thresh)
+    sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
+    sce <- run_em(x=sce, eps=eps, max_iter=max_iter, verbose=verbose)
+    sce <- call_targets(sce, pp_thresh=sce@pp_thresh, min_genes=gene_thresh)
+    sce <- fill_dropl_info(sce)
 
-	if (!sce@diem@converged){
-		cat(paste0("Warning: DIEM did not converge within ", as.character(max_iter), " iterations.\n"))
-	}
+    if (!sce@diem@converged){
+        cat(paste0("Warning: DIEM did not converge within ", as.character(max_iter), " iterations.\n"))
+    }
 
-	if (verbose){
-		cat(paste0("Identified ", as.character(length(get_clean_ids(x))), " clean droplets.\n"))
-	}
+    if (verbose){
+        cat(paste0("Identified ", as.character(length(get_clean_ids(x))), " clean droplets.\n"))
+    }
 
-	return(sce)
+    return(sce)
 }
+

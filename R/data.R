@@ -1,3 +1,4 @@
+
 #' Divide elements of a column by the column's sum in a sparse matrix
 #'
 #' @param x Sparse Matrix
@@ -5,10 +6,10 @@
 #' @return The Sparse Matrix x with columns summing to 1.
 #' @importFrom Matrix Diagonal colSums
 divide_by_colsum <- function(x){
-	cs <- Matrix::colSums(x = x)
-	d <- Matrix::Diagonal(x = 1/cs)
-	x <- x %*% d
-	return(x)
+    cs <- Matrix::colSums(x = x)
+    d <- Matrix::Diagonal(x = 1/cs)
+    x <- x %*% d
+    return(x)
 }
 
 #' Normalize counts of a sparse matrix
@@ -21,10 +22,10 @@ divide_by_colsum <- function(x){
 #'
 #' @return Sparse Matrix
 norm_counts <- function(counts, scale_factor=1, logt=TRUE){
-	counts <- divide_by_colsum(counts)
-	counts <- counts * scale_factor
-	if (logt) counts <- log1p(counts)
-	return(counts)
+    counts <- divide_by_colsum(counts)
+    counts <- counts * scale_factor
+    if (logt) counts <- log1p(counts)
+    return(counts)
 }
 
 #' Normalize raw counts.
@@ -47,19 +48,19 @@ norm_counts <- function(counts, scale_factor=1, logt=TRUE){
 #' @importFrom Matrix rowMeans
 #' @export
 normalize <- function(x, 
-					  genes=NULL, 
-					  scale_factor=1,
-					  logt=TRUE){
-	if (sum(x@labels) == 0){
-		stop("Specify test set with set_test_set function")
-	}
+                      genes=NULL, 
+                      scale_factor=1,
+                      logt=TRUE){
+    if (sum(x@labels) == 0){
+        stop("Specify test set with set_test_set function")
+    }
 
-	expr <- x@counts[,sum(x@labels) == 0]
-	if (!is.null(genes)) expr <- expr[genes,]
+    expr <- x@counts[,sum(x@labels) == 0]
+    if (!is.null(genes)) expr <- expr[genes,]
 
-	x@norm <- norm_counts(expr, scale_factor, logt=logt)
+    x@norm <- norm_counts(expr, scale_factor, logt=logt)
 
-	return(x)
+    return(x)
 }
 
 #' Set droplets for EM testing
@@ -84,36 +85,36 @@ normalize <- function(x,
 #' @importFrom Matrix colSums
 #' @export
 set_test_set <- function(x, top_n=1e4, min_counts=100, top_thresh=NULL){
-	if (is.null(top_n)){
-		top_n <- ncol(x@counts)
-	}
-	if (top_n < 0){
-		stop("top_n must be greater than 0")
-	}
-	if (min_counts < 0){
-		stop("min_counts must be greater than 0")
-	}
+    if (is.null(top_n)){
+        top_n <- ncol(x@counts)
+    }
+    if (top_n < 0){
+        stop("top_n must be greater than 0")
+    }
+    if (min_counts < 0){
+        stop("min_counts must be greater than 0")
+    }
 
-	x@labels <- rep(2, ncol(x@counts))
-	names(x@labels) <- colnames(x@counts)
+    x@labels <- rep(2, ncol(x@counts))
+    names(x@labels) <- colnames(x@counts)
 
-	dc <- Matrix::colSums(x@counts)
-	top_n_count <- dc[order(dc, decreasing=TRUE)[top_n]]
-	min_counts <- max(min_counts, top_n_count)
-	test_set <- names(dc)[dc >= min_counts]
-	x@labels[test_set] <- 0
+    dc <- Matrix::colSums(x@counts)
+    top_n_count <- dc[order(dc, decreasing=TRUE)[top_n]]
+    min_counts <- max(min_counts, top_n_count)
+    test_set <- names(dc)[dc >= min_counts]
+    x@labels[test_set] <- 0
 
-	if (!is.null(top_thresh)){
-		signal_set <- names(dc)[dc >= top_thresh]
-		x@labels[signal_set] <- 1
-	} else {
-		top_thresh <- Inf
-	}
+    if (!is.null(top_thresh)){
+        signal_set <- names(dc)[dc >= top_thresh]
+        x@labels[signal_set] <- 1
+    } else {
+        top_thresh <- Inf
+    }
 
-	x@min_counts <- min_counts
-	x@top_thresh <- top_thresh
+    x@min_counts <- min_counts
+    x@top_thresh <- top_thresh
 
-	return(x)
+    return(x)
 }
 
 #' Filter out lowly expressed features
@@ -137,28 +138,28 @@ set_test_set <- function(x, top_n=1e4, min_counts=100, top_thresh=NULL){
 #' @importFrom Matrix rowSums
 #' @export
 filter_genes <- function(x, cpm_thresh=25){
-	if (length(x@labels) == 0){
-		stop("Fix labels with set_test_set before calling filter_genes.")
-	}
-	bg_drops <- names(x@labels)[x@labels == 2]
-	nbg_drops <- names(x@labels)[x@labels != 2]
+    if (length(x@labels) == 0){
+        stop("Fix labels with set_test_set before calling filter_genes.")
+    }
+    bg_drops <- names(x@labels)[x@labels == 2]
+    nbg_drops <- names(x@labels)[x@labels != 2]
 
-	if (length(bg_drops) == 0 | length(nbg_drops) == 0){
-		stop("No droplets in the background-enriched or nuclear-enriched groups.")
-	}
+    if (length(bg_drops) == 0 | length(nbg_drops) == 0){
+        stop("No droplets in the background-enriched or nuclear-enriched groups.")
+    }
 
-	bg_expr <- Matrix::rowSums(x@counts[,bg_drops])
-	nbg_expr <- Matrix::rowSums(x@counts[,nbg_drops])
+    bg_expr <- Matrix::rowSums(x@counts[,bg_drops])
+    nbg_expr <- Matrix::rowSums(x@counts[,nbg_drops])
 
-	bg_cpm <- 1e6*bg_expr/sum(bg_expr)
-	nbg_cpm <- 1e6*nbg_expr/sum(nbg_expr)
+    bg_cpm <- 1e6*bg_expr/sum(bg_expr)
+    nbg_cpm <- 1e6*nbg_expr/sum(nbg_expr)
 
-	keep <- (bg_cpm >= cpm_thresh) & (nbg_cpm >= cpm_thresh)
-	if (sum(keep) == 0){
-		stop("No genes pass cpm_thresh threshold.")
-	}
-	x@gene_info[,"exprsd"] <- keep
-	return(x)
+    keep <- (bg_cpm >= cpm_thresh) & (nbg_cpm >= cpm_thresh)
+    if (sum(keep) == 0){
+        stop("No genes pass cpm_thresh threshold.")
+    }
+    x@gene_info[,"exprsd"] <- keep
+    return(x)
 }
 
 #' Read 10X output
@@ -181,42 +182,43 @@ filter_genes <- function(x, cpm_thresh=25){
 #' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
 #'
 read_10x <- function(path){
-	files <- list.files(path, full.names=TRUE)
-	files_names <- list.files(path, full.names=FALSE)
-	v3 <- "matrix.mtx.gz" %in% files_names
+    files <- list.files(path, full.names=TRUE)
+    files_names <- list.files(path, full.names=FALSE)
+    v3 <- "matrix.mtx.gz" %in% files_names
 
-	if (v3){
-		mtx_file <- paste0(path, "/matrix.mtx.gz")
-		genes_file <- paste0(path, "/features.tsv.gz")
-		barcode_file <- paste0(path, "/barcodes.tsv.gz")
-	} else {
-		mtx_file <- paste0(path, "/matrix.mtx")
-		genes_file <- paste0(path, "/genes.tsv")
-		barcode_file <- paste0(path, "/barcodes.tsv")
-	}
-	
-	if (file.exists(mtx_file)) {
-		expr <- readMM(mtx_file)
-	} else {
-		stop(paste0(mtx_file, " not found"))
-	}
-	expr <- as(expr, "CsparseMatrix")
+    if (v3){
+        mtx_file <- paste0(path, "/matrix.mtx.gz")
+        genes_file <- paste0(path, "/features.tsv.gz")
+        barcode_file <- paste0(path, "/barcodes.tsv.gz")
+    } else {
+        mtx_file <- paste0(path, "/matrix.mtx")
+        genes_file <- paste0(path, "/genes.tsv")
+        barcode_file <- paste0(path, "/barcodes.tsv")
+    }
 
-	if (file.exists(barcode_file)){
-		barcode_names <- readLines(barcode_file)
-		barcode_names <- sub("-.*", "", barcode_names)
-	} else {
-		stop(paste0(barcode_file, " not found"))
-	}
-	
-	if (file.exists(genes_file)){
-		genes <- read.delim(genes_file, header = FALSE, stringsAsFactors = FALSE, sep = "\t")
-	} else {
-		stop(paste0(genes_file, " not found"))
-	}
+    if (file.exists(mtx_file)) {
+        expr <- readMM(mtx_file)
+    } else {
+        stop(paste0(mtx_file, " not found"))
+    }
+    expr <- as(expr, "CsparseMatrix")
 
-	colnames(expr) <- barcode_names
-	rownames(expr) <- make.unique(genes[,2])
+    if (file.exists(barcode_file)){
+        barcode_names <- readLines(barcode_file)
+        barcode_names <- sub("-.*", "", barcode_names)
+    } else {
+        stop(paste0(barcode_file, " not found"))
+    }
 
-	return(expr)
+    if (file.exists(genes_file)){
+        genes <- read.delim(genes_file, header = FALSE, stringsAsFactors = FALSE, sep = "\t")
+    } else {
+        stop(paste0(genes_file, " not found"))
+    }
+
+    colnames(expr) <- barcode_names
+    rownames(expr) <- make.unique(genes[,2])
+
+    return(expr)
 }
+
