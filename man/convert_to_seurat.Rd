@@ -11,7 +11,7 @@ convert_to_seurat(x, targets = TRUE, meta = TRUE, ...)
 
 \item{targets}{Logical indicating whether to remove droplets called as debris. Default is TRUE.}
 
-\item{meta}{Logical that indicates whether to place the data from dropl_info into meta.data in the 
+\item{meta}{Logical that indicates whether to place the data from droplet_info into meta.data in the 
 resulting Seurat object. Default is TRUE.}
 
 \item{...}{Arguments to \code{\link[Seurat]{CreateSeuratObject}}, such as \code{project} for project name.}
@@ -21,7 +21,7 @@ A Seurat object
 }
 \description{
 Convert an SCE object to a Seurat object. if \code{targets} is true (default), output only droplets that are 
-called as not debris. If \code{meta} is TRUE, then output meta data from dropl_info to the meta.data 
+called as not debris. If \code{meta} is TRUE, then output meta data from droplet_info to the meta.data 
 slot in the Seurat object. Additional functions \code{...} to this function are passed onto 
 \code{\link[Seurat]{CreateSeuratObject}}. Common arguments include \code{min.cells = 3} and 
 \code{min.features = 200}.

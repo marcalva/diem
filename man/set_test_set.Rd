@@ -4,13 +4,13 @@
 \alias{set_test_set}
 \title{Set droplets for EM testing}
 \usage{
-set_test_set(x, top_n = 10000, min_counts = 100, top_thresh = NULL)
+set_test_set(x, top_n = 10000, min_counts = 150)
 }
 \arguments{
 \item{x}{An SCE object.}
 
 \item{top_n}{Numeric value specifying the  droplets below \code{top_n} (ranked by total counts) 
-are fixed to debris.}
+are fixed to debris. Set to NULL to ignore.}
 
 \item{min_counts}{A numeric value that specifies that all droplets below this count threshold are 
 always fixed to debris.}

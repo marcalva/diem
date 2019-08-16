@@ -21,6 +21,6 @@ Get percent of reads aligning to given genes.
 }
 \examples{
 mm_seur <- get_gene_pct(x=mb_sce, genes="Malat1", name="pct.malat1")
-mt_genes <- grep(pattern="^mt-", x=rownames(mb_sce), ignore.case=TRUE)
+mt_genes <- grep(pattern="^mt-", x=rownames(mb_sce@gene_data), value=TRUE, ignore.case=TRUE)
 mm_seur <- get_gene_pct(x=mb_sce, genes=mt_genes, name="pct.mt")
 }

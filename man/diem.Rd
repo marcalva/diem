@@ -4,9 +4,11 @@
 \alias{diem}
 \title{Run DIEM pipeline}
 \usage{
-diem(sce, top_n = 10000, min_counts = 100, top_thresh = NULL,
-  cpm_thresh = 25, eps = 1e-08, max_iter = 100, pp_thresh = 0.95,
-  gene_thresh = 200, verbose = TRUE)
+diem(sce, top_n = 10000, min_counts = 150, cpm_thresh = 10,
+  scale_factor = 1, logt = TRUE, n_var_genes = 2000,
+  pseudocount = 1e-04, eps = 1e-08, max_iter = 100, nn = 30,
+  use_var_genes = FALSE, pp_thresh = 0.95, gene_thresh = 200,
+  verbose = TRUE)
 }
 \arguments{
 \item{sce}{SCE. SCE object with raw counts.}
@@ -16,9 +18,6 @@ are fixed to debris.}
 
 \item{min_counts}{A numeric value that specifies that all droplets below this count threshold are 
 always fixed to debris.}
-
-\item{top_thresh}{A numeric value specifying any droplets above this count threshold are 
-fixed to nuclei. No droplets are fixed to nuclei by default.}
 
 \item{cpm_thresh}{The minimum CPM expression threshold in both groups.}
 
@@ -32,6 +31,9 @@ posterior probability of at least \code{pp_thresh}.}
 
 \item{verbose}{Logical indicating verbosity.}
 
+\item{top_thresh}{A numeric value specifying any droplets above this count threshold are 
+fixed to nuclei. No droplets are fixed to nuclei by default.}
+
 \item{min_genes}{Numeric threshold, where clean droplets must have at least 
 \code{min_genes} genes detected.}
 }
@@ -41,4 +43,10 @@ SCE object.
 \description{
 Run DIEM pipeline on an SCE object, (see \code{\link{read_10x}} and 
 \code{\link{create_SCE}} functions).
+}
+\examples{
+counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
+mb_sce <- create_SCE(x=counts, name="Mouse Brain")
+mb_sce <- diem(mb_sce)
+mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
 }

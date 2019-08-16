@@ -4,7 +4,7 @@
 \alias{filter_genes}
 \title{Filter out lowly expressed features}
 \usage{
-filter_genes(x, cpm_thresh = 25)
+filter_genes(x, cpm_thresh = 10)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -25,5 +25,5 @@ are calculated for the two groups, and only genes with a CPM of at least
 the likelihood of the multinomial mixture does not collapse to 0, since 
 a gene with 0 counts has a likelihood of 0. This creates a logical 
 vector in the gene_info slot that indicates whether a gene passes the 
-threshold or not.
+threshold or not.  #'
 }

@@ -1,25 +1,16 @@
-
+#' @useDynLib diem
+#' @importFrom Rcpp sourceCpp
 #' @importClassesFrom Matrix dgCMatrix
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 
-#' DIEM
-#' @name DIEM-class
-#' @rdname DIEM-class
-#' @exportClass DIEM
-DIEM <- setClass(Class = "DIEM", 
-                 slots = c(emo = "list", 
-                           pi = "matrix", 
-                           PP = "matrix", 
-                           calls = "character", 
-                           converged = "logical"))
-
-# emo contains the EM output of each iteration.
-# Each element of this list contains
-#    Z matrix  n x k of log likelihoods of each data point
-#	 Mu means
-#	 Mc Mixture Coefficient
-#    loglks is a list of log likelihood value
-#    conv.iter Number of iterations to convergene
+# Class to store initial graph-based clustering
+IC <- setClass(Class = "IC", 
+               slots = c(graph = "factor", 
+                         logfc = "matrix", 
+                         scores = "numeric", 
+                         map = "character",
+                         merged = "factor", 
+                         assignments = "factor"))
 
 #' SCE
 #'
@@ -30,14 +21,28 @@ DIEM <- setClass(Class = "DIEM",
 SCE <- setClass(Class = "SCE", 
                 slots = c(counts = "any_matrix", 
                           norm = "any_matrix", 
-                          min_counts = "numeric", 
-                          top_thresh = "numeric", 						  
-                          labels = "numeric", 
-                          diem = "DIEM", 
+                          pcs = "matrix", 
+                          knn = "data.frame", 
+                          test_set = "character", 
+                          bg_set = "character", 
                           pp_thresh = "numeric", 
-                          gene_info = "data.frame",
-                          dropl_info = "data.frame", 
+                          min_counts = "numeric", 
+                          gene_data = "data.frame", 
+                          droplet_data = "data.frame", 
+                          ic = "IC", 
+                          emo = "list", 
+                          vg_info = "data.frame", 
+                          vg = "character", 
                           name = "character"))
+
+# emo contains the EM output of each iteration.
+# Each element of this list contains
+#    Z sample by group matrix of log likelihoods
+#    Mu means numeric vector
+#    Mc Mixture Coefficient numeric vector
+#    loglk log likelihood value at final iteration numeric
+#    converged logical indicating whether EM converged
+#    PP sample by group matrix of posterior probabilities
 
 #' @method dim SCE
 #' @export
@@ -63,13 +68,13 @@ colnames.SCE <- function(x){
 #'
 #' @importFrom Matrix Matrix rowMeans rowSums colSums
 fill_counts <- function(x){
-    x@gene_info <- x@gene_info[rownames(x@counts), , drop=FALSE]; rownames(x@gene_info) <- rownames(x@counts)
-    x@dropl_info <- x@dropl_info[colnames(x@counts), , drop=FALSE]; rownames(x@dropl_info) <- colnames(x@counts)
-    x@gene_info[,"mean"] <- Matrix::rowMeans(x@counts)
-    x@gene_info[,"total_counts"] <- Matrix::rowSums(x@counts)
-    x@gene_info[,"n_cells"] <- Matrix::rowSums(x@counts > 0)
-    x@dropl_info[,"total_counts"] <- Matrix::colSums(x@counts)
-    x@dropl_info[,"n_genes"] <- Matrix::colSums(x@counts > 0)
+    x@gene_data <- x@gene_data[rownames(x@counts), , drop=FALSE]; rownames(x@gene_data) <- rownames(x@counts)
+    x@droplet_data <- x@droplet_data[colnames(x@counts), , drop=FALSE]; rownames(x@droplet_data) <- colnames(x@counts)
+    x@gene_data[,"mean"] <- Matrix::rowMeans(x@counts)
+    x@gene_data[,"total_counts"] <- Matrix::rowSums(x@counts)
+    x@gene_data[,"n_cells"] <- Matrix::rowSums(x@counts > 0)
+    x@droplet_data[,"total_counts"] <- Matrix::colSums(x@counts)
+    x@droplet_data[,"n_genes"] <- Matrix::colSums(x@counts > 0)
     return(x)
 }
 
@@ -99,13 +104,13 @@ create_SCE <- function(x, name="SCE"){
     rownames(sce@counts) <- make.unique(rownames(sce@counts))
     colnames(sce@counts) <- make.unique(colnames(sce@counts))
 
-    sce@gene_info <- data.frame(row.names=rownames(sce@counts))
-    sce@dropl_info <- data.frame(row.names=colnames(sce@counts))
+    sce@gene_data <- data.frame(row.names=rownames(sce@counts))
+    sce@droplet_data <- data.frame(row.names=colnames(sce@counts))
     sce <- fill_counts(sce)
 
-    keep <- sce@dropl_info[,"total_counts"] > 0
+    keep <- sce@droplet_data[,"total_counts"] > 0
     sce@counts <- sce@counts[,keep]
-    sce@dropl_info <- sce@dropl_info[keep,]
+    sce@droplet_data <- sce@droplet_data[keep,]
 
     sce@name <- name
 
@@ -115,14 +120,14 @@ create_SCE <- function(x, name="SCE"){
 #' Convert an SCE object to Seurat
 #'
 #' Convert an SCE object to a Seurat object. if \code{targets} is true (default), output only droplets that are 
-#' called as not debris. If \code{meta} is TRUE, then output meta data from dropl_info to the meta.data 
+#' called as not debris. If \code{meta} is TRUE, then output meta data from droplet_info to the meta.data 
 #' slot in the Seurat object. Additional functions \code{...} to this function are passed onto 
 #' \code{\link[Seurat]{CreateSeuratObject}}. Common arguments include \code{min.cells = 3} and 
 #' \code{min.features = 200}.
 #'
 #' @param x An SCE object.
 #' @param targets Logical indicating whether to remove droplets called as debris. Default is TRUE.
-#' @param meta Logical that indicates whether to place the data from dropl_info into meta.data in the 
+#' @param meta Logical that indicates whether to place the data from droplet_info into meta.data in the 
 #'  resulting Seurat object. Default is TRUE.
 #' @param ... Arguments to \code{\link[Seurat]{CreateSeuratObject}}, such as \code{project} for project name.
 #'
@@ -136,13 +141,10 @@ convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
              call. = FALSE)
     }
 
-    if (targets){
-        if (length(x@diem@calls) == 0) stop("Run DIEM before converting to Seurat with targets=TRUE.")
-        keep <- get_clean_ids(x)
-    }
-    else keep <- rownames(x@dropl_info)
+    if (targets) keep <- get_clean_ids(x)
+    else keep <- rownames(x@droplet_data)
 
-    if (meta) meta.data <- x@dropl_info[keep,,drop=FALSE]
+    if (meta) meta.data <- x@droplet_data[keep,,drop=FALSE]
     else meta.data <- NULL
 
     seur <- Seurat::CreateSeuratObject(counts=x@counts[,keep], meta.data=meta.data, ...)

@@ -33,12 +33,9 @@ norm_counts <- function(counts, scale_factor=1, logt=TRUE){
 #' Counts are normalized by dividing by total counts per droplet. Note that this only normalizes 
 #' droplets that are candidates in the test set. Optionally, droplets can be normalized 
 #' by log1p transformation, with a counts being multiplied by a scaling factor \code{scale_factor}.
-#' Additionally, gene counts can be scaled to mean 0 and variance 1 (default). This is recommended so that 
-#' highly expressed genes do not drive the calculation of pi. Note that, when scaling, genes with 0 mean 
-#' and zero variance will be removed automatically.
 #'
 #' @param x SCE.
-#' @param genes A character vector to subset count data to. Normalization will only be run for these genes.
+#' @param genes.use A character vector to subset count data to. Normalization will only be run for these genes.
 #' @param scale_factor A numeric scaling factor to multiply counts after division by column sum
 #'  Default is 1.
 #' @param logt Logical indicating whether to log1p transform expression values.
@@ -47,19 +44,36 @@ norm_counts <- function(counts, scale_factor=1, logt=TRUE){
 #' @return SCE object
 #' @importFrom Matrix rowMeans
 #' @export
-normalize <- function(x, 
-                      genes=NULL, 
-                      scale_factor=1,
-                      logt=TRUE){
-    if (sum(x@labels) == 0){
-        stop("Specify test set with set_test_set function")
-    }
+normalize_data <- function(x, 
+                           genes.use=NULL, 
+                           droplets.use=NULL, 
+                           scale_factor=1, 
+                           logt=TRUE){
+    if (is.null(genes.use)) genes.use <- rownames(x@gene_data)[x@gene_data[,"exprsd"]]
+    if (is.null(droplets.use)) droplets.use <- x@test_set
 
-    expr <- x@counts[,sum(x@labels) == 0]
-    if (!is.null(genes)) expr <- expr[genes,]
+    if (length(genes.use) == 0) stop("0 genes specified in genes.use.")
+    if (length(droplets.use) == 0) stop("0 droplets specified in droplets.use")
 
+    expr <- x@counts[genes.use, droplets.use]
     x@norm <- norm_counts(expr, scale_factor, logt=logt)
 
+    return(x)
+}
+
+#' Get PCs from normalized count data
+#'
+#' @param x An SCE object.
+#' @param n_pcs Number of PCs to output.
+#' 
+#' @return An SCE object.
+#' @importFrom irlba prcomp_irlba
+#' @export
+get_pcs <- function(x, n_pcs=30){
+    if (length(x@norm) == 0) stop("Normalize counts before getting PCs.")
+    nc <- Matrix::t(x@norm)
+    x@pcs <- irlba::prcomp_irlba(nc, n=n_pcs, scale.=TRUE)$x
+    rownames(x@pcs) <- rownames(nc)
     return(x)
 }
 
@@ -75,7 +89,7 @@ normalize <- function(x,
 #'
 #' @param x An SCE object.
 #' @param top_n Numeric value specifying the  droplets below \code{top_n} (ranked by total counts) 
-#'  are fixed to debris.
+#'  are fixed to debris. Set to NULL to ignore.
 #' @param min_counts A numeric value that specifies that all droplets below this count threshold are 
 #'  always fixed to debris.
 #' @param top_thresh A numeric value specifying any droplets above this count threshold are 
@@ -84,7 +98,7 @@ normalize <- function(x,
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
-set_test_set <- function(x, top_n=1e4, min_counts=100, top_thresh=NULL){
+set_test_set <- function(x, top_n=1e4, min_counts=150){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -95,24 +109,16 @@ set_test_set <- function(x, top_n=1e4, min_counts=100, top_thresh=NULL){
         stop("min_counts must be greater than 0")
     }
 
-    x@labels <- rep(2, ncol(x@counts))
-    names(x@labels) <- colnames(x@counts)
+    top_n <- min(top_n, ncol(x@counts))
 
-    dc <- Matrix::colSums(x@counts)
-    top_n_count <- dc[order(dc, decreasing=TRUE)[top_n]]
-    min_counts <- max(min_counts, top_n_count)
-    test_set <- names(dc)[dc >= min_counts]
-    x@labels[test_set] <- 0
-
-    if (!is.null(top_thresh)){
-        signal_set <- names(dc)[dc >= top_thresh]
-        x@labels[signal_set] <- 1
-    } else {
-        top_thresh <- Inf
-    }
-
+    dc <- Matrix::colSums(x@counts > 0)
+    o <- order(dc, decreasing=TRUE)
+    dco <- dc[o]
+    min_counts <- max(min_counts, dco[top_n])
+    ts <- names(dco)[dco >= min_counts]
+    x@test_set <- ts
+    x@bg_set <- setdiff(colnames(x@counts), ts)
     x@min_counts <- min_counts
-    x@top_thresh <- top_thresh
 
     return(x)
 }
@@ -129,36 +135,26 @@ set_test_set <- function(x, top_n=1e4, min_counts=100, top_thresh=NULL){
 #' the likelihood of the multinomial mixture does not collapse to 0, since 
 #' a gene with 0 counts has a likelihood of 0. This creates a logical 
 #' vector in the gene_info slot that indicates whether a gene passes the 
-#' threshold or not.
-#'
+#' threshold or not.  #'
 #' @param x An SCE object.
 #' @param cpm_thresh The minimum CPM expression threshold in both groups.
 #'
 #' @return An SCE object
 #' @importFrom Matrix rowSums
 #' @export
-filter_genes <- function(x, cpm_thresh=25){
-    if (length(x@labels) == 0){
-        stop("Fix labels with set_test_set before calling filter_genes.")
-    }
-    bg_drops <- names(x@labels)[x@labels == 2]
-    nbg_drops <- names(x@labels)[x@labels != 2]
-
-    if (length(bg_drops) == 0 | length(nbg_drops) == 0){
-        stop("No droplets in the background-enriched or nuclear-enriched groups.")
-    }
-
-    bg_expr <- Matrix::rowSums(x@counts[,bg_drops])
-    nbg_expr <- Matrix::rowSums(x@counts[,nbg_drops])
-
-    bg_cpm <- 1e6*bg_expr/sum(bg_expr)
-    nbg_cpm <- 1e6*nbg_expr/sum(nbg_expr)
-
-    keep <- (bg_cpm >= cpm_thresh) & (nbg_cpm >= cpm_thresh)
+filter_genes <- function(x, cpm_thresh=10){
+    groups <- list(x@test_set, x@bg_set)
+    keep_all <- sapply(groups, function(g){
+                       expr <- Matrix::rowSums(x@counts[,g])
+                       cpm <- 1e6*expr/sum(expr)
+                       keep <- cpm >= cpm_thresh
+                       return(keep)
+                           })
+    keep <- apply(keep_all, 1, all)
     if (sum(keep) == 0){
         stop("No genes pass cpm_thresh threshold.")
     }
-    x@gene_info[,"exprsd"] <- keep
+    x@gene_data[,"exprsd"] <- keep
     return(x)
 }
 

@@ -90,7 +90,7 @@ de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE){
 #' @export
 pp_plot <- function(x, ret=FALSE){
 
-	Z <- x@diem@PP
+	Z <- x@diem@mmm_pp
 	pidf <- as.data.frame(x@diem@pi)
 	llfs <- sort(Z[,1])
 	df <- data.frame(Rank=1:length(llfs), llf=llfs)
@@ -202,7 +202,7 @@ plot_pi_pp <- function(x, alpha=0.1, ret=FALSE){
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)
 
-	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(colour=PP)) + 
+	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(colour=mmm_pp)) + 
 	xlab(expression(paste(pi[low],''))) +
 	ylab(expression(paste(pi[high],''))) + 
 	theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
@@ -222,9 +222,9 @@ plot_pi_pp <- function(x, alpha=0.1, ret=FALSE){
 #' @export
 plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
 
-	df <- x@dropl_info[x@labels != 2,]
+	df <- x@dropl_info[x@test_set,]
 
-	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=PP)) + 
+	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=clean_pp)) + 
 	xlab("UMI Counts") +
 	ylab("Genes Detected") + 
 	scale_x_log10() + scale_y_log10() + 
@@ -254,56 +254,11 @@ plot_scatter_pp <- function(sce, x, y, alpha=0.1, ret=FALSE){
 	di <- di[, !(colnames(di) %in% colnames(df))]
 	df <- cbind(df, di)
 
-	p <- ggplot(df, aes_string(x=x, y=y)) + geom_point(alpha=alpha, aes(colour=PP)) + 
+	p <- ggplot(df, aes_string(x=x, y=y)) + geom_point(alpha=alpha, aes(colour=mmm_pp)) + 
 	theme_minimal() + theme(text=element_text(size=22)) + 
 	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
 	if (ret) return(p)
 	else print(p)
-}
-
-#' Barplot of KL-divergence between low-count and 1. debris and 2. signal means
-#'
-#' @param x SCE. SCE object
-#' @param ret Boolean. Return a ggplot object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @export
-plot_kld <- function(x, ret=FALSE){
-	require(grid)
-	kld <- kl_background(x)
-	kld <- data.frame("Distribution"=names(kld), "KLD"=kld)
-
-
-	p <- ggplot(kld, aes(x=Distribution, y=KLD)) + geom_bar(stat="identity") + 
-	theme_minimal() + theme(text=element_text(size=18)) + 
-	xlab("Distribution from EM") + 
-	ylab(paste0("Kullback-Leibler divergence\nagainst droplets below ", as.character(x@min_counts), " counts")) + 
-	theme(plot.margin = unit(c(1,10,1,1), "lines"))
-
-	# Get total number of UMIs for each distribution
-	ymax <- max(kld$KLD)
-	lc_names <- names(x@labels)[x@labels==2]
-	sg_names <- names(x@diem@calls)[x@diem@calls == "Signal"]
-	bg_names <- names(x@diem@calls)[x@diem@calls == "Debris"]
-	lc <- sum(Matrix::rowSums(x@counts[,lc_names]))
-	sg <- sum(Matrix::rowSums(x@counts[,sg_names]))
-	bg <- sum(Matrix::rowSums(x@counts[,bg_names]))
-
-	n_counts <- c("LowCount"=lc, "Debris"=bg, "Signal"=sg)
-	ys <- c(ymax*.6, ymax*.5, ymax*.4)
-	pre_text <- c("Low-count:\n", "Debris:\n", "Signal:\n")
-	for (i in 1:3){
-		at <- as.character(round(n_counts[i]))
-		p <- p + annotation_custom(grob=textGrob(label=paste0(pre_text[i], at)), 
-			xmin=3, xmax=3, ymin=ys[i], ymax=ys[i])
-	}
-
-	gt <- ggplot_gtable(ggplot_build(p))
-	gt$layout$clip[gt$layout$name == "panel"] <- "off"
-
-	if (ret) return(gt)
-	else print(grid.draw(gt))
 }
 
 #' Scatterplot of pi with density plots on the margin

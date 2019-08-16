@@ -14,10 +14,15 @@ LazyData: true
 RoxygenNote: 6.1.1
 Depends:
 	R (>= 3.5.0)
-Imports: 
-	ggplot2, 
-	Matrix, 
-    scales, 
-    reshape2
+LinkingTo:
+    Rcpp, RcppEigen
+Imports:
+    ggplot2,
+    Matrix,
+    scales,
+    reshape2, 
+    FNN, 
+    igraph, 
+    Rcpp
 Suggests:
     Seurat
