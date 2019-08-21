@@ -21,7 +21,7 @@ set_breaks_10 <- function(x){
 #' @importFrom scales comma
 #' @export
 barcode_rank_plot <- function(x, title="", ret=FALSE){
-	counts <- x@dropl_info[order(x@dropl_info[,"total_counts"], decreasing=TRUE), "total_counts"]
+	counts <- x@droplet_data[order(x@droplet_data[,"total_counts"], decreasing=TRUE), "total_counts"]
 	counts <- sort(counts, decreasing=TRUE)
 	ranks <- seq(length(counts))
 	counts[duplicated(counts)] <- NA

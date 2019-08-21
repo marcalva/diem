@@ -100,7 +100,10 @@ get_pcs <- function(x, n_pcs=30){
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
-set_test_set <- function(x, top_n=1e4, cluster=0.2, expected=3000, min_counts=150){
+set_test_set <- function(x, 
+                         top_n=1e4, 
+                         min_counts=150, 
+                         min_genes=150){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -113,19 +116,20 @@ set_test_set <- function(x, top_n=1e4, cluster=0.2, expected=3000, min_counts=15
 
     top_n <- min(top_n, ncol(x@counts))
 
-    dc <- Matrix::colSums(x@counts > 0)
+    barcodes <- colnames(x@counts)
+    dc <- Matrix::colSums(x@counts)
+    dg <- Matrix::colSums(x@counts > 0)
+    keep <- (dc >= min_counts) & (dg >= min_genes)
+
+    # Keep top top_n
+    dc <- dc[keep]
     o <- order(dc, decreasing=TRUE)
     dco <- dc[o]
-    min_counts <- max(min_counts, dco[top_n])
+    min_counts <- max(min_counts, dco[top_n], na.rm=TRUE)
     ts <- names(dco)[dco >= min_counts]
     x@test_set <- ts
     x@bg_set <- setdiff(colnames(x@counts), ts)
     x@min_counts <- min_counts
-
-    dg <- Matrix::colSums(x@counts > 0)
-    o <- order(dg, decreasing=TRUE)
-    dgo <- dg[o]
-    x@cluster_set <- names(dgo)[1:(cluster*expected)]
     x@cluster_set <- x@test_set
 
     return(x)

@@ -49,59 +49,6 @@ sum_log <- function(x){
     return(x_sum);
 }
 
-#' Get log multinomial density of columns in a sparse matrix. 
-#'
-#' @param X A sparseMatrix that is a sample by feature matrix of counts.
-#' @param prob Probability parameter of multinomial. Must be same size as 
-#'  number of columns in X.
-#'
-#' @import Matrix
-#' @export
-dmultinom_sparse <- function(X, prob){
-    if (length(prob) != ncol(X)){
-        stop("Length of prob and rows in X must be the same.")
-    }
-    X <- as(X, "dgCMatrix")
-    Xlg <- X
-    Xlg@x <- lgamma(Xlg@x + 1) # Get log gamma
-
-    m <- lgamma(Matrix::rowSums(X) + 1)
-    xls <- Matrix::rowSums(Xlg)
-    px <- as.numeric(X %*% log(prob))
-
-    Llks <- m - xls + px
-    return(Llks)
-}
-
-
-# X is a sample by gene matrix
-ddm_sparse <- function(X, alpha){
-    if (length(alpha) != ncol(X)) stop("length of alpha should be same as number of columns of X.")
-
-    rsX <- Matrix::rowSums(X)
-    a0 <- sum(alpha)
-
-    ret <- 0
-    ret <- ret + sum(lgamma(rsX+1))
-    ret <- ret + nrow(X) * lgamma(a0)
-    ret <- ret - sum(lgamma(rsX + a0))
-
-    # Traverse by gene
-    nz <- nrow(X)
-    for (i in seq(ncol(X))){
-        ix1 <- X@p[i] + 1
-        ix2 <- X@p[i+1] + 1
-        ret <- ret + (nz - (ix2 - ix1))*lgamma(alpha[i])
-        ix_seq <- seq(ix1, ix2-1)
-        ret <- ret + sum(lgamma(X@x[ix_seq] + alpha[i]))
-        ret <- ret - sum(lgamma(X@x[ix_seq] + 1))
-        ret <- ret - nrow(X)*lgamma(alpha[i])
-    }
-
-    return(as.numeric(ret))
-}
-
-
 #' Compute density of multinomial mixture for a matrix
 #'
 #' Given an n x p matrix of count data \code{x}, as well as a 

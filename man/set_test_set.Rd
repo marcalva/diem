@@ -4,8 +4,7 @@
 \alias{set_test_set}
 \title{Set droplets for EM testing}
 \usage{
-set_test_set(x, top_n = 10000, cluster = 0.2, expected = 3000,
-  min_counts = 150)
+set_test_set(x, top_n = 10000, min_counts = 150, min_genes = 150)
 }
 \arguments{
 \item{x}{An SCE object.}
