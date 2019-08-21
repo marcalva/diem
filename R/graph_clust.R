@@ -55,6 +55,7 @@ get_logfc <- function(x){
     Debris <- Matrix::rowSums(x@counts[genes.use, x@bg_set])
     counts <- cbind(Debris, Test)
     counts <- tmm_counts(counts)
+    counts <- apply(counts, 2, function(i) i/sum(i))
 
     logfc <- log2(counts[,"Debris"]) - log2(counts[,"Test"])
     logfc[is.na(logfc) | is.infinite(logfc)] <- 0
@@ -68,7 +69,7 @@ get_logfc <- function(x){
 #' @importFrom igraph graph_from_data_frame simplify cluster_louvain membership
 #' @importFrom FNN get.knn
 #' @export
-initialize_clusters <- function(x, method="louvain", fc_thresh=0.95){
+initialize_clusters <- function(x, method="louvain", cor_thresh=0.95){
 
     if (length(x@knn) == 0) stop("Run knn before initializing clusters.")
     if (!"exprsd" %in% colnames(x@gene_data)) stop("Filter genes before initializing clusters.")
@@ -81,61 +82,66 @@ initialize_clusters <- function(x, method="louvain", fc_thresh=0.95){
     graph_clust <- graph_clust + 1 # Ensure starts at 1
     names(graph_clust) <- rownames(x@pcs)
     if (any(is.na(graph_clust))) stop("Returned cluster values have NA.")
+    graph_clust <- graph_clust+1
+    graph_clust <- factor(graph_clust)
 
-    # Add debris cluster as cluster 2
-    all_clusters <- rep(1, ncol(x@counts))
+    all_clusters <- rep("1", ncol(x@counts))
     names(all_clusters) <- colnames(x@counts)
-    all_clusters[names(graph_clust)] <- graph_clust+1
-    graph_clust <- as.factor(all_clusters)
+    all_clusters[names(graph_clust)] <- as.character(graph_clust)
+    all_clusters <- as.factor(all_clusters)
 
-    # Merge graph_clust from test data into debris cluster
-    clust_counts <- sapply(levels(graph_clust), function(id){
-                           droplets <- names(graph_clust)[graph_clust == id]
-                           return(Matrix::rowSums(x@counts[genes.use, droplets]))
-        })
-    clust_p <- apply(clust_counts, 2, function(i) i/sum(i))
+    logfc <- get_logfc(x)
+    # logfc <- logfc[logfc[,3] > 0,]
+
+    # Get TMM of test clusters
+    print(tapply(x@droplet_data[names(graph_clust),"n_genes"], graph_clust, median))
+    cg <- tapply(x@droplet_data[names(graph_clust),"n_genes"], graph_clust, median)
+    cm <- tapply(x@droplet_data[names(graph_clust),"total_counts"], graph_clust, mean)
+    min_clust <- names(cm)[which.min(cm)]
+    clust_counts <- sapply(levels(graph_clust), function(g) {
+                           dn <- names(graph_clust)[graph_clust == g]
+                           Matrix::rowSums(x@counts[genes.use, dn])
+                 })
     clust_tmm <- tmm_counts(clust_counts)
+    clust_p <- apply(clust_tmm, 2, function(i) i/sum(i))
 
-    Test <- Matrix::rowSums(x@counts[genes.use, x@test_set])
+    # Get TMM of ref
     Debris <- Matrix::rowSums(x@counts[genes.use, x@bg_set])
+    Test <- Matrix::rowSums(x@counts[genes.use, x@test_set])
     ref_counts <- cbind(Debris, Test)
-    ref_p <- apply(ref_counts, 2, function(i) i/sum(i))
     ref_tmm <- tmm_counts(ref_counts)
+    ref_p <- apply(ref_tmm, 2, function(i) i/sum(i))
 
-    logfc <- get_logfc(sce)
-    sdl <- 3*sd(logfc[,3])
-    genes <- rownames(logfc)[logfc[,3] < -sdl | logfc[,3] > sdl ]
-    #hist(logfc[,3], breaks=100, main="log(Debris/Test)"); 
-    #abline(v=0, col="red"); abline(v=sdl, col="red"); abline(v=-sdl, col="red");
-    #dev.off()
+    # DB score
+    debris_sc <- logfc[,1] %*% logfc[,3]
+    clean_sc <- logfc[,2] %*% logfc[,3]
 
-    compm <- t(cbind(clust_tmm[genes,], ref_tmm[genes,]))
-    dm <- dist(compm, method="euclidean")
-    dm <- as.matrix(dm, nrow=nrow(compm))[colnames(clust_tmm),c("Debris", "Test")]
+    ref_sc <- t(ref_p[rownames(logfc),]) %*% logfc[,3]
+    clust_sc <- t(clust_p[rownames(logfc),]) %*% logfc[,3]
 
-    a2d <- apply(dm, 1, function(i) i[1] < i[2])
-
-    print(table(graph_clust))
+    # Correlate log1p of TMM
+    cor_val <- cor(log1p(clust_tmm[,min_clust]), log1p(ref_tmm[,"Debris"]))
+    print(cor_val)
 
     # Assign new clusters
-    map <- levels(graph_clust); names(map) <- levels(graph_clust)
-    map[a2d] <- "1"
-    new_clust <- factor(graph_clust, levels=levels(graph_clust), labels=map)
-    new_clust <- factor(new_clust, levels=levels(new_clust), labels=as.character(1:nlevels(new_clust)))
+    map <- levels(all_clusters); names(map) <- levels(all_clusters)
+    # if (cor_val >= cor_thresh) map[min_clust] <- "1"
+    # merged_clusters <- factor(all_clusters, levels=levels(all_clusters), labels=map)
+    # merged_clusters <- factor(merged_clusters, levels=levels(merged_clusters), labels=as.character(1:nlevels(merged_clusters)))
     # Confirm re-labeling works
-    # table(clusters, new_clust)
-    clusters <- new_clust
+    # print(table(all_clusters, merged_clusters))
 
-    asgn <- rep("Clean", nlevels(clusters))
-    names(asgn) <- levels(clusters)
+    merged_clusters <- all_clusters
+    asgn <- rep("Clean", nlevels(merged_clusters))
+    names(asgn) <- levels(merged_clusters)
     asgn[1] <- "Debris"
     asgn <- as.factor(asgn)
 
     # Store in IC class
-    x@ic <- IC(graph=graph_clust, 
-               logfc=logfc, 
+    x@ic <- IC(graph=all_clusters, 
                map=map, 
-               merged=clusters, 
+               scores=cor_val, 
+               merged=merged_clusters, 
                assignments=asgn)
 
     return(x)

@@ -73,6 +73,35 @@ dmultinom_sparse <- function(X, prob){
     return(Llks)
 }
 
+
+# X is a sample by gene matrix
+ddm_sparse <- function(X, alpha){
+    if (length(alpha) != ncol(X)) stop("length of alpha should be same as number of columns of X.")
+
+    rsX <- Matrix::rowSums(X)
+    a0 <- sum(alpha)
+
+    ret <- 0
+    ret <- ret + sum(lgamma(rsX+1))
+    ret <- ret + nrow(X) * lgamma(a0)
+    ret <- ret - sum(lgamma(rsX + a0))
+
+    # Traverse by gene
+    nz <- nrow(X)
+    for (i in seq(ncol(X))){
+        ix1 <- X@p[i] + 1
+        ix2 <- X@p[i+1] + 1
+        ret <- ret + (nz - (ix2 - ix1))*lgamma(alpha[i])
+        ix_seq <- seq(ix1, ix2-1)
+        ret <- ret + sum(lgamma(X@x[ix_seq] + alpha[i]))
+        ret <- ret - sum(lgamma(X@x[ix_seq] + 1))
+        ret <- ret - nrow(X)*lgamma(alpha[i])
+    }
+
+    return(as.numeric(ret))
+}
+
+
 #' Compute density of multinomial mixture for a matrix
 #'
 #' Given an n x p matrix of count data \code{x}, as well as a 
@@ -255,13 +284,20 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     if (length(x@ic@merged) == 0) stop("Initialize clusters before running EM.")
 
     counts <- Matrix::t(x@counts[genes.use,droplets.use])
-    initial_clusters <- x@ic@merged[droplets.use]
 
+    # Initialize means of clusters
+    bc <- c(x@cluster_set, x@bg_set)
+    initial_clusters <- rep("1", length(bc)); names(initial_clusters) <- bc
+    initial_clusters[x@cluster_set] <- as.character(x@ic@merged[x@cluster_set])
+    initial_clusters <- as.factor(initial_clusters)
+    mn_params <- init_param(counts[names(initial_clusters),], initial_clusters, psc=psc)
+
+    # Fix labels
     labels <- rep(0, length(droplets.use))
     names(labels) <- droplets.use
     labels[x@bg_set] <- 1
-
-    bg_clusts <- names(x@ic@assignments)[x@ic@assignments == "Debris"]
+    # bg_clusts <- names(x@ic@assignments)[x@ic@assignments == "Debris"]
+    bg_clusts <- "1"
     for (i in bg_clusts){
         d <- names(initial_clusters[initial_clusters == i])
         d <- d[d %in% x@bg_set]
@@ -269,7 +305,6 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     }
 
     k <- nlevels(initial_clusters)
-    mn_params <- init_param(counts, initial_clusters, psc=psc)
 
     if (verbose){
         cat(paste0("Running EM\n"))

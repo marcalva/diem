@@ -50,7 +50,7 @@ normalize_data <- function(x,
                            scale_factor=1, 
                            logt=TRUE){
     if (is.null(genes.use)) genes.use <- rownames(x@gene_data)[x@gene_data[,"exprsd"]]
-    if (is.null(droplets.use)) droplets.use <- x@test_set
+    if (is.null(droplets.use)) droplets.use <- x@cluster_set
 
     if (length(genes.use) == 0) stop("0 genes specified in genes.use.")
     if (length(droplets.use) == 0) stop("0 droplets specified in droplets.use")
@@ -72,6 +72,8 @@ normalize_data <- function(x,
 get_pcs <- function(x, n_pcs=30){
     if (length(x@norm) == 0) stop("Normalize counts before getting PCs.")
     nc <- Matrix::t(x@norm)
+    keep <- Matrix::colSums(nc) > 0
+    nc <- nc[,keep]
     x@pcs <- irlba::prcomp_irlba(nc, n=n_pcs, scale.=TRUE)$x
     rownames(x@pcs) <- rownames(nc)
     return(x)
@@ -98,7 +100,7 @@ get_pcs <- function(x, n_pcs=30){
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
-set_test_set <- function(x, top_n=1e4, min_counts=150){
+set_test_set <- function(x, top_n=1e4, cluster=0.2, expected=3000, min_counts=150){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -119,6 +121,12 @@ set_test_set <- function(x, top_n=1e4, min_counts=150){
     x@test_set <- ts
     x@bg_set <- setdiff(colnames(x@counts), ts)
     x@min_counts <- min_counts
+
+    dg <- Matrix::colSums(x@counts > 0)
+    o <- order(dg, decreasing=TRUE)
+    dgo <- dg[o]
+    x@cluster_set <- names(dgo)[1:(cluster*expected)]
+    x@cluster_set <- x@test_set
 
     return(x)
 }

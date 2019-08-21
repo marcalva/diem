@@ -4,7 +4,7 @@
 \alias{initialize_clusters}
 \title{Initialize clusters for unlabeled data}
 \usage{
-initialize_clusters(x, method = "louvain", fc_thresh = 0.95)
+initialize_clusters(x, method = "louvain", cor_thresh = 0.95)
 }
 \value{
 Numeric vector of memberships

@@ -80,29 +80,6 @@ de_cor_plot <- function(x, scale_factor=1e4, ret=FALSE){
 	else print(p)
 }
 
-#' Plot posterior probability against pi_low - pi_high
-#'
-#' @param x SCE. SCE object
-#' @param ret Boolean. Return a ggplot object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @export
-pp_plot <- function(x, ret=FALSE){
-
-	Z <- x@diem@mmm_pp
-	pidf <- as.data.frame(x@diem@pi)
-	llfs <- sort(Z[,1])
-	df <- data.frame(Rank=1:length(llfs), llf=llfs)
-	p <- ggplot(df, aes(x=Rank, y=llf)) + 
-	geom_point() + 
-	xlab("Rank") + 
-	ylab("Posterior Probability") + 
-	theme_bw()
-	if (ret) return(p)
-	else print(p)
-}
-
 #' Heatmap of pi-gene expression correlations
 #'
 #' @param x SCE. SCE object
@@ -152,65 +129,6 @@ heatmap_pi_genes <- function(x, top_n=15, ret=FALSE){
 	else print(p)
 }
 
-#' Scatterplot of pi
-#'
-#' @param x SCE. SCE object
-#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
-#' @param ret Boolean. Return a ggplot object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @export
-plot_pi_call <- function(x, alpha=0.1, ret=FALSE){
-	if (length(x@diem@pi) == 0){
-		x <- get_pi(x)
-	}
-
-	df <- as.data.frame(x@diem@pi)
-	df[,"Call"] <- x@diem@calls[rownames(df)]
-	di <- x@dropl_info[rownames(df),]
-	di <- di[, !(colnames(di) %in% colnames(df))]
-	df <- cbind(df, di)
-
-	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(color="Call")) + 
-	xlab(expression(paste(pi[low],''))) +
-	ylab(expression(paste(pi[high],''))) + 
-	theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
-	scale_color_discrete(name="Call") + 
-	guides(color = guide_legend(override.aes = list(alpha = 1)))
-	if (ret) return(p)
-	else print(p)
-}
-
-#' Scatterplot of pi colored by posterior probability
-#'
-#' @param x SCE. SCE object
-#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
-#' @param ret Boolean. Return a ggplot object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @export
-plot_pi_pp <- function(x, alpha=0.1, ret=FALSE){
-	if (length(x@diem@pi) == 0){
-		x <- get_pi(x)
-	}
-
-	df <- as.data.frame(x@diem@pi)
-	df[,"Call"] <- x@diem@calls[rownames(df)]
-	di <- x@dropl_info[rownames(df),]
-	di <- di[, !(colnames(di) %in% colnames(df))]
-	df <- cbind(df, di)
-
-	p <- ggplot(df, aes(x=pi_l, y=pi_h)) + geom_point(alpha=alpha, aes(colour=mmm_pp)) + 
-	xlab(expression(paste(pi[low],''))) +
-	ylab(expression(paste(pi[high],''))) + 
-	theme_minimal() + theme(text=element_text(size=22), axis.text=element_blank()) + 
-	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
-	if (ret) return(p)
-	else print(p)
-}
-
 #' Scatterplot of genes vs. UMI counts, colored by posterior probability
 #'
 #' @param x SCE. SCE object
@@ -222,9 +140,9 @@ plot_pi_pp <- function(x, alpha=0.1, ret=FALSE){
 #' @export
 plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
 
-	df <- x@dropl_info[x@test_set,]
+	df <- x@droplet_data[x@test_set,]
 
-	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=clean_pp)) + 
+	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=CleanProb)) + 
 	xlab("UMI Counts") +
 	ylab("Genes Detected") + 
 	scale_x_log10() + scale_y_log10() + 
@@ -234,127 +152,3 @@ plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
 	else print(p)
 }
 
-#' Scatterplot of pi colored by posterior probability
-#'
-#' @param x SCE. SCE object
-#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
-#' @param ret Boolean. Return a ggplot object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @export
-plot_scatter_pp <- function(sce, x, y, alpha=0.1, ret=FALSE){
-	if (length(x@diem@pi) == 0){
-		x <- get_pi(x)
-	}
-
-	df <- as.data.frame(x@diem@pi)
-	df[,"Call"] <- x@diem@calls[rownames(df)]
-	di <- sce@dropl_info[rownames(df),]
-	di <- di[, !(colnames(di) %in% colnames(df))]
-	df <- cbind(df, di)
-
-	p <- ggplot(df, aes_string(x=x, y=y)) + geom_point(alpha=alpha, aes(colour=mmm_pp)) + 
-	theme_minimal() + theme(text=element_text(size=22)) + 
-	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
-	if (ret) return(p)
-	else print(p)
-}
-
-#' Scatterplot of pi with density plots on the margin
-#'
-#' @param x SCE. SCE object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @importFrom grid grid.draw
-#' @importFrom gridExtra grid.arrange
-#' @export
-plot_pi_marginal <- function(x, alpha=0.05, pdfname="pi_marginal.pdf", w=7, h=7){
-	if (length(x@diem@pi) == 0){
-		x <- get_pi(x)
-	}
-
-	df <- as.data.frame(x@diem@pi)
-
-	common_theme <- theme_minimal() + 
-	theme(axis.text=element_blank(), text=element_text(size=22))
-
-	p1 <- ggplot(df, aes(x=pi_l)) + 
-	geom_density() + 
-	xlab(expression(paste(pi[low],''))) + 
-	common_theme + theme(axis.title.x=element_blank(), 
-		panel.grid.major = element_blank(), 
-		panel.grid.minor = element_blank())
-
-	blank <- ggplot()+geom_point(aes(1,1), colour="white")+
-         theme(axis.ticks=element_blank(), 
-               panel.background=element_blank(), 
-               axis.text.x=element_blank(), axis.text.y=element_blank(),           
-               axis.title.x=element_blank(), axis.title.y=element_blank())
-
-	p2 <- ggplot(df, aes_string(x="pi_l", y="pi_h")) + geom_point(alpha=alpha) + 
-	xlab(expression(paste(pi[low],''))) + 
-	ylab(expression(paste(pi[high],''))) + 
-	common_theme + theme(axis.title.y=element_blank(), 
-				panel.grid.major = element_blank(), 
-		panel.grid.minor = element_blank())
-
-	p3 <- ggplot(df, aes(x=pi_h)) + 
-	geom_density() + 
-	xlab(expression(paste(pi[low],''))) + 
-	coord_flip() + 
-	common_theme + theme(axis.title.y=element_blank(), 
-				panel.grid.major = element_blank(), 
-		panel.grid.minor = element_blank())
-
-	if (!is.null(pdfname)){
-		pdf(pdfname, width=w, height=h)
-		p <- gridExtra::grid.arrange(p1, blank, p2, p3, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
-		grid::grid.draw(p)
-		dev.off()
-	} else {
-		gtable <- gridExtra::arrangeGrob(p1, blank, p2, p3, ncol=2, nrow=2, widths=c(4, 1), heights=c(1, 4))
-		return(gtable)
-	}
-}
-
-#' Scatterplot of pi colored by tails
-#'
-#' @param x SCE. SCE object
-#' @param ret Boolean. Return a ggplot object
-#'
-#' @return Nothing, unless return=TRUE then a ggplot
-#' @import ggplot2
-#' @export
-plot_pi_tails <- function(x, pct=0.05, ret=FALSE){
-	if (length(x@diem@pi) == 0){
-		x <- get_pi(x)
-	}
-
-	df <- as.data.frame(x@diem@pi)
-	df[,"Call"] <- x@diem@calls[rownames(df)]
-	di <- x@dropl_info[rownames(df),]
-	di <- di[, !(colnames(di) %in% colnames(df))]
-	df <- cbind(df, di)
-
-	top_n <- floor(nrow(df)*pct)
-	top_drop <- rownames(df)[order(df$total_counts, decreasing=TRUE)[1:top_n]]
-	bot_drop <- rownames(df)[order(df$total_counts, decreasing=FALSE)[1:top_n]]
-	df$Rank <- rep("", nrow(df))
-	df[top_drop, "Rank"] <- paste0("Top ", as.character(100*pct), "%")
-	df[bot_drop, "Rank"] <- paste0("Bottom ", as.character(100*pct), "%")
-	df <- df[order(df$Rank),]
-	df <- df[df$Rank != "",]
-
-	p <- ggplot(df, aes_string(x="pi_l", y="pi_h")) + 
-	geom_point(alpha=0.5, aes(color=Rank)) + 
-	theme_minimal() + 
-	scale_color_discrete(name="Rank by\ncounts") + 
-	xlab(expression(paste(pi[low],''))) + 
-	ylab(expression(paste(pi[high],''))) + 
-	theme(text=element_text(size=22), axis.text=element_blank())
-
-	if (ret) return(p)
-	else print(p)
-}
