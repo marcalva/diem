@@ -112,14 +112,16 @@ initialize_clusters <- function(x,
     if (any(alpha_prior == 0)) stop("0 value estimate in alpha_prior.")
     
     # Get posterior alphas for groups by updating Dirichlet with counts
+    alpha_debris <- Matrix::colSums(counts[all_clusters == "1",]) + alpha_prior
+    alpha_test <- Matrix::colSums(counts[all_clusters != "1",]) + alpha_prior
     alpha_post <- sapply(levels(all_clusters), function(i){
                          return(Matrix::colSums(counts[all_clusters == i,]) + alpha_prior)
                                 })
 
     # Get Bayes factors
     groups <- names(asgn)[which(asgn == "Clean")]
-    llk_debris <- sapply(groups, function(i) ddm_sparse(counts[all_clusters == i,], alpha_post[,"1"]))
-    llk_clean <- sapply(groups, function(i) ddm_sparse(counts[all_clusters == i,], alpha_post[,i]))
+    llk_debris <- sapply(groups, function(i) ddm_sparse(counts[all_clusters == i,], alpha_debris))
+    llk_clean <- sapply(groups, function(i) ddm_sparse(counts[all_clusters == i,], alpha_test))
     lbf <- llk_clean - llk_debris
 
     new_labels <- levels(all_clusters); names(new_labels) <- new_labels
