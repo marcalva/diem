@@ -108,7 +108,7 @@ initialize_clusters <- function(x,
     o <- optimize(dmm_opt, gammas, X=counts, p=p, tol=tol_opt, maximum=TRUE)
     if (is.na(o$objective)) stop("alpha estimation failed.")
     alpha_prior <- p*o$maximum
-    alpha_prior <- p*10e6
+    # alpha_prior <- p*10e6
     if (any(alpha_prior == 0)) stop("0 value estimate in alpha_prior.")
     
     # Get posterior alphas for groups by updating Dirichlet with counts
@@ -123,7 +123,7 @@ initialize_clusters <- function(x,
     lbf <- llk_clean - llk_debris
 
     new_labels <- levels(all_clusters); names(new_labels) <- new_labels
-    new_labels[names(lbf[lbf < -bf_thresh])] <- "1"
+    new_labels[names(lbf)[lbf < bf_thresh]] <- "1"
     all_clusters <- factor(all_clusters, levels=levels(all_clusters), labels=new_labels)
     all_clusters <- factor(all_clusters, levels=levels(all_clusters), labels=as.character(1:nlevels(all_clusters)))
 
@@ -142,60 +142,5 @@ initialize_clusters <- function(x,
     print(llk_clean)
     print(lbf)
     return(x)
-
-    logfc <- get_logfc(x)
-    # logfc <- logfc[logfc[,3] > 0,]
-
-    # Get TMM of test clusters
-    print(tapply(x@droplet_data[names(graph_clust),"n_genes"], graph_clust, median))
-    cg <- tapply(x@droplet_data[names(graph_clust),"n_genes"], graph_clust, median)
-    cm <- tapply(x@droplet_data[names(graph_clust),"total_counts"], graph_clust, mean)
-    min_clust <- names(cm)[which.min(cm)]
-    clust_counts <- sapply(levels(graph_clust), function(g) {
-                           dn <- names(graph_clust)[graph_clust == g]
-                           Matrix::rowSums(x@counts[genes.use, dn])
-                 })
-    clust_tmm <- tmm_counts(clust_counts)
-    clust_p <- apply(clust_tmm, 2, function(i) i/sum(i))
-
-    # Get TMM of ref
-    Debris <- Matrix::rowSums(x@counts[genes.use, x@bg_set])
-    Test <- Matrix::rowSums(x@counts[genes.use, x@test_set])
-    ref_counts <- cbind(Debris, Test)
-    ref_tmm <- tmm_counts(ref_counts)
-    ref_p <- apply(ref_tmm, 2, function(i) i/sum(i))
-
-    # DB score
-    debris_sc <- logfc[,1] %*% logfc[,3]
-    clean_sc <- logfc[,2] %*% logfc[,3]
-
-    ref_sc <- t(ref_p[rownames(logfc),]) %*% logfc[,3]
-    clust_sc <- t(clust_p[rownames(logfc),]) %*% logfc[,3]
-
-    # Correlate log1p of TMM
-    cor_val <- cor(log1p(clust_tmm[,min_clust]), log1p(ref_tmm[,"Debris"]))
-    print(cor_val)
-
-    # Assign new clusters
-    map <- levels(all_clusters); names(map) <- levels(all_clusters)
-    # if (cor_val >= cor_thresh) map[min_clust] <- "1"
-    # merged_clusters <- factor(all_clusters, levels=levels(all_clusters), labels=map)
-    # merged_clusters <- factor(merged_clusters, levels=levels(merged_clusters), labels=as.character(1:nlevels(merged_clusters)))
-    # Confirm re-labeling works
-    # print(table(all_clusters, merged_clusters))
-
-    merged_clusters <- all_clusters
-    asgn <- rep("Clean", nlevels(merged_clusters))
-    names(asgn) <- levels(merged_clusters)
-    asgn[1] <- "Debris"
-    asgn <- as.factor(asgn)
-
-    # Store in IC class
-    x@ic <- IC(graph=all_clusters, 
-               map=map, 
-               scores=cor_val, 
-               merged=merged_clusters, 
-               assignments=asgn)
-
-    return(x)
 }
+
