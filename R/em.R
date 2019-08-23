@@ -164,7 +164,7 @@ em <- function(counts, k, mn_params, max_iter=1e3, eps=1e-8, psc=1e-4, labels=NU
     iter <- 1
 
     Llks <- dmmn(x=counts, p=mn_params$Mu, mc=mn_params$Mc, labels=labels)
-    while (iter < max_iter){
+    while (iter <= max_iter){
         # E Step
         r <- e_step_mn(x=counts, p=mn_params$Mu, mc=mn_params$Mc, Llks=Llks, labels=labels)
         # M Step
@@ -228,16 +228,13 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     droplets.use <- c(x@test_set, x@bg_set)
 
     if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
-    if (length(x@ic@merged) == 0) stop("Initialize clusters before running EM.")
+    if (length(x@ic@graph) == 0) stop("Initialize clusters before running EM.")
 
     counts <- Matrix::t(x@counts[genes.use,droplets.use])
 
     # Initialize means of clusters
-    bc <- c(x@cluster_set, x@bg_set)
-    initial_clusters <- rep("1", length(bc)); names(initial_clusters) <- bc
-    initial_clusters[x@cluster_set] <- as.character(x@ic@merged[x@cluster_set])
-    initial_clusters <- as.factor(initial_clusters)
-    mn_params <- init_param(counts[names(initial_clusters),], initial_clusters, psc=psc)
+    ic <- x@ic@graph
+    mn_params <- init_param(counts[names(ic),], ic, psc=psc)
 
     # Fix labels
     labels <- rep(0, length(droplets.use))
@@ -245,13 +242,8 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     labels[x@bg_set] <- 1
     # bg_clusts <- names(x@ic@assignments)[x@ic@assignments == "Debris"]
     bg_clusts <- "1"
-    for (i in bg_clusts){
-        d <- names(initial_clusters[initial_clusters == i])
-        d <- d[d %in% x@bg_set]
-        labels[d] <- as.integer(i)
-    }
 
-    k <- nlevels(initial_clusters)
+    k <- nlevels(ic)
 
     if (verbose){
         cat(paste0("Running EM\n"))

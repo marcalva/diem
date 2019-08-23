@@ -4,7 +4,7 @@
 \alias{initialize_clusters}
 \title{Initialize clusters for unlabeled data}
 \usage{
-initialize_clusters(x, method = "louvain", bf_thresh = 10,
+initialize_clusters(x, nn = 30, method = "louvain", bf_thresh = 10,
   gammas = c(10, 1e+07), tol_opt = 100)
 }
 \value{

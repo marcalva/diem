@@ -152,3 +152,26 @@ plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
 	else print(p)
 }
 
+#' Scatterplot of genes vs. UMI counts, colored by call
+#'
+#' @param x SCE. SCE object
+#' @param alpha SCE. Transparency of points. 0 (transparent) to 1 (no transparency)
+#' @param ret Boolean. Return a ggplot object
+#'
+#' @return Nothing, unless return=TRUE then a ggplot
+#' @import ggplot2
+#' @export
+plot_umi_gene_call <- function(x, alpha=0.1, ret=FALSE){
+
+	df <- x@droplet_data[x@test_set,]
+
+	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=Call)) + 
+	xlab("UMI Counts") +
+	ylab("Genes Detected") + 
+	scale_x_log10() + scale_y_log10() + 
+	theme_minimal() + theme(text=element_text(size=22)) + 
+	scale_colour_discrete(name="Posterior\nProbability") 
+	if (ret) return(p)
+	else print(p)
+}
+

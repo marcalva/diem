@@ -70,10 +70,12 @@ get_logfc <- function(x){
 #' @importFrom FNN get.knn
 #' @export
 initialize_clusters <- function(x, 
+                                nn=30, 
                                 method="louvain", 
                                 bf_thresh=10, 
                                 gammas=c(10,10e6), 
                                 tol_opt=100){
+    x <- get_knn(x, nn=nn)
 
     if (length(x@knn) == 0) stop("Run knn before initializing clusters.")
     if (!"exprsd" %in% colnames(x@gene_data)) stop("Filter genes before initializing clusters.")
@@ -90,9 +92,9 @@ initialize_clusters <- function(x,
     graph_clust <- factor(graph_clust)
 
     # Specify cluster 1 as Debris
-    all_clusters <- rep("1", ncol(x@counts))
-    names(all_clusters) <- colnames(x@counts)
-    all_clusters[names(graph_clust)] <- as.character(graph_clust)
+    all_clusters <- rep("1", length(x@bg_set))
+    names(all_clusters) <- x@bg_set
+    all_clusters <- c(graph_clust, all_clusters)
     all_clusters <- as.factor(all_clusters)
 
     asgn <- rep("Clean", nlevels(all_clusters))
@@ -100,49 +102,11 @@ initialize_clusters <- function(x,
     asgn[1] <- "Debris"
     asgn <- as.factor(asgn)
 
-    # Merge using Bayes factors
-    # Get prior from entire data set
-    counts <- Matrix::t(x@counts[genes.use,]) # sample by gene matrix
-    p <- Matrix::colSums(counts); p <- p/sum(p)
-    dmm_opt <- function(gmma, X, p) ddm_sparse(X, p*gmma)
-    o <- optimize(dmm_opt, gammas, X=counts, p=p, tol=tol_opt, maximum=TRUE)
-    if (is.na(o$objective)) stop("alpha estimation failed.")
-    alpha_prior <- p*o$maximum
-    # alpha_prior <- p*10e6
-    if (any(alpha_prior == 0)) stop("0 value estimate in alpha_prior.")
-    
-    # Get posterior alphas for groups by updating Dirichlet with counts
-    alpha_debris <- Matrix::colSums(counts[all_clusters == "1",]) + alpha_prior
-    alpha_test <- Matrix::colSums(counts[all_clusters != "1",]) + alpha_prior
-    alpha_post <- sapply(levels(all_clusters), function(i){
-                         return(Matrix::colSums(counts[all_clusters == i,]) + alpha_prior)
-                                })
+    genes_median <- sapply(levels(all_clusters), function(i) median(x@droplet_data[names(all_clusters)[all_clusters == i],"n_genes"]))
+    print(genes_median)
 
-    # Get Bayes factors
-    groups <- names(asgn)[which(asgn == "Clean")]
-    llk_debris <- sapply(groups, function(i) ddm_sparse(counts[all_clusters == i,], alpha_debris))
-    llk_clean <- sapply(groups, function(i) ddm_sparse(counts[all_clusters == i,], alpha_test))
-    lbf <- llk_clean - llk_debris
-
-    new_labels <- levels(all_clusters); names(new_labels) <- new_labels
-    new_labels[names(lbf)[lbf < bf_thresh]] <- "1"
-    all_clusters <- factor(all_clusters, levels=levels(all_clusters), labels=new_labels)
-    all_clusters <- factor(all_clusters, levels=levels(all_clusters), labels=as.character(1:nlevels(all_clusters)))
-
-    asgn <- rep("Clean", nlevels(all_clusters))
-    names(asgn) <- levels(all_clusters)
-    asgn[1] <- "Debris"
-    asgn <- as.factor(asgn)
-
-    # Store in IC class
     x@ic <- IC(graph=all_clusters, 
-               merged=all_clusters, 
                assignments=asgn)
-
-    print(o$maximum)
-    print(llk_debris)
-    print(llk_clean)
-    print(lbf)
     return(x)
 }
 

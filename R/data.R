@@ -5,6 +5,7 @@
 #'
 #' @return The Sparse Matrix x with columns summing to 1.
 #' @importFrom Matrix Diagonal colSums
+#' @export
 divide_by_colsum <- function(x){
     cs <- Matrix::colSums(x = x)
     d <- Matrix::Diagonal(x = 1/cs)
@@ -21,6 +22,7 @@ divide_by_colsum <- function(x){
 #'  Default is TRUE
 #'
 #' @return Sparse Matrix
+#' @export
 norm_counts <- function(counts, scale_factor=1, logt=TRUE){
     counts <- divide_by_colsum(counts)
     counts <- counts * scale_factor
@@ -103,7 +105,9 @@ get_pcs <- function(x, n_pcs=30){
 set_test_set <- function(x, 
                          top_n=1e4, 
                          min_counts=150, 
-                         min_genes=150){
+                         min_genes=150, 
+                         cluster_quantile=1, 
+                         cluster_divide=5){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -130,7 +134,14 @@ set_test_set <- function(x,
     x@test_set <- ts
     x@bg_set <- setdiff(colnames(x@counts), ts)
     x@min_counts <- min_counts
-    x@cluster_set <- x@test_set
+    
+    # Get cluster set
+    dg <- dg[x@test_set]
+    o <- order(dg)
+    dgo <- dg[o]
+    quant <- dgo[floor(length(dgo)*cluster_quantile)]
+    min_count <- quant/cluster_divide
+    x@cluster_set <- names(dg[dg >= min_count])
 
     return(x)
 }
