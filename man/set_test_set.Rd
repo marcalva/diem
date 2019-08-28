@@ -5,7 +5,7 @@
 \title{Set droplets for EM testing}
 \usage{
 set_test_set(x, top_n = 10000, min_counts = 150, min_genes = 150,
-  cluster_n = NULL, cluster_quantile = 0.995, cluster_divide = 2)
+  cluster_n = NULL, cluster_quantile = 0.995, cluster_divide = 3)
 }
 \arguments{
 \item{x}{An SCE object.}

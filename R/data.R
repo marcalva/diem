@@ -108,7 +108,7 @@ set_test_set <- function(x,
                          min_genes=150, 
                          cluster_n=NULL, 
                          cluster_quantile=0.995, 
-                         cluster_divide=2){
+                         cluster_divide=3){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
