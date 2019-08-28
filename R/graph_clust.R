@@ -20,6 +20,38 @@ get_knn <- function(x, nn=30){
     return(x)
 }
 
+get_snn <- function(x, nn=50, kt=5, weighted=TRUE){
+    if (length(x@pcs) == 0) stop("Get PCs before running NN.")
+    if (verbose) cat(paste0("Finding shared nearest neighbors.\n"))
+    
+    droplets.use <- rownames(x@pcs)
+    knn.dbscan <- dbscan::sNN(x@pcs[droplets.use,], k=nn, kt=kt)
+    rownames(knn.dbscan$shared) <- droplets.use
+
+    fnames <- as.vector(sapply(droplets.use, rep, nn))
+    ti <- as.vector(t(knn.dbscan$id))
+    tnames <- sapply(ti, function(i) droplets.use[i])
+
+    if (weighted){
+        knn.w <- as.vector(t(knn.dbscan$shared))
+        knn.dat <- data.frame(from=fnames, to=tnames, weight=knn.w)
+    } else {
+        knn.dat <- data.frame(from=fnames, to=tnames)
+    }
+    knn.dat <- knn.dat[!is.na(knn.dat[,"to"]),]
+
+    g <- igraph::graph_from_data_frame(knn.dat, directed=FALSE)
+    g <- igraph::simplify(g)
+
+    x@nn <- knn.dat
+    x@nn_graph <- g
+    if (verbose) cat("Done.\n")
+    return(x)
+}
+
+    
+
+
 #' Get louvain clusters
 #'
 #' @return Numeric vector of memberships
@@ -70,19 +102,20 @@ get_logfc <- function(x){
 #' @importFrom FNN get.knn
 #' @export
 initialize_clusters <- function(x, 
-                                nn=30, 
-                                method="louvain", 
                                 bf_thresh=10, 
                                 gammas=c(10,10e6), 
                                 tol_opt=100){
-    x <- get_knn(x, nn=nn)
+    x <- get_snn(x, nn=nn)
 
-    if (length(x@knn) == 0) stop("Run knn before initializing clusters.")
+    if (length(x@nn) == 0) stop("Run nn before initializing clusters.")
     if (!"exprsd" %in% colnames(x@gene_data)) stop("Filter genes before initializing clusters.")
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
 
-    graph_clust <- find_communities(x@knn, method=method)
+
+    gcl <- igraph::cluster_louvain(x@nn_graph)
+
+    graph_clust <- find_communities(x@nn, method=method)
     graph_clust <- as.integer(graph_clust)
     graph_clust <- graph_clust - min(graph_clust)
     graph_clust <- graph_clust + 1 # Ensure starts at 1
