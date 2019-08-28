@@ -6,7 +6,7 @@
 \usage{
 diem(sce, top_n = 10000, min_counts = 150, cpm_thresh = 10,
   scale_factor = 1, logt = TRUE, n_var_genes = 2000,
-  pseudocount = 1e-04, eps = 1e-08, max_iter = 100, nn = 30,
+  pseudocount = 1e-04, eps = 1e-08, max_iter = 100, nn = 50,
   use_var_genes = FALSE, pp_thresh = 0.95, gene_thresh = 200,
   verbose = TRUE)
 }

@@ -20,7 +20,8 @@ get_knn <- function(x, nn=30){
     return(x)
 }
 
-get_snn <- function(x, nn=50, kt=5, weighted=TRUE){
+#' @export
+get_snn <- function(x, nn=30, kt=3, weighted=TRUE, verbose=FALSE){
     if (length(x@pcs) == 0) stop("Get PCs before running NN.")
     if (verbose) cat(paste0("Finding shared nearest neighbors.\n"))
     
@@ -103,10 +104,9 @@ get_logfc <- function(x){
 #' @export
 initialize_clusters <- function(x, 
                                 bf_thresh=10, 
+                                min_size=30, 
                                 gammas=c(10,10e6), 
                                 tol_opt=100){
-    x <- get_snn(x, nn=nn)
-
     if (length(x@nn) == 0) stop("Run nn before initializing clusters.")
     if (!"exprsd" %in% colnames(x@gene_data)) stop("Filter genes before initializing clusters.")
 
@@ -114,15 +114,18 @@ initialize_clusters <- function(x,
 
 
     gcl <- igraph::cluster_louvain(x@nn_graph)
-
-    graph_clust <- find_communities(x@nn, method=method)
-    graph_clust <- as.integer(graph_clust)
-    graph_clust <- graph_clust - min(graph_clust)
-    graph_clust <- graph_clust + 1 # Ensure starts at 1
-    names(graph_clust) <- rownames(x@pcs)
+    graph_clust <- gcl$membership
+    names(graph_clust) <- gcl$names
     if (any(is.na(graph_clust))) stop("Returned cluster values have NA.")
     graph_clust <- graph_clust+1
     graph_clust <- factor(graph_clust)
+    tb <- table(graph_clust)
+    print(tb)
+    keep <- names(tb)[tb >= min_size]
+    print(keep)
+    graph_clust <- graph_clust[graph_clust %in% keep]
+    graph_clust <- as.factor(graph_clust)
+    print(head(graph_clust))
 
     # Specify cluster 1 as Debris
     all_clusters <- rep("1", length(x@bg_set))
@@ -134,6 +137,7 @@ initialize_clusters <- function(x,
     names(asgn) <- levels(all_clusters)
     asgn[1] <- "Debris"
     asgn <- as.factor(asgn)
+    print(table(all_clusters))
 
     genes_median <- sapply(levels(all_clusters), function(i) median(x@droplet_data[names(all_clusters)[all_clusters == i],"n_genes"]))
     print(genes_median)

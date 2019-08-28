@@ -32,9 +32,9 @@ score_debris <- function(x, soft=TRUE){
     droplets.use <- rownames(x@pcs)
     calls <- 1 - x@droplet_data[droplets.use, "CleanProb"]
     scores <- rep(0, length(droplets.use))
-    for (i in 1:nrow(x@knn)){
-        from <- x@knn[i,"from"]
-        scores[from] <- scores[from] + (calls[from] * x@knn[i,"weight"])
+    for (i in 1:nrow(x@nn)){
+        from <- x@kn[i,"from"]
+        scores[from] <- scores[from] + (calls[from] * x@nn[i,"weight"])
     }
     x@droplet_data[droplets.use,"DebrisScore"] <- scores
     return(x)

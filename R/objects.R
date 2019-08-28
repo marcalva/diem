@@ -12,6 +12,8 @@ IC <- setClass(Class = "IC",
                          merged = "factor", 
                          assignments = "factor"))
 
+setOldClass("igraph", igraph::make_empty_graph())
+
 #' SCE
 #'
 #' Single Cell Expression object

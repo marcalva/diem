@@ -106,8 +106,9 @@ set_test_set <- function(x,
                          top_n=1e4, 
                          min_counts=150, 
                          min_genes=150, 
-                         cluster_quantile=1, 
-                         cluster_divide=5){
+                         cluster_n=NULL, 
+                         cluster_quantile=0.995, 
+                         cluster_divide=2){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -135,13 +136,15 @@ set_test_set <- function(x,
     x@bg_set <- setdiff(colnames(x@counts), ts)
     x@min_counts <- min_counts
     
-    # Get cluster set
-    dg <- dg[x@test_set]
-    o <- order(dg)
-    dgo <- dg[o]
-    quant <- dgo[floor(length(dgo)*cluster_quantile)]
-    min_count <- quant/cluster_divide
-    x@cluster_set <- names(dg[dg >= min_count])
+    if (is.null(cluster_n)){
+        # Get cluster set
+        dg <- dg[x@test_set]
+        o <- order(dg)
+        dgo <- dg[o]
+        quant <- dgo[floor(length(dgo)*cluster_quantile)]
+        min_count <- quant/cluster_divide
+        x@cluster_set <- names(dg[dg >= min_count])
+    }
 
     return(x)
 }

@@ -38,7 +38,7 @@ diem <- function(sce,
                  pseudocount=1e-4, 
                  eps=1e-8, 
                  max_iter=100, 
-                 nn=30, 
+                 nn=50, 
                  use_var_genes=FALSE, 
                  pp_thresh=0.95, 
                  gene_thresh=200, 
@@ -56,11 +56,10 @@ diem <- function(sce,
     sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
     sce <- normalize_data(sce, scale_factor=scale_factor, logt=logt)
     sce <- get_pcs(sce)
-    sce <- get_knn(sce, nn=nn)
+    sce <- get_snn(sce, nn=nn, weighted=FALSE)
     sce <- initialize_clusters(sce)
     sce <- run_em(x=sce, eps=eps, max_iter=max_iter, verbose=verbose)
     sce <- call_targets(sce, pp_thresh=sce@pp_thresh, min_genes=gene_thresh)
-    sce <- score_debris(sce)
 
     if (!sce@emo$converged){
         cat(paste0("Warning: DIEM did not converge within ", as.character(max_iter), " iterations.\n"))
