@@ -75,6 +75,7 @@ get_pcs <- function(x, n_pcs=30){
     if (length(x@norm) == 0) stop("Normalize counts before getting PCs.")
     nc <- Matrix::t(x@norm)
     keep <- Matrix::colSums(nc) > 0
+    x <- get_var_genes(x)
     nc <- nc[,keep]
     x@pcs <- irlba::prcomp_irlba(nc, n=n_pcs, scale.=TRUE)$x
     rownames(x@pcs) <- rownames(nc)
@@ -107,8 +108,8 @@ set_test_set <- function(x,
                          min_counts=150, 
                          min_genes=150, 
                          cluster_n=NULL, 
-                         cluster_quantile=0.995, 
-                         cluster_divide=3){
+                         cluster_frac=0.1, 
+                         order_by="gene"){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -138,13 +139,15 @@ set_test_set <- function(x,
     
     if (is.null(cluster_n)){
         # Get cluster set
-        dg <- dg[x@test_set]
-        o <- order(dg)
-        dgo <- dg[o]
-        quant <- dgo[floor(length(dgo)*cluster_quantile)]
-        min_count <- quant/cluster_divide
-        x@cluster_set <- names(dg[dg >= min_count])
+        if (cluster_frac < 0 || cluster_frac > 1) stop("cluster_frac must be between 0 and 1.")
+        cluster_n <- floor(cluster_frac*length(x@test_set))
     }
+    if (order_by == "gene") totals <- Matrix::colSums(x@counts > 0)
+    else totals <- Matrix::colSums(x@counts)
+    totals <- totals[x@test_set]
+    o <- order(totals, decreasing=TRUE)
+    totals <- totals[o]
+    x@cluster_set <- names(totals)[totals >= totals[cluster_n]]
 
     return(x)
 }

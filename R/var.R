@@ -37,10 +37,8 @@ get_var <- function(counts, cpm_thresh=10, ng=2000, lss=0.3, verbose=FALSE){
 get_var_genes <- function(x, cpm_thresh=10, ng=2000, lss=0.3, verbose=FALSE){
     if (verbose) cat("Getting variable genes\n")
     
-    counts <- x@counts[,x@test_set]
-    cpm <- Matrix::rowSums(counts)
-    cpm <- 1e6*cpm/sum(cpm)
-    exprd <- cpm > cpm_thresh
+    counts <- x@counts[,x@cluster_set]
+    exprd <- x@gene_data$exprsd & (Matrix::rowSums(counts) > 0)
     counts <- counts[exprd,]
     gene_means <- Matrix::rowMeans(counts)
     gene_names <- rownames(counts)

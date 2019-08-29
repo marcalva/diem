@@ -20,38 +20,46 @@ get_knn <- function(x, nn=30){
     return(x)
 }
 
+get_snn <- function(x, nn=30, kt=1){
+    if (length(x@pcs) == 0) stop("Get PCs before running NN.")
+    nn <- dbscan::sNN(x@pcs, k=nn, kt=kt)
+
+
+
 #' @export
-get_snn <- function(x, nn=30, kt=3, weighted=TRUE, verbose=FALSE){
+get_kclust <- function(x, K.max=20, B=500, verbose=FALSE){
     if (length(x@pcs) == 0) stop("Get PCs before running NN.")
     if (verbose) cat(paste0("Finding shared nearest neighbors.\n"))
-    
-    droplets.use <- rownames(x@pcs)
-    knn.dbscan <- dbscan::sNN(x@pcs[droplets.use,], k=nn, kt=kt)
-    rownames(knn.dbscan$shared) <- droplets.use
 
-    fnames <- as.vector(sapply(droplets.use, rep, nn))
-    ti <- as.vector(t(knn.dbscan$id))
-    tnames <- sapply(ti, function(i) droplets.use[i])
+    pcs <- x@pcs[x@cluster_set,,drop=FALSE]
+    gskmn <- cluster::clusGap(pcs, FUN=kmeans, nstart=20, B=B, K.max=K.max, iter.max=100)
+    best_k <- cluster::maxSE(gskmn$Tab[,"gap"], gskmn$Tab[,"SE.sim"])
 
-    if (weighted){
-        knn.w <- as.vector(t(knn.dbscan$shared))
-        knn.dat <- data.frame(from=fnames, to=tnames, weight=knn.w)
-    } else {
-        knn.dat <- data.frame(from=fnames, to=tnames)
-    }
-    knn.dat <- knn.dat[!is.na(knn.dat[,"to"]),]
+    kr <- kmeans(pcs, centers=best_k, iter.max=100, nstart=100)
 
-    g <- igraph::graph_from_data_frame(knn.dat, directed=FALSE)
-    g <- igraph::simplify(g)
+    # Specify cluster 1 as Debris
+    all_clusters <- rep(1, length(x@bg_set))
+    names(all_clusters) <- x@bg_set
+    test_clust <- kr$cluster + 1
+    all_clusters <- c(test_clust, all_clusters)
+    all_clusters <- as.factor(all_clusters)
 
-    x@nn <- knn.dat
-    x@nn_graph <- g
+    asgn <- rep("Clean", nlevels(all_clusters))
+    names(asgn) <- levels(all_clusters)
+    asgn[1] <- "Debris"
+    asgn <- as.factor(asgn)
+    print(table(all_clusters))
+
+    genes_median <- sapply(levels(all_clusters), function(i) median(x@droplet_data[names(all_clusters)[all_clusters == i],"n_genes"]))
+    print(genes_median)
+
+    x@clust_gap$Tab
+    x@ic <- IC(graph=all_clusters, 
+               assignments=asgn)
+
     if (verbose) cat("Done.\n")
     return(x)
 }
-
-    
-
 
 #' Get louvain clusters
 #'
@@ -70,32 +78,6 @@ find_communities <- function(knn_df, nrun=1, method="louvain"){
     return(igraph::membership(lc))
 }
 
-#' Normalize counts by simple trimmed mean of M
-#' @export
-tmm_counts <- function(counts, p=0.1){
-    tmms <- apply(counts, 2, function(i){
-                  return(mean(i[ i>=quantile(i,probs=c(p)) & i<=quantile(i,probs=c(1-p)) ]))
-                 })
-    counts <- sweep(counts, 2, tmms, "/")
-    return(counts)
-}
-
-#' Get log2 fold change with TMM normalization
-#' @export
-get_logfc <- function(x){
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    Test <- Matrix::rowSums(x@counts[genes.use, x@test_set])
-    Debris <- Matrix::rowSums(x@counts[genes.use, x@bg_set])
-    counts <- cbind(Debris, Test)
-    counts <- tmm_counts(counts)
-    counts <- apply(counts, 2, function(i) i/sum(i))
-
-    logfc <- log2(counts[,"Debris"]) - log2(counts[,"Test"])
-    logfc[is.na(logfc) | is.infinite(logfc)] <- 0
-    ret <- cbind(counts, logfc)
-    return(ret)
-}
-
 #' Initialize clusters for unlabeled data
 #'
 #' @return Numeric vector of memberships
@@ -111,7 +93,6 @@ initialize_clusters <- function(x,
     if (!"exprsd" %in% colnames(x@gene_data)) stop("Filter genes before initializing clusters.")
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-
 
     gcl <- igraph::cluster_louvain(x@nn_graph)
     graph_clust <- gcl$membership

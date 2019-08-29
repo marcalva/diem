@@ -56,8 +56,9 @@ diem <- function(sce,
     sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
     sce <- normalize_data(sce, scale_factor=scale_factor, logt=logt)
     sce <- get_pcs(sce)
-    sce <- get_snn(sce, nn=nn, weighted=FALSE)
-    sce <- initialize_clusters(sce)
+    # sce <- get_snn(sce, nn=nn, weighted=FALSE)
+    # sce <- initialize_clusters(sce)
+    sce <- get_kclust(sce)
     sce <- run_em(x=sce, eps=eps, max_iter=max_iter, verbose=verbose)
     sce <- call_targets(sce, pp_thresh=sce@pp_thresh, min_genes=gene_thresh)
 
