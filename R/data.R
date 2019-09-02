@@ -113,8 +113,8 @@ get_pcs <- function(x, n_pcs=10, use_var=TRUE){
 #' @export
 set_test_set <- function(x, 
                          top_n=1e4, 
-                         min_counts=150, 
-                         min_genes=150){
+                         min_counts=100, 
+                         min_genes=100){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -163,7 +163,7 @@ set_cluster_set <- function(x,
                             order_by="gene", 
                             verbose=FALSE){
     if (cluster_n < 0) stop("cluster_n must be greater than 0.")
-    if (order_by != "gene" & order_by != "count") stop("order_by must be one of 'gene' or 'count'.")
+    if (order_by != "gene" & order_by != "count") stop("Parameter order_by must be one of 'gene' or 'count'.")
     if (order_by == "gene") totals <- Matrix::colSums(x@counts > 0)
     else totals <- Matrix::colSums(x@counts)
 

@@ -4,7 +4,7 @@
 \alias{diem}
 \title{Run DIEM pipeline}
 \usage{
-diem(sce, top_n = 10000, min_counts = 150, min_genes = 150,
+diem(sce, top_n = 10000, min_counts = 100, min_genes = 100,
   cpm_thresh = 10, cluster_n = 500, order_by = "gene", logt = TRUE,
   nn = 30, min_size = 20, eps = 1e-08, max_iter = 100,
   pseudocount = 1e-04, pp_thresh = 0.95, gene_thresh = 200,

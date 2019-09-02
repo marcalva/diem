@@ -30,8 +30,8 @@
 #' mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
 diem <- function(sce,
                  top_n=1e4, 
-                 min_counts=150, 
-                 min_genes=150, 
+                 min_counts=100, 
+                 min_genes=100, 
                  cpm_thresh=10, 
                  cluster_n=500, 
                  order_by="gene", 
