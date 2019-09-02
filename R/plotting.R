@@ -138,16 +138,21 @@ heatmap_pi_genes <- function(x, top_n=15, ret=FALSE){
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
+plot_umi_gene <- function(x, 
+                          color="CleanProb", 
+                          color_name="Probability\nClean", 
+                          palette="PuBuGn", 
+                          alpha=0.1, 
+                          ret=FALSE){
 
 	df <- x@droplet_data[x@test_set,]
 
-	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=CleanProb)) + 
+	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes_string(colour=color)) + 
 	xlab("UMI Counts") +
 	ylab("Genes Detected") + 
 	scale_x_log10() + scale_y_log10() + 
 	theme_minimal() + theme(text=element_text(size=22)) + 
-	scale_color_distiller(name="Posterior\nProbability", palette="RdBu", direction=1) 
+	scale_color_distiller(name=color_name, palette=palette, direction=1) 
 	if (ret) return(p)
 	else print(p)
 }
@@ -161,16 +166,20 @@ plot_umi_gene_pp <- function(x, alpha=0.1, ret=FALSE){
 #' @return Nothing, unless return=TRUE then a ggplot
 #' @import ggplot2
 #' @export
-plot_umi_gene_call <- function(x, alpha=0.1, ret=FALSE){
+plot_umi_gene_call <- function(x, 
+                               color="Call", 
+                               color_name="Call", 
+                               alpha=0.1, 
+                               ret=FALSE){
 
 	df <- x@droplet_data[x@test_set,]
 
-	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes(colour=Call)) + 
+	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes_string(colour=color)) + 
 	xlab("UMI Counts") +
 	ylab("Genes Detected") + 
 	scale_x_log10() + scale_y_log10() + 
 	theme_minimal() + theme(text=element_text(size=22)) + 
-	scale_colour_discrete(name="Posterior\nProbability") 
+	scale_colour_discrete(name=color_name) 
 	if (ret) return(p)
 	else print(p)
 }

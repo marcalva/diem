@@ -2,13 +2,13 @@
 % Please edit documentation in R/init_clust.R
 \name{get_knn}
 \alias{get_knn}
-\title{Get nearest neighbor graph}
+\title{Get k-nearest neighbor graph}
 \usage{
-get_knn(x, nn = 30)
+get_knn(x, nn = 30, weighted = TRUE, verbose = FALSE)
 }
 \value{
 An SCE object
 }
 \description{
-Get nearest neighbor graph
+Get k-nearest neighbor graph
 }

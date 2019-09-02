@@ -31,15 +31,16 @@
 diem <- function(sce,
                  top_n=1e4, 
                  min_counts=150, 
+                 min_genes=150, 
                  cpm_thresh=10, 
-                 scale_factor=1, 
+                 cluster_n=500, 
+                 order_by="gene", 
                  logt=TRUE, 
-                 n_var_genes=2000, 
-                 pseudocount=1e-4, 
+                 nn=30, 
+                 min_size=20, 
                  eps=1e-8, 
                  max_iter=100, 
-                 nn=50, 
-                 use_var_genes=FALSE, 
+                 pseudocount=1e-4, 
                  pp_thresh=0.95, 
                  gene_thresh=200, 
                  verbose=TRUE){
@@ -51,23 +52,24 @@ diem <- function(sce,
     # Add MT%
     mt_genes <- grep(pattern="^mt-", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
     sce <- get_gene_pct(x=sce, genes=mt_genes, name="pct.mt")
+    # Add MALAT1
+    genes <- grep(pattern="^malat1$", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
+    sce <- get_gene_pct(x=sce, genes=genes, name="MALAT1")
 
-    sce <- set_test_set(sce, top_n=top_n, min_counts=min_counts)
+    sce <- set_test_set(sce, top_n=top_n, min_counts=min_counts, min_genes=min_genes)
     sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
-    sce <- normalize_data(sce, scale_factor=scale_factor, logt=logt)
-    sce <- get_pcs(sce)
-    # sce <- get_snn(sce, nn=nn, weighted=FALSE)
-    # sce <- initialize_clusters(sce)
-    sce <- get_kclust(sce)
+    sce <- initialize_clusters(sce, 
+                               cluster_n=cluster_n, 
+                               order_by=order_by, 
+                               nn=nn, 
+                               min_size=min_size, 
+                               verbose=verbose)
     sce <- run_em(x=sce, eps=eps, max_iter=max_iter, verbose=verbose)
     sce <- call_targets(sce, pp_thresh=sce@pp_thresh, min_genes=gene_thresh)
 
-    if (!sce@emo$converged){
-        cat(paste0("Warning: DIEM did not converge within ", as.character(max_iter), " iterations.\n"))
-    }
-
     if (verbose){
-        cat(paste0("Identified ", as.character(length(get_clean_ids(sce))), " clean droplets.\n"))
+        cat(paste0("Removed ", as.character(sum(sce@droplet_data$Call == "Debris")), " debris droplets.\n"))
+        cat(paste0("Kept ", as.character(length(get_clean_ids(sce))), " clean droplets.\n"))
     }
 
     return(sce)

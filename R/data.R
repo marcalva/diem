@@ -23,7 +23,7 @@ divide_by_colsum <- function(x){
 #'
 #' @return Sparse Matrix
 #' @export
-norm_counts <- function(counts, scale_factor=1, logt=TRUE){
+norm_counts <- function(counts, scale_factor=1e4, logt=TRUE){
     counts <- divide_by_colsum(counts)
     counts <- counts * scale_factor
     if (logt) counts <- log1p(counts)
@@ -47,18 +47,22 @@ norm_counts <- function(counts, scale_factor=1, logt=TRUE){
 #' @importFrom Matrix rowMeans
 #' @export
 normalize_data <- function(x, 
-                           genes.use=NULL, 
                            droplets.use=NULL, 
-                           scale_factor=1, 
+                           genes.use=NULL, 
                            logt=TRUE){
-    if (is.null(genes.use)) genes.use <- rownames(x@gene_data)[x@gene_data[,"exprsd"]]
     if (is.null(droplets.use)) droplets.use <- x@cluster_set
-
-    if (length(genes.use) == 0) stop("0 genes specified in genes.use.")
-    if (length(droplets.use) == 0) stop("0 droplets specified in droplets.use")
+    if (length(droplets.use) == 0) stop("0 droplets specified in 'droplets.use'.")
+    if (is.null(genes.use)){
+        if (sum(x@gene_data[,"exprsd"]) == 0){
+            genes.use <- rownames(x@counts)[Matrix::rowSums(x@counts[,droplets.use]) > 0]
+        } else {
+            genes.use <- rownames(x@gene_data)[x@gene_data[,"exprsd"]]
+        }
+    }
 
     expr <- x@counts[genes.use, droplets.use]
-    x@norm <- norm_counts(expr, scale_factor, logt=logt)
+    sf <- median(Matrix::colSums(expr))
+    x@norm <- norm_counts(expr, scale_factor=sf, logt=logt)
 
     return(x)
 }
@@ -71,13 +75,17 @@ normalize_data <- function(x,
 #' @return An SCE object.
 #' @importFrom irlba prcomp_irlba
 #' @export
-get_pcs <- function(x, n_pcs=30){
+get_pcs <- function(x, n_pcs=10, use_var=TRUE){
     if (length(x@norm) == 0) stop("Normalize counts before getting PCs.")
     nc <- Matrix::t(x@norm)
     keep <- Matrix::colSums(nc) > 0
-    x <- get_var_genes(x)
-    nc <- nc[,keep]
-    x@pcs <- irlba::prcomp_irlba(nc, n=n_pcs, scale.=TRUE)$x
+    if (use_var){
+        if (length(x@vg) == 0) stop("Calculate variable genes before getting PCs.")
+        nc <- nc[,x@vg]
+    } else {
+        nc <- nc[,keep]
+    }
+    x@pcs <- irlba::prcomp_irlba(nc, n=n_pcs, retx=TRUE, center=TRUE, scale.=TRUE)$x
     rownames(x@pcs) <- rownames(nc)
     return(x)
 }
@@ -106,10 +114,7 @@ get_pcs <- function(x, n_pcs=30){
 set_test_set <- function(x, 
                          top_n=1e4, 
                          min_counts=150, 
-                         min_genes=150, 
-                         cluster_n=NULL, 
-                         cluster_frac=0.1, 
-                         order_by="gene"){
+                         min_genes=150){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -136,18 +141,39 @@ set_test_set <- function(x,
     x@test_set <- ts
     x@bg_set <- setdiff(colnames(x@counts), ts)
     x@min_counts <- min_counts
-    
-    if (is.null(cluster_n)){
-        # Get cluster set
-        if (cluster_frac < 0 || cluster_frac > 1) stop("cluster_frac must be between 0 and 1.")
-        cluster_n <- floor(cluster_frac*length(x@test_set))
-    }
+
+    return(x)
+}
+
+#' Set droplets for cluster initialization
+#' 
+#' @param x An SCE object.
+#' @param top_n Numeric value specifying the  droplets below \code{top_n} (ranked by total counts) 
+#'  are fixed to debris. Set to NULL to ignore.
+#' @param min_counts A numeric value that specifies that all droplets below this count threshold are 
+#'  always fixed to debris.
+#' @param top_thresh A numeric value specifying any droplets above this count threshold are 
+#' fixed to nuclei. No droplets are fixed to nuclei by default.
+#'
+#' @return An SCE object.
+#' @importFrom Matrix colSums
+#' @export
+set_cluster_set <- function(x, 
+                            cluster_n=500, 
+                            order_by="gene", 
+                            verbose=FALSE){
+    if (cluster_n < 0) stop("cluster_n must be greater than 0.")
+    if (order_by != "gene" & order_by != "count") stop("order_by must be one of 'gene' or 'count'.")
     if (order_by == "gene") totals <- Matrix::colSums(x@counts > 0)
     else totals <- Matrix::colSums(x@counts)
+
     totals <- totals[x@test_set]
     o <- order(totals, decreasing=TRUE)
     totals <- totals[o]
-    x@cluster_set <- names(totals)[totals >= totals[cluster_n]]
+    min_c_counts <- totals[cluster_n]
+    x@cluster_set <- names(totals)[totals >= min_c_counts]
+
+    if (verbose) cat(paste0("Using top ", as.character(length(x@cluster_set)), " droplets ranked by total ", order_by, "s for clustering.\n"))
 
     return(x)
 }

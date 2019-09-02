@@ -4,10 +4,10 @@
 \alias{diem}
 \title{Run DIEM pipeline}
 \usage{
-diem(sce, top_n = 10000, min_counts = 150, cpm_thresh = 10,
-  scale_factor = 1, logt = TRUE, n_var_genes = 2000,
-  pseudocount = 1e-04, eps = 1e-08, max_iter = 100, nn = 50,
-  use_var_genes = FALSE, pp_thresh = 0.95, gene_thresh = 200,
+diem(sce, top_n = 10000, min_counts = 150, min_genes = 150,
+  cpm_thresh = 10, cluster_n = 500, order_by = "gene", logt = TRUE,
+  nn = 30, min_size = 20, eps = 1e-08, max_iter = 100,
+  pseudocount = 1e-04, pp_thresh = 0.95, gene_thresh = 200,
   verbose = TRUE)
 }
 \arguments{
@@ -18,6 +18,9 @@ are fixed to debris.}
 
 \item{min_counts}{A numeric value that specifies that all droplets below this count threshold are 
 always fixed to debris.}
+
+\item{min_genes}{Numeric threshold, where clean droplets must have at least 
+\code{min_genes} genes detected.}
 
 \item{cpm_thresh}{The minimum CPM expression threshold in both groups.}
 
@@ -33,9 +36,6 @@ posterior probability of at least \code{pp_thresh}.}
 
 \item{top_thresh}{A numeric value specifying any droplets above this count threshold are 
 fixed to nuclei. No droplets are fixed to nuclei by default.}
-
-\item{min_genes}{Numeric threshold, where clean droplets must have at least 
-\code{min_genes} genes detected.}
 }
 \value{
 SCE object.

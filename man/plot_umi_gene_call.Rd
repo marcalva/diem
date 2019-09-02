@@ -4,7 +4,8 @@
 \alias{plot_umi_gene_call}
 \title{Scatterplot of genes vs. UMI counts, colored by call}
 \usage{
-plot_umi_gene_call(x, alpha = 0.1, ret = FALSE)
+plot_umi_gene_call(x, color = "Call", color_name = "Call",
+  alpha = 0.1, ret = FALSE)
 }
 \arguments{
 \item{x}{SCE. SCE object}

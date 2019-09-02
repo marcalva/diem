@@ -192,6 +192,7 @@ em <- function(counts, k, mn_params, max_iter=1e3, eps=1e-8, psc=1e-4, labels=NU
         }
         iter <- iter + 1
     }
+    if (!emo$converged) cat("Warning: EM did not converge.\n")
 
     emo$PP <- t(apply(emo$Z, 1, fraction_log))
 
@@ -246,9 +247,7 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     k <- nlevels(ic)
 
     if (verbose){
-        cat(paste0("Running EM\n"))
-        cat(paste0("    Classifying ", as.character(sum(labels == 0)), " droplets into k=", as.character(k), " groups\n"))
-        cat(paste0("    Using ", as.character(ncol(counts)), " genes and ", as.character(nrow(counts)), " droplets.\n"))
+        cat("Running EM.\n")
     }
 
     # Run EM

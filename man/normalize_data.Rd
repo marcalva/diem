@@ -4,19 +4,18 @@
 \alias{normalize_data}
 \title{Normalize raw counts.}
 \usage{
-normalize_data(x, genes.use = NULL, droplets.use = NULL,
-  scale_factor = 1, logt = TRUE)
+normalize_data(x, droplets.use = NULL, genes.use = NULL, logt = TRUE)
 }
 \arguments{
 \item{x}{SCE.}
 
 \item{genes.use}{A character vector to subset count data to. Normalization will only be run for these genes.}
 
-\item{scale_factor}{A numeric scaling factor to multiply counts after division by column sum
-Default is 1.}
-
 \item{logt}{Logical indicating whether to log1p transform expression values.
 Default is TRUE}
+
+\item{scale_factor}{A numeric scaling factor to multiply counts after division by column sum
+Default is 1.}
 }
 \value{
 SCE object

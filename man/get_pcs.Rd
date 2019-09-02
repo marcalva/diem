@@ -4,7 +4,7 @@
 \alias{get_pcs}
 \title{Get PCs from normalized count data}
 \usage{
-get_pcs(x, n_pcs = 30)
+get_pcs(x, n_pcs = 10, use_var = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}

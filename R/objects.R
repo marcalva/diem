@@ -1,5 +1,3 @@
-#' @useDynLib diem
-#' @importFrom Rcpp sourceCpp
 #' @importClassesFrom Matrix dgCMatrix
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 
@@ -25,7 +23,7 @@ SCE <- setClass(Class = "SCE",
                           norm = "any_matrix", 
                           pcs = "matrix", 
                           clust_gap = "matrix", 
-                          nn = "data.frame", 
+                          nn_df = "data.frame", 
                           nn_graph = "igraph", 
                           test_set = "character", 
                           cluster_set = "character", 

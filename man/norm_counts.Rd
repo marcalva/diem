@@ -4,7 +4,7 @@
 \alias{norm_counts}
 \title{Normalize counts of a sparse matrix}
 \usage{
-norm_counts(counts, scale_factor = 1, logt = TRUE)
+norm_counts(counts, scale_factor = 10000, logt = TRUE)
 }
 \arguments{
 \item{counts}{Sparse Matrix}
