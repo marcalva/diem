@@ -32,6 +32,7 @@ diem <- function(sce,
                  top_n=1e4, 
                  min_counts=100, 
                  min_genes=100, 
+                 fix_debris=NULL, 
                  cpm_thresh=10, 
                  cluster_n=500, 
                  order_by="gene", 
@@ -56,7 +57,7 @@ diem <- function(sce,
     genes <- grep(pattern="^malat1$", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
     sce <- get_gene_pct(x=sce, genes=genes, name="MALAT1")
 
-    sce <- set_test_set(sce, top_n=top_n, min_counts=min_counts, min_genes=min_genes)
+    sce <- set_debris_test_set(sce, top_n=top_n, min_counts=min_counts, min_genes=min_genes, fix_debris=fix_debris)
     sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
     sce <- initialize_clusters(sce, 
                                cluster_n=cluster_n, 

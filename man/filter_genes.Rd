@@ -19,7 +19,7 @@ This function removes genes that are lowly expressed in
 either the nuclear or background group. Read/UMI counts are summed across 
 droplets in the nuclear-enriched and background-enriched groups. The 
 background-enriched droplets are those with labels fixed to debris, 
-(see \code{\link{set_test_set}}). Counts per million mapped reads (CPM) 
+(see \code{\link{set_debris_test_set}}). Counts per million mapped reads (CPM) 
 are calculated for the two groups, and only genes with a CPM of at least 
 \code{cpm_thresh} in both groups are kept. This function ensures that 
 the likelihood of the multinomial mixture does not collapse to 0, since 

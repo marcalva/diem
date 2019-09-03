@@ -120,6 +120,17 @@ create_SCE <- function(x, name="SCE"){
     return(sce)
 }
 
+#' @export
+droplet_data <- function(x){
+    return(x@droplet_data)
+}
+
+#' @export
+gene_data <- function(x){
+    return(x@gene_data)
+}
+
+
 #' Convert an SCE object to Seurat
 #'
 #' Convert an SCE object to a Seurat object. if \code{targets} is true (default), output only droplets that are 
