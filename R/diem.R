@@ -36,7 +36,6 @@ diem <- function(sce,
                  cpm_thresh=10, 
                  cluster_n=1000, 
                  order_by="gene", 
-                 logt=TRUE, 
                  nn=30, 
                  use_var=TRUE,
                  n_var=2000, 
@@ -53,13 +52,6 @@ diem <- function(sce,
     }
     sce@pp_thresh <- pp_thresh
 
-    # Add MT%
-    mt_genes <- grep(pattern="^mt-", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
-    sce <- get_gene_pct(x=sce, genes=mt_genes, name="pct.mt")
-    # Add MALAT1
-    genes <- grep(pattern="^malat1$", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
-    sce <- get_gene_pct(x=sce, genes=genes, name="MALAT1")
-
     sce <- set_debris_test_set(sce, top_n=top_n, min_counts=min_counts, min_genes=min_genes, fix_debris=fix_debris)
     sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
     sce <- initialize_clusters(sce, 
@@ -71,12 +63,14 @@ diem <- function(sce,
                                lss=lss, 
                                min_size=min_size, 
                                verbose=verbose)
-    sce <- run_em(x=sce, eps=eps, max_iter=max_iter, verbose=verbose)
+    sce <- run_em(x=sce, eps=eps, max_iter=max_iter, psc=psc, verbose=verbose)
     sce <- call_targets(sce, pp_thresh=sce@pp_thresh, min_genes=gene_thresh)
 
     if (verbose){
-        cat(paste0("Removed ", as.character(sum(sce@droplet_data$Call == "Debris")), " debris droplets.\n"))
-        cat(paste0("Kept ", as.character(length(get_clean_ids(sce))), " clean droplets.\n"))
+        n_clean <- length(get_clean_ids(sce))
+        n_rm <- length(sce@test_set) - n_clean
+        cat(paste0("Removed ", as.character(n_rm), " debris droplets from the test set.\n"))
+        cat(paste0("Kept ", as.character(n_clean), " clean droplets.\n"))
     }
 
     return(sce)

@@ -17,6 +17,7 @@
 #' @param verbose Verbosity.
 #'
 #' @return An SCE object
+#' @importFrom Matrix rowMeans
 #' @export
 get_var_genes <- function(x, 
                           n_genes=2000, 
@@ -27,7 +28,7 @@ get_var_genes <- function(x,
     counts <- x@counts[,x@cluster_set]
     if (sum(x@gene_data$exprsd) == 0) x <- filter_genes(x)
     counts <- counts[x@gene_data$exprsd,]
-    gene_means <- Matrix::rowMeans(counts)
+    gene_means <- rowMeans(counts)
     gene_names <- rownames(counts)
 
     log_mean <- log10(gene_means + 1)

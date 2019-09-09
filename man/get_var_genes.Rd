@@ -7,23 +7,25 @@
 get_var_genes(x, n_genes = 2000, lss = 0.3, verbose = FALSE)
 }
 \arguments{
-\item{x}{SCE. SCE object.}
+\item{x}{An SCE object.}
 
-\item{lss}{Numeric. The span paramater for loess function.}
+\item{n_genes}{Number of variable genes to return.}
 
-\item{verbose}{Boolean.}
+\item{lss}{Numeric value of the span parameter of the loess regression.}
 
-\item{min_mean}{Numeric. Minimum mean of counts to consider.}
-
-\item{nf}{Numeric. Output top nf variable features.}
+\item{verbose}{Verbosity.}
 }
 \value{
-SCE object with \code{vg} and \code{vg_info} slots filled for variable genes
-and variable gene info. \code{vg_info} is a data frame with log mean, log var, 
-fitted log var values, and residuals. \code{vg} is a vector of genes
+An SCE object
 }
 \description{
-Finds top \code{nf} variable genes by running a loess regression 
-on log(variance) and log(mean). Residuals are used to rank 
-features, and the top \code{nf} are output.
+This function finds the variable genes in an SCE object. 
+The means and variances of the genes are calculated from the raw counts 
+of the cluster set. Then, the means and variances are log-transformed 
+after adding a constant of 1. A loess regression line is fit between 
+the log counts and log variance, and the only top genes 
+ranked by residual are variable genes used to initialize the clusters. 
+The number of genes is specified with \code{n_genes}. 
+The span for the loess function is given by \code{lss} 
+(default is 0.3).
 }

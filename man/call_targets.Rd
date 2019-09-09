@@ -9,16 +9,18 @@ call_targets(x, pp_thresh = 0.95, min_genes = 200)
 \arguments{
 \item{x}{An SCE object.}
 
-\item{pp_thresh}{Numeric threshold, where clean droplets must have a 
-posterior probability of at least \code{pp_thresh}.}
+\item{pp_thresh}{The minimum posterior probability of a droplet to be 
+classified as a cell/nucleus.}
 
-\item{min_genes}{Numeric threshold, where clean droplets must have at least 
-\code{min_genes} genes detected.}
+\item{min_genes}{The minimum number of genes a droplet must have 
+to be classified as a cell/nucleus.}
 }
 \value{
 An SCE object.
 }
 \description{
-Call targets from droplets if the log-likelihood membership 
-probability (the posterior probability) is higher than \code{pp_thresh}.
+Call cells or nuclei from an SCE object. EM must be run beforehand.
+The posterior probability is defined as 1 - Prob(Debris), where 
+Prob(Debris) is the posterior probability that a droplet is 
+debris.
 }

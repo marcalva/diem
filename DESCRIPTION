@@ -23,4 +23,5 @@ Imports:
     FNN, 
     igraph
 Suggests:
-    Seurat
+    Seurat,
+    testthat

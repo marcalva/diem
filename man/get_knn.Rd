@@ -6,9 +6,21 @@
 \usage{
 get_knn(x, nn = 30, weighted = TRUE, verbose = FALSE)
 }
+\arguments{
+\item{x}{An SCE object.}
+
+\item{nn}{Number of nearest neighbors to use.}
+
+\item{weighted}{Logical indicating whether to weigh the knn graph.}
+
+\item{verbose}{verbosity}
+}
 \value{
 An SCE object
 }
 \description{
-Get k-nearest neighbor graph
+Run a KNN graph and store as an igraph object. The nearest neighbors 
+are calculated using the dbscan implementation. The edges 
+of the graph can be weighted with the inverse of the 
+euclidean distance.
 }

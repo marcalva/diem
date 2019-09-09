@@ -2,7 +2,7 @@
 % Please edit documentation in R/debris_id.R
 \name{get_clean_ids}
 \alias{get_clean_ids}
-\title{Return column IDs of clean droplets}
+\title{Return IDs of clean droplets}
 \usage{
 get_clean_ids(x)
 }
@@ -13,5 +13,6 @@ get_clean_ids(x)
 A character vector with the called droplet IDs.
 }
 \description{
-Return column IDs of clean droplets
+Return the barcodes that pass DIEM filtering. The function 
+\code{\link{call_targets}} must be run beforehand.
 }

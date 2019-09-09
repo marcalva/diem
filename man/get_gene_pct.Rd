@@ -2,7 +2,7 @@
 % Please edit documentation in R/debris_id.R
 \name{get_gene_pct}
 \alias{get_gene_pct}
-\title{Get percent of reads aligning to given genes.}
+\title{Get percent of reads align to given gene(s)}
 \usage{
 get_gene_pct(x, genes, name)
 }
@@ -17,7 +17,9 @@ get_gene_pct(x, genes, name)
 An SCE object.
 }
 \description{
-Get percent of reads aligning to given genes.
+Add a data column for each droplet giving the percentage of raw reads/UMIs 
+that align to genes given in \code{genes}. The column name is specified by 
+\code{name}.
 }
 \examples{
 mm_seur <- get_gene_pct(x=mb_sce, genes="Malat1", name="pct.malat1")

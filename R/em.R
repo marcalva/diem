@@ -3,8 +3,7 @@
 #'
 #' @return List with mu0 a p x 2 matrix and mc0 a length 2 numeric
 #'
-#' @importFrom Matrix rowSums
-#' @export
+#' @importFrom Matrix colSums
 init_param <- function(counts, groups, psc=1e-4){
 
     if (length(groups) != nrow(counts)){
@@ -21,7 +20,7 @@ init_param <- function(counts, groups, psc=1e-4){
 
     for (clust in ks){
         k_barcodes <- rownames(counts)[groups == clust]
-        k_mu <- Matrix::colSums(counts[k_barcodes,,drop=FALSE]) + psc
+        k_mu <- colSums(counts[k_barcodes,,drop=FALSE]) + psc
         mu0[,clust] <- k_mu/sum(k_mu)
     }
 
@@ -32,7 +31,6 @@ init_param <- function(counts, groups, psc=1e-4){
 }
 
 #' x is a vector
-#' @export
 fraction_log <- function(x){
     x_c = x - max(x)
     x_c = exp(x_c)
@@ -41,7 +39,6 @@ fraction_log <- function(x){
 }
 
 #' x is a vector
-#' @export
 sum_log <- function(x){
     max_x <- max(x)
     x_c = x - max_x
@@ -67,13 +64,11 @@ sum_log <- function(x){
 #'
 #' @return a numeric matrix with n samples by k groups containing log multinomial 
 #'  densities under the given parameters of the MMM.
-#' @export
 dmmn <- function(x, p, mc, labels=NULL){
     if (ncol(x) != nrow(p)) stop("Number of columns in x must be the same as the number of rows in p.")
     if (length(mc) != ncol(p)) stop("Length of mc must be the same as the number of columns in p.")
     if ( any(round(colSums(p), 1) != 1) ) stop("Probability columns in p must sum to 1.")
     if (round(sum(mc), 1) != 1) stop("Mixture probabilities in mc must sum to 1.")
-    # if ( any(Matrix::rowSums(x) == 0) ) stop("Sample rows of x must have at least 1 count.")
 
     n <- nrow(x)
     k <- ncol(p)
@@ -125,9 +120,9 @@ dmmn <- function(x, p, mc, labels=NULL){
 #' @param log Logical. If TRUE, return matrix with log probabilities.
 #'
 #' @return a numeric matrix with n samples by k groups.
-#' @export
 e_step_mn <- function(x, p, mc, Llks=NULL, labels=NULL){
-    if (any(p == 0)) stop("Probability of a genes(s) in at least 1 group is 0, which would collapse likelihood to 0 and prevent classification. Increase cpm threshold to prevent this.")
+    if (any(p == 0)) 
+        stop("Probability of a genes(s) in at least 1 group is 0, which would collapse likelihood to 0 and prevent classification. Increase cpm threshold to prevent this.")
 
     if (is.null(Llks)) Llks <- dmmn(x=x, p=p, mc=mc, labels=labels)
 
@@ -143,11 +138,12 @@ e_step_mn <- function(x, p, mc, Llks=NULL, labels=NULL){
 #' likelihood estimate (MLE) of p for each k group in 
 #' a p x k matrix.
 #'
-#' @export
+#' @importFrom Matrix t
+#' @importMethodsFrom Matrix %*%
 m_step_mn <- function(x, r, psc=1e-4){
     n <- nrow(x)
     k <- ncol(r)
-    wm <- as.matrix(Matrix::t(x) %*% r) + psc
+    wm <- as.matrix(t(x) %*% r) + psc
     Mu <- sweep(wm, 2, colSums(wm), "/")
     mc <- colSums(r)
     mc <- mc/sum(mc)
@@ -162,6 +158,9 @@ em <- function(counts, k, mn_params, max_iter=1e3, eps=1e-8, psc=1e-4, labels=NU
     loglk <- -Inf
     loglks <- c(loglk)
     iter <- 1
+
+    if (ncol(counts) != nrow(mn_params$Mu)) stop("Number of columns in counts must be the same as the number of features in mn_params.")
+    if (nrow(counts) != length(labels)) stop("Number of rows in counts must be the same as the length of labels.")
 
     Llks <- dmmn(x=counts, p=mn_params$Mu, mc=mn_params$Mc, labels=labels)
     while (iter <= max_iter){
@@ -223,6 +222,7 @@ em <- function(counts, k, mn_params, max_iter=1e3, eps=1e-8, psc=1e-4, labels=NU
 #'
 #' @return An SCE object with EM output.
 #' @importFrom igraph gsize
+#' @importMethodsFrom Matrix %*%
 #' @export
 run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
 
@@ -230,9 +230,9 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     droplets.use <- c(x@test_set, x@bg_set)
 
     if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
-    if (length(x@ic$clusters) stop("No clusters found, run initialize_clusters before running EM.")
+    if (length(x@ic$clusters) == 0) stop("No clusters found, run initialize_clusters before running EM.")
 
-    counts <- Matrix::t(x@counts[genes.use,droplets.use])
+    counts <- t(x@counts[genes.use,droplets.use])
 
     # Initialize means of clusters
     ic <- x@ic$clusters

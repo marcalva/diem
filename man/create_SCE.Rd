@@ -7,10 +7,11 @@
 create_SCE(x, name = "SCE")
 }
 \arguments{
-\item{x}{A sparse matrix consisting of raw expression counts from a single-cell experiment, 
-with genes in the rows and droplets in the columns.}
+\item{x}{A sparse matrix consisting of raw expression counts from a 
+single-cell RNA experiment, with genes in the rows and 
+droplets in the columns.}
 
-\item{name}{Character name for the SCE object.}
+\item{name}{An optional character name for the SCE object.}
 }
 \value{
 SCE object

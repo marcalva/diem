@@ -214,7 +214,7 @@ convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
 #' @return expr A sparse matrix of counts from 10X cell ranger
 #'  with cells in the columns and genes in the rows.
 #'
-#' @importFrom readMM
+#' @importFrom Matrix readMM
 #' @export
 #'
 #' @examples

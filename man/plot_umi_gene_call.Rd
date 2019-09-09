@@ -8,11 +8,17 @@ plot_umi_gene_call(x, color = "Call", color_name = "Call",
   alpha = 0.1, ret = FALSE)
 }
 \arguments{
-\item{x}{SCE. SCE object}
+\item{x}{An SCE object.}
 
-\item{alpha}{SCE. Transparency of points. 0 (transparent) to 1 (no transparency)}
+\item{color}{Column name of droplet_data to color points by.}
 
-\item{ret}{Boolean. Return a ggplot object}
+\item{color_name}{Title of the color legend.}
+
+\item{alpha}{A numeric value controlling the transparency of the points. 
+From 0 (transparent) to 1 (no transparency).}
+
+\item{ret}{A logical specifying whether to return the ggplot object 
+or just print it out.}
 }
 \value{
 Nothing, unless return=TRUE then a ggplot

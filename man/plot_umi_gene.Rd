@@ -9,14 +9,23 @@ plot_umi_gene(x, color = "CleanProb",
   alpha = 0.1, ret = FALSE)
 }
 \arguments{
-\item{x}{SCE. SCE object}
+\item{x}{An SCE object.}
 
-\item{alpha}{SCE. Transparency of points. 0 (transparent) to 1 (no transparency)}
+\item{color}{Column name of droplet_data to color points by.}
 
-\item{ret}{Boolean. Return a ggplot object}
+\item{color_name}{Title of the color legend.}
+
+\item{palette}{Name of the palette to use from RColorBrewer;
+see \code{\link[ggplot2]{scale_color_distiller}}.}
+
+\item{alpha}{A numeric value controlling the transparency of the points. 
+From 0 (transparent) to 1 (no transparency).}
+
+\item{ret}{A logical specifying whether to return the ggplot object 
+or just print it out.}
 }
 \value{
-Nothing, unless return=TRUE then a ggplot
+Nothing. If return=TRUE, then return a ggplot object
 }
 \description{
 Scatterplot of genes vs. UMI counts, colored by posterior probability

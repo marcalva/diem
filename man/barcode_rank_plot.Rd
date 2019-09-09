@@ -7,14 +7,14 @@
 barcode_rank_plot(x, title = "", ret = FALSE)
 }
 \arguments{
-\item{x}{SCE. SCE object}
+\item{x}{An SCE object}
 
-\item{title}{Character}
+\item{title}{Title of the plot}
 
-\item{ret}{Boolean. Return a ggplot object}
+\item{ret}{Logical indicating whether to return a ggplot object}
 }
 \value{
-Nothing, unless return=TRUE then a ggplot
+Nothing. If return=TRUE, then return a ggplot object
 }
 \description{
 Create a barcode rank plot

@@ -133,23 +133,23 @@ get_snn <- function(x,
 #' @importFrom igraph cluster_louvain
 #' @export
 initialize_clusters <- function(x, 
-                                cluster_n=1000, 
-                                order_by="gene", 
-                                use_var=TRUE, 
-                                n_var=2000, 
-                                lss=0.3, 
+                                cluster_n = 1000, 
+                                order_by = "gene", 
+                                use_var = TRUE, 
+                                n_var = 2000, 
+                                lss = 0.3, 
                                 sf = "median", 
-                                nn=30, 
-                                min_size=20, 
-                                verbose=TRUE){
+                                nn = 30, 
+                                min_size = 20, 
+                                verbose = TRUE){
 
     x <- set_cluster_set(x, 
-                         cluster_n=cluster_n, 
-                         order_by=order_by, 
-                         verbose=verbose)
-    if (use_var)  x <- get_var_genes(x, n_genes=n_var, lss=lss)
-    x <- normalize_data(x, use_var=use_var, sf=sf)
-    x <- get_knn(x, nn=nn, verbose=verbose)
+                         cluster_n = cluster_n, 
+                         order_by = order_by, 
+                         verbose = verbose)
+    if (use_var)  x <- get_var_genes(x, n_genes = n_var, lss = lss)
+    x <- normalize_data(x, use_var = use_var, sf = sf)
+    x <- get_knn(x, nn = nn, verbose = verbose)
 
     if (verbose) cat("Initializing clusters.\n")
 

@@ -7,10 +7,10 @@
 dmultinom_sparse(X, prob)
 }
 \arguments{
-\item{X}{A sparseMatrix that is a sample by feature matrix of counts.}
+\item{X}{A sparseMatrix, observations in rows, variables in columns}
 
-\item{prob}{Probability parameter of multinomial. Must be same size as 
-number of columns in X.}
+\item{prob}{Probability parameter of multinomial. Length must be the
+same as the number of columns in X.}
 }
 \description{
 Get log multinomial density of columns in a sparse matrix.

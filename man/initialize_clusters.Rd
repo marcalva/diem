@@ -2,15 +2,67 @@
 % Please edit documentation in R/init_clust.R
 \name{initialize_clusters}
 \alias{initialize_clusters}
-\title{Initialize clusters for unlabeled data}
+\title{Initialize clustering for EM}
 \usage{
-initialize_clusters(x, cluster_n = 1000, order_by = "gene", nn = 30,
-  use_var = FALSE, n_var = 2000, lss = 0.3, min_size = 20,
-  verbose = TRUE)
+initialize_clusters(x, cluster_n = 1000, order_by = "gene",
+  use_var = TRUE, n_var = 2000, lss = 0.3, sf = "median",
+  nn = 30, min_size = 20, verbose = TRUE)
+}
+\arguments{
+\item{x}{An SCE object.}
+
+\item{cluster_n}{Numeric value specifying the number of droplets to use 
+in the test set.}
+
+\item{order_by}{Whether to order the droplets by total number of total 
+counts or total number of genes detected.}
+
+\item{use_var}{A logical indicating whether to subset the data to include
+only variable genes. This overrides \code{genes.use}.
+The default is TRUE as it may better identify cell types.}
+
+\item{n_var}{Number of variable genes to use.}
+
+\item{lss}{Numeric value of the span parameter of the loess regression.}
+
+\item{sf}{Either a numeric scaling factor to multiply counts after 
+division by column sums, or "median" indicating to multiply by the median 
+number of total read/UMI counts in droplets (default).}
+
+\item{nn}{Number of nearest neighbors to calculate in constructing the 
+graph.}
+
+\item{min_size}{Numeric value giving the minimum number of droplets in 
+cluster for it to be used for initialization as a cell type for EM.}
+
+\item{verbose}{verbosity.}
 }
 \value{
-Numeric vector of memberships
+An SCE object
 }
 \description{
-Initialize clusters for unlabeled data
+Given an SCE object, identify the cell types present in the top 
+\code{cluster_n} droplets.
+}
+\details{
+Instead of randomly initializing the EM, cell types are estimated from 
+droplets that are expected to contain cells/nuclei. The top 
+\code{cluster_n} droplets are ranked by "gene" or "count", given by the 
+parameter \code{order_by}. Then, droplets with at least those ranked 
+counts/genes are included in the cluster set. The data is then normalized 
+by taking first calculating the variable genes. A loess regression line 
+is fit between the log counts and log variance, and the only top genes 
+ranked by residual are used to initialize the clusters. The number of 
+genes is specified with \code{n_var}. Optionally, one can use all genes 
+by setting \code{use_var} to FALSE. The span of the loess regression line 
+is given by \code{lss} (default is 0.3).
+The data is normalized by dividing counts by the total counts per droplet. 
+Then, the counts are multiplied by a scaling factor, given by 
+\code{sf} (the median of total counts by default). Finally, the data is 
+log transformed after adding a constant value of 1.
+After normalization, the k-nearest neighbors are identified in the 
+cluster set. The number of nearest neighbors is specified by 
+\code{nn}. Clusters are identified form the KNN graph 
+using the Louvain algorithm. Finally, only clusters with at least 
+\code{min_size} (20 by default) droplets are considered cell types.
 }
