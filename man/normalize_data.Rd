@@ -4,7 +4,8 @@
 \alias{normalize_data}
 \title{Normalize raw counts.}
 \usage{
-normalize_data(x, droplets.use = NULL, genes.use = NULL, logt = TRUE)
+normalize_data(x, droplets.use = NULL, genes.use = NULL,
+  use_var = FALSE, n_var = 2000, lss = 0.3, logt = TRUE)
 }
 \arguments{
 \item{x}{SCE.}

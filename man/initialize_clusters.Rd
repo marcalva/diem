@@ -4,8 +4,9 @@
 \alias{initialize_clusters}
 \title{Initialize clusters for unlabeled data}
 \usage{
-initialize_clusters(x, cluster_n = 500, order_by = "gene", nn = 30,
-  min_size = 20, verbose = TRUE)
+initialize_clusters(x, cluster_n = 1000, order_by = "gene", nn = 30,
+  use_var = FALSE, n_var = 2000, lss = 0.3, min_size = 20,
+  verbose = TRUE)
 }
 \value{
 Numeric vector of memberships

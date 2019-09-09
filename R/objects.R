@@ -1,18 +1,18 @@
+#' @useDynLib diem
 #' @importClassesFrom Matrix dgCMatrix
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
-
-# Class to store initial graph-based clustering
-IC <- setClass(Class = "IC", 
-               slots = c(graph = "factor", 
-                         logfc = "matrix", 
-                         scores = "numeric", 
-                         map = "character",
-                         merged = "factor", 
-                         assignments = "factor"))
 
 setOldClass("igraph", igraph::make_empty_graph())
 
 #' SCE
+#'
+#' The SCE class
+#'
+#' This class is used to store the expression data from a 
+#' single-cell RNA-seq experiment. It is the class that is used by 
+#' DIEM. The results from filtering are stored in the \code{droplet_data} 
+#' slot, and the converged EM parameters are stored in a list in the 
+#' \code{emo} slot.
 #'
 #' Single Cell Expression object
 #' @name SCE-class
@@ -21,18 +21,14 @@ setOldClass("igraph", igraph::make_empty_graph())
 SCE <- setClass(Class = "SCE", 
                 slots = c(counts = "any_matrix", 
                           norm = "any_matrix", 
-                          pcs = "matrix", 
-                          clust_gap = "matrix", 
-                          nn_df = "data.frame", 
                           nn_graph = "igraph", 
                           test_set = "character", 
                           cluster_set = "character", 
                           bg_set = "character", 
                           pp_thresh = "numeric", 
-                          min_counts = "numeric", 
                           gene_data = "data.frame", 
                           droplet_data = "data.frame", 
-                          ic = "IC", 
+                          ic = "list", 
                           emo = "list", 
                           vg_info = "data.frame", 
                           vg = "character", 
@@ -83,9 +79,10 @@ fill_counts <- function(x){
 
 #' Create an SCE object from a sparse matrix
 #'
-#' @param x A sparse matrix consisting of raw expression counts from a single-cell experiment, 
-#'  with genes in the rows and droplets in the columns.
-#' @param name Character name for the SCE object.
+#' @param x A sparse matrix consisting of raw expression counts from a 
+#'  single-cell RNA experiment, with genes in the rows and 
+#'  droplets in the columns.
+#' @param name An optional character name for the SCE object.
 #'
 #' @importFrom Matrix Matrix
 #' @return SCE object
@@ -120,14 +117,44 @@ create_SCE <- function(x, name="SCE"){
     return(sce)
 }
 
+#' Return the droplet data from an SCE object
+#'
+#' Return the data frame stored in the slot \code{droplet_data}. This 
+#' contains data such as number of counts and genes in each droplet, as 
+#' well as some of the output from the filtering, such as whether the 
+#' droplet is classified as debris or cell/nucleus. The parameter 
+#' \code{min_counts} filters out droplets (rows) by removing those 
+#' with counts below this number
+#'
+#' @param x An SCE object.
+#' @param min_counts Minimum number of read counts a droplet must have to 
+#'  be output.
+#'
+#' @return A data frame
+#'
 #' @export
-droplet_data <- function(x){
-    return(x@droplet_data)
+droplet_data <- function(x, min_counts=1){
+    keep <- x@droplet_data$total_counts >= min_counts
+    return(x@droplet_data[keep,,drop=FALSE])
 }
 
+#' Return the gene data from an SCE object
+#' 
+#' Return the data frame stored in the slot \code{gene_data}. This 
+#' contains data such as the number of droplets the gene is detected in. 
+#' The parameter \code{min_droplets} removes genes (rows) taht are 
+#' detected in less than this number of droplets.
+#'
+#' @param x An SCE object.
+#' @param min_counts Minimum number of droplets a gene must be detected in 
+#'  to be output.
+#'
+#' @return A data frame
+#'
 #' @export
-gene_data <- function(x){
-    return(x@gene_data)
+gene_data <- function(x, min_droplets=1){
+    keep <- x@gene_data$n_cells >= min_droplets
+    return(x@gene_data[keep,,drop=FALSE])
 }
 
 
@@ -164,3 +191,74 @@ convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
     seur <- Seurat::CreateSeuratObject(counts=x@counts[,keep], meta.data=meta.data, ...)
     return(seur)
 }
+
+#' Read 10X counts data
+#'
+#' Read the counts output from into a sparse matrix. 
+#' Given a 10X output path, 
+#' Read in the the output files from 10X CellRanger. Specifically, \code{path} 
+#' should be be a directory containing the raw count output from 10X 
+#' CellRnager with  output files \code{barcodes.tsv} 
+#' \code{genes.tsv} \code{matrix.mtx}, or 
+#' if using CellRanger v2, or \code{barcodes.tsv.gz} \code{features.tsv.gz} 
+#' \code{matrix.mtx.gz} if using CellRanger v3. When reading in the barcodes 
+#' and gene names, duplicates are removed with the make.unique function. 
+#' The separator is specified by \code{sep} by default.
+#'
+#' @param path The file path prefix to the raw 10X output directory
+#' @param clip_end A logical indicating whether to remove the suffix "-N" 
+#'  from the barcodes, where N is n integer such as 1. The default it TRUE.
+#' @param sep A character indicating the separator to use in the call 
+#'  to \code{\link[base]{make.unique}}.
+#'
+#' @return expr A sparse matrix of counts from 10X cell ranger
+#'  with cells in the columns and genes in the rows.
+#'
+#' @importFrom readMM
+#' @export
+#'
+#' @examples
+#' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
+#'
+read_10x <- function(path, clip_end=TRUE, sep="."){
+    files <- list.files(path, full.names=TRUE)
+    files_names <- list.files(path, full.names=FALSE)
+    v3 <- "matrix.mtx.gz" %in% files_names
+
+    if (v3){
+        mtx_file <- paste0(path, "/matrix.mtx.gz")
+        genes_file <- paste0(path, "/features.tsv.gz")
+        barcode_file <- paste0(path, "/barcodes.tsv.gz")
+    } else {
+        mtx_file <- paste0(path, "/matrix.mtx")
+        genes_file <- paste0(path, "/genes.tsv")
+        barcode_file <- paste0(path, "/barcodes.tsv")
+    }
+
+    if (file.exists(mtx_file)) {
+        expr <- readMM(mtx_file)
+    } else {
+        stop(paste0(mtx_file, " not found"))
+    }
+    expr <- as(expr, "CsparseMatrix")
+
+    if (file.exists(barcode_file)){
+        barcode_names <- readLines(barcode_file)
+        if (clip_end) barcode_names <- sub("-.*", "", barcode_names)
+    } else {
+        stop(paste0(barcode_file, " not found"))
+    }
+
+    if (file.exists(genes_file)){
+        genes <- read.delim(genes_file, header = FALSE, stringsAsFactors = FALSE, sep = "\t")
+    } else {
+        stop(paste0(genes_file, " not found"))
+    }
+    
+    colnames(expr) <- make.unique(barcode_names, sep=sep)
+    rownames(expr) <- make.unique(genes[,2], sep=sep)
+    
+    return(expr)
+}   
+
+

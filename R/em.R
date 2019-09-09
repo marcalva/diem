@@ -222,6 +222,7 @@ em <- function(counts, k, mn_params, max_iter=1e3, eps=1e-8, psc=1e-4, labels=NU
 #' @param verbose Logical indicating verbosity.
 #'
 #' @return An SCE object with EM output.
+#' @importFrom igraph gsize
 #' @export
 run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
 
@@ -229,20 +230,19 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     droplets.use <- c(x@test_set, x@bg_set)
 
     if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
-    if (length(x@ic@graph) == 0) stop("Initialize clusters before running EM.")
+    if (length(x@ic$clusters) stop("No clusters found, run initialize_clusters before running EM.")
 
     counts <- Matrix::t(x@counts[genes.use,droplets.use])
 
     # Initialize means of clusters
-    ic <- x@ic@graph
+    ic <- x@ic$clusters
     mn_params <- init_param(counts[names(ic),], ic, psc=psc)
 
     # Fix labels
     labels <- rep(0, length(droplets.use))
     names(labels) <- droplets.use
     labels[x@bg_set] <- 1
-    # bg_clusts <- names(x@ic@assignments)[x@ic@assignments == "Debris"]
-    bg_clusts <- "1"
+    bg_clusts <- names(x@ic$assignments)[x@ic$assignments == "Debris"]
 
     k <- nlevels(ic)
 
@@ -254,8 +254,8 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     emo <- em(counts, k=k, max_iter=max_iter, eps=eps, labels=labels, psc=psc, mn_params=mn_params, verbose=verbose)
     x@emo <- emo
 
-    # Naive Bayes assignment x@ic@assignments
-    a <- x@ic@assignments
+    # Naive Bayes assignment
+    a <- x@ic$assignments
     PP_summary <- sapply(levels(a), function(i) rowSums(emo$PP[,names(a)[a == i],drop=FALSE]))
     clust_prob <- apply(emo$PP, 1, function(i) i[which.max(i)])
     clust_max <- apply(emo$PP, 1, function(i) colnames(emo$PP)[which.max(i)])

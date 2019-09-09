@@ -1,12 +1,11 @@
 
 #' Get log multinomial density of columns in a sparse matrix. 
 #'
-#' @param X A sparseMatrix that is a sample by feature matrix of counts.
-#' @param prob Probability parameter of multinomial. Must be same size as 
-#'  number of columns in X.
+#' @param X A sparseMatrix, observations in rows, variables in columns
+#' @param prob Probability parameter of multinomial. Length must be the
+#'  same as the number of columns in X.
 #'
-#' @import Matrix
-#' @export
+#' @importFrom Matrix rowSums %*%
 dmultinom_sparse <- function(X, prob){
     if (length(prob) != ncol(X)){
         stop("Length of prob and rows in X must be the same.")
@@ -15,8 +14,8 @@ dmultinom_sparse <- function(X, prob){
     Xlg <- X
     Xlg@x <- lgamma(Xlg@x + 1) # Get log gamma
 
-    m <- lgamma(Matrix::rowSums(X) + 1)
-    xls <- Matrix::rowSums(Xlg)
+    m <- lgamma(rowSums(X) + 1)
+    xls <- rowSums(Xlg)
     px <- as.numeric(X %*% log(prob))
 
     Llks <- m - xls + px

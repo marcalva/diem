@@ -4,7 +4,7 @@
 \alias{read_10x}
 \title{Read 10X output}
 \usage{
-read_10x(path)
+read_10x(path, rm_num = TRUE)
 }
 \arguments{
 \item{path}{Character. File path prefix to 10X output.}

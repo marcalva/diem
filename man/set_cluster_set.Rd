@@ -4,7 +4,7 @@
 \alias{set_cluster_set}
 \title{Set droplets for cluster initialization}
 \usage{
-set_cluster_set(x, cluster_n = 500, order_by = "gene",
+set_cluster_set(x, cluster_n = 1000, order_by = "gene",
   verbose = FALSE)
 }
 \arguments{
