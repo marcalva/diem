@@ -22,7 +22,10 @@ that align to genes given in \code{genes}. The column name is specified by
 \code{name}.
 }
 \examples{
-mm_seur <- get_gene_pct(x=mb_sce, genes="Malat1", name="pct.malat1")
-mt_genes <- grep(pattern="^mt-", x=rownames(mb_sce@gene_data), value=TRUE, ignore.case=TRUE)
-mm_seur <- get_gene_pct(x=mb_sce, genes=mt_genes, name="pct.mt")
+# Add MT\%
+mt_genes <- grep(pattern="^mt-", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
+sce <- get_gene_pct(x=sce, genes=mt_genes, name="pct.mt")
+# Add MALAT1
+genes <- grep(pattern="^malat1$", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
+sce <- get_gene_pct(x=sce, genes=genes, name="MALAT1")
 }

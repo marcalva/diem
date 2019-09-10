@@ -2,6 +2,7 @@
 .Rhistory
 .RData
 .RDataTmp
+data-raw
 src/*.o
 src/*.so
 .DS_Store

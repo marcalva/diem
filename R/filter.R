@@ -95,10 +95,10 @@ set_cluster_set <- function(x,
                             cluster_n=1000, 
                             order_by="gene", 
                             verbose=FALSE){
-    if (cluster_n < 0) stop("cluster_n must be greater than 0.")
+    if (cluster_n <= 0) stop("cluster_n must be greater than 0.")
     if (order_by != "gene" & order_by != "count") stop("Parameter order_by must be one of 'gene' or 'count'.")
     if (length(x@test_set) == 0)
-        stop("Run set_debris_test_set before setting cluster droplets.")
+        stop("No test droplets found. Run set_debris_test_set before setting cluster droplets.")
     if (order_by == "gene") totals <- colSums(x@counts > 0)
     else totals <- colSums(x@counts)
 
@@ -123,17 +123,17 @@ set_cluster_set <- function(x,
 #' debris set are kept.
 #' 
 #' @param x An SCE object.
-#' @param cpm_thresh The minimum CPM expression threshold in both groups.
+#' @param cpm_thresh The minimum CPM threshold for removing genes.
 #'
 #' @return An SCE object
 #' @importFrom Matrix rowSums
 #' @export
 filter_genes <- function(x, cpm_thresh=10){
     if (length(x@test_set) == 0 || length(x@bg_set) == 0)
-        stop("Run set_debris_test_set before filtering genes.")
+        stop("No test droplets found. Run set_debris_test_set before filtering genes.")
     groups <- list(x@test_set, x@bg_set)
     keep_all <- sapply(groups, function(g){
-                       expr <- rowSums(x@counts[,g])
+                       expr <- rowSums(x@counts[,g,drop=FALSE])
                        cpm <- 1e6*expr/sum(expr)
                        keep <- cpm >= cpm_thresh
                        return(keep)

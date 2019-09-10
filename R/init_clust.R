@@ -14,6 +14,7 @@
 #' @importFrom dbscan kNN
 #' @importFrom igraph graph_from_data_frame simplify
 #' @return An SCE object
+#' @export
 get_knn <- function(x, nn=30, weighted=TRUE, verbose=FALSE){
     if (length(x@norm) == 0) stop("Normalize data before running nearest neighbors.")
 
@@ -94,7 +95,7 @@ get_snn <- function(x,
 #' \code{cluster_n} droplets are ranked by "gene" or "count", given by the 
 #' parameter \code{order_by}. Then, droplets with at least those ranked 
 #' counts/genes are included in the cluster set. The data is then normalized 
-#' by taking first calculating the variable genes. A loess regression line 
+#' by first calculating the variable genes. A loess regression line 
 #' is fit between the log counts and log variance, and the only top genes 
 #' ranked by residual are used to initialize the clusters. The number of 
 #' genes is specified with \code{n_var}. Optionally, one can use all genes 
@@ -106,7 +107,7 @@ get_snn <- function(x,
 #' log transformed after adding a constant value of 1.
 #' After normalization, the k-nearest neighbors are identified in the 
 #' cluster set. The number of nearest neighbors is specified by 
-#' \code{nn}. Clusters are identified form the KNN graph 
+#' \code{nn}. Clusters are identified from the KNN graph 
 #' using the Louvain algorithm. Finally, only clusters with at least 
 #' \code{min_size} (20 by default) droplets are considered cell types.
 #'

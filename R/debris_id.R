@@ -14,7 +14,7 @@
 #'
 #' @return An SCE object.
 #' @export
-call_targets <- function(x, pp_thresh=0.95, min_genes=200){
+call_targets <- function(x, pp_thresh = 0.95, min_genes = 200){
 
     if (!"CleanProb" %in% colnames(x@droplet_data)) stop("Run DIEM before calling targets")
 
@@ -55,7 +55,7 @@ get_clean_ids <- function(x){
 #'
 #' @return A character vector with the called droplet IDs.
 #' @export
-get_removed_ids <- function(x, min_genes=200){
+get_removed_ids <- function(x, min_genes = 200){
     if (!"Call" %in% colnames(x@droplet_data)) 
         stop("Call targets before calling get_clean_ids")
 
