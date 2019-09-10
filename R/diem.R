@@ -105,17 +105,19 @@
 #'  to avoid collapsing likelihood to 0.
 #' @param pp_thresh Numeric threshold, where clean droplets must have a 
 #'  posterior probability of at least \code{pp_thresh}.
-#' @param min_genes Numeric threshold, where clean droplets must have at least 
+#' @param gene_thresh Numeric threshold, where clean droplets must have at least 
 #'  \code{min_genes} genes detected.
 #' @param verbose Logical indicating verbosity.
 #' 
 #' @return SCE object.
 #' @export
 #' @examples
+#' \dontrun{
 #' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
 #' mb_sce <- create_SCE(x=counts, name="Mouse Brain")
 #' mb_sce <- diem(mb_sce)
 #' mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
+#' }
 diem <- function(sce,
                  top_n=1e4, 
                  min_counts=100, 
@@ -132,7 +134,7 @@ diem <- function(sce,
                  min_size=20, 
                  eps=1e-8, 
                  max_iter=100, 
-                 pseudocount=1e-4, 
+                 psc=1e-4, 
                  pp_thresh=0.95, 
                  gene_thresh=200, 
                  verbose=TRUE){

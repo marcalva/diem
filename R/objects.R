@@ -1,5 +1,6 @@
 #' @useDynLib diem
 #' @importClassesFrom Matrix dgCMatrix
+#' @importFrom methods setClassUnion setOldClass
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 
 setOldClass("igraph", igraph::make_empty_graph())
@@ -85,10 +86,11 @@ fill_counts <- function(x){
 #' @param name An optional character name for the SCE object.
 #'
 #' @importFrom Matrix Matrix
+#' @importFrom methods new
 #' @return SCE object
 #' @export
 #' @examples
-#' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
+#' counts <- matrix(sample(c(0,1,2), 1000, replace=TRUE),  nrow=10, ncol=100)
 #' mb_sce <- create_SCE(x=counts, name="Mouse Brain")
 create_SCE <- function(x, name="SCE"){
     if (is.null(rownames(x))) rownames(x) <- paste0("Gene", seq_len(nrow(x)))
@@ -146,8 +148,7 @@ droplet_data <- function(x, min_counts=1){
 #' detected in less than this number of droplets.
 #'
 #' @param x An SCE object.
-#' @param min_counts Minimum number of droplets a gene must be detected in 
-#'  to be output.
+#' @param min_droplets Minimum number of droplets detected per gene
 #'
 #' @return A data frame
 #'
@@ -156,7 +157,6 @@ gene_data <- function(x, min_droplets=1){
     keep <- x@gene_data$n_cells >= min_droplets
     return(x@gene_data[keep,,drop=FALSE])
 }
-
 
 #' Convert an SCE object to Seurat
 #'
@@ -175,7 +175,11 @@ gene_data <- function(x, min_droplets=1){
 #' @return A Seurat object
 #' @export
 #' @examples
-#' mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
+#' mm_seur <- convert_to_seurat(x = mb_small, 
+#'                              targets = FALSE, 
+#'                              min.features = 500, 
+#'                              min.cells = 3, 
+#'                              project = mb_small@name)
 convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
     if (!requireNamespace("Seurat", quietly = TRUE)) {
         stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
@@ -215,11 +219,15 @@ convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
 #'  with cells in the columns and genes in the rows.
 #'
 #' @importFrom Matrix readMM
+#' @importFrom methods as
+#' @importFrom utils read.delim
 #' @export
 #'
 #' @examples
-#' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
-#'
+#' \dontrun{
+#' dir <- "path/to/10x" # should show 3 files described above
+#' counts <- read_10x(dir)
+#' }
 read_10x <- function(path, clip_end=TRUE, sep="."){
     files <- list.files(path, full.names=TRUE)
     files_names <- list.files(path, full.names=FALSE)
@@ -260,5 +268,4 @@ read_10x <- function(path, clip_end=TRUE, sep="."){
     
     return(expr)
 }   
-
 

@@ -18,6 +18,7 @@
 #'
 #' @return An SCE object
 #' @importFrom Matrix rowMeans
+#' @importFrom stats loess
 #' @export
 get_var_genes <- function(x, 
                           n_genes=2000, 

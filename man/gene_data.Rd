@@ -9,8 +9,7 @@ gene_data(x, min_droplets = 1)
 \arguments{
 \item{x}{An SCE object.}
 
-\item{min_counts}{Minimum number of droplets a gene must be detected in 
-to be output.}
+\item{min_droplets}{Minimum number of droplets detected per gene}
 }
 \value{
 A data frame

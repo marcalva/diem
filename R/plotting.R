@@ -1,3 +1,4 @@
+#' @importFrom utils globalVariables
 
 set_breaks_10 <- function(x){
 	xmax <- x[2]
@@ -26,9 +27,9 @@ barcode_rank_plot <- function(x, title="", ret=FALSE){
 	ranks <- seq(length(counts))
 	counts[duplicated(counts)] <- NA
 	ranks[duplicated(counts)] <- NA
-	df <- data.frame(Rank=ranks, Count=counts)
+	df <- data.frame("Rank"=ranks, "Count"=counts)
 	df <- df[!is.na(df[,2]),,drop=FALSE]
-	p <- ggplot(df, aes(x=Rank, y=Count)) + 
+	p <- ggplot(df, aes_string(x = "Rank", y = "Count")) + 
 	geom_point() + 
 	scale_x_continuous(trans='log10', breaks=set_breaks_10, labels=comma) + 
 	scale_y_continuous(name="Droplet size", trans='log10', labels=comma)  + 
@@ -63,7 +64,8 @@ plot_umi_gene <- function(x,
 
 	df <- x@droplet_data[x@test_set,]
 
-	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes_string(colour=color)) + 
+	p <- ggplot(df, aes_string(x = "total_counts", y = "n_genes")) + 
+    geom_point(alpha=alpha, aes_string(colour=color)) + 
 	xlab("UMI Counts") +
 	ylab("Genes Detected") + 
 	scale_x_log10() + scale_y_log10() + 
@@ -94,7 +96,8 @@ plot_umi_gene_call <- function(x,
 
 	df <- x@droplet_data[x@test_set,]
 
-	p <- ggplot(df, aes(x=total_counts, y=n_genes)) + geom_point(alpha=alpha, aes_string(colour=color)) + 
+	p <- ggplot(df, aes_string(x = "total_counts", y = "n_genes")) + 
+    geom_point(alpha=alpha, aes_string(colour=color)) + 
 	xlab("UMI Counts") +
 	ylab("Genes Detected") + 
 	scale_x_log10() + scale_y_log10() + 

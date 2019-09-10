@@ -2,10 +2,13 @@
 % Please edit documentation in R/em.R
 \name{fraction_log}
 \alias{fraction_log}
-\title{x is a vector}
+\title{fraction of logs}
 \usage{
 fraction_log(x)
 }
+\arguments{
+\item{x}{numeric vector}
+}
 \description{
-x is a vector
+fraction of logs
 }

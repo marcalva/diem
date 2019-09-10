@@ -9,7 +9,7 @@ filter_genes(x, cpm_thresh = 10)
 \arguments{
 \item{x}{An SCE object.}
 
-\item{cpm_thresh}{The minimum CPM expression threshold in both groups.}
+\item{cpm_thresh}{The minimum CPM threshold for removing genes.}
 }
 \value{
 An SCE object

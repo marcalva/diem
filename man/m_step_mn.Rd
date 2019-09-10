@@ -6,6 +6,20 @@
 \usage{
 m_step_mn(x, r, psc = 1e-04)
 }
+\arguments{
+\item{x}{An n x p count matrix.}
+
+\item{r}{An n x k membership prob. matrix.}
+
+\item{psc}{Pseudocount.}
+}
+\value{
+A list with 
+\describe{
+ \item{Mu}{An n x k matrix of multinomial means.}
+ \item{Mc}{A k-length numeric vector of mixture coefficients.}
+}
+}
 \description{
 Given an n x p matrix of count data, as well as a 
 n x k matrix of responsibilities, return the maximum 

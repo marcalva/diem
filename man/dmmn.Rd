@@ -15,7 +15,7 @@ Number of rows must be same as number of columns in X}
 \item{mc}{Numeric vector with mixture coefficients. Length must be same as 
 number of columns in \code{p}.}
 
-\item{labels}{Numeric vector of same length as number of rows in x. Fixed 
+\item{labels}{Numeric vector of same length as number of rows in x. Fixes 
 the group probabilities of the integer in this vector element to 1. In 
 other words, the latent variable for these samples are treated as known.}
 }

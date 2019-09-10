@@ -3,8 +3,10 @@
 
 context("Initialization")
 
-load("../../data/mb_small.Rda")
+#rf <- system.file("data", "mb_small.rda", package="diem")
+#load(rf)
 
+expect_equal(ncol(mb_small), 1386)
 mb_small <- set_debris_test_set(mb_small)
 mb_small <- filter_genes(mb_small)
 

@@ -27,5 +27,9 @@ slot in the Seurat object. Additional functions \code{...} to this function are 
 \code{min.features = 200}.
 }
 \examples{
-mm_seur <- convert_to_seurat(x=mb_sce, min.features = 200, min.cells = 3, project=mb_sce@name)
+mm_seur <- convert_to_seurat(x = mb_small, 
+                             targets = FALSE, 
+                             min.features = 500, 
+                             min.cells = 3, 
+                             project = mb_small@name)
 }

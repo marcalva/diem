@@ -2,10 +2,13 @@
 % Please edit documentation in R/em.R
 \name{sum_log}
 \alias{sum_log}
-\title{x is a vector}
+\title{sum of logs}
 \usage{
 sum_log(x)
 }
+\arguments{
+\item{x}{numeric vector}
+}
 \description{
-x is a vector
+sum of logs
 }

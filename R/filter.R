@@ -82,11 +82,12 @@ set_debris_test_set <- function(x,
 #' to the debris group.
 #' 
 #' @param x An SCE object.
-#' @param top_n Numeric value specifying the number of droplets to use 
-#'  in the test set.
+#' @param cluster_n Numeric value specifying the number of droplets to use 
+#'  in the cluster set. The top \code{cluster_n} droplets, ranked by 
+#'  count or gene, are included in the cluster set.
 #' @param order_by Whether to order the droplets by total number of total 
 #'  counts or total number of genes detected.
-#' @param vebose verbosity
+#' @param verbose verbosity
 #'
 #' @return An SCE object.
 #' @importFrom Matrix colSums

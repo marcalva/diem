@@ -80,11 +80,11 @@ get_removed_ids <- function(x, min_genes = 200){
 #' @export
 #' @examples
 #' # Add MT%
-#' mt_genes <- grep(pattern="^mt-", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
-#' sce <- get_gene_pct(x=sce, genes=mt_genes, name="pct.mt")
+#' mt_genes <- grep(pattern="^mt-", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
+#' mb_small <- get_gene_pct(x = mb_small, genes=mt_genes, name="pct.mt")
 #' # Add MALAT1
-#' genes <- grep(pattern="^malat1$", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
-#' sce <- get_gene_pct(x=sce, genes=genes, name="MALAT1")
+#' genes <- grep(pattern="^malat1$", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
+#' mb_small <- get_gene_pct(x = mb_small, genes=genes, name="MALAT1")
 get_gene_pct <- function(x, genes, name){
     expr <- x@counts[genes,,drop=FALSE]
     if (length(expr) == 0){

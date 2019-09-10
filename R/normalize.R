@@ -65,6 +65,7 @@ norm_counts <- function(counts, scale_factor = 1e4, logt = TRUE){
 #'
 #' @return An SCE object
 #' @importFrom Matrix rowSums colSums
+#' @importFrom stats median
 #' @export
 normalize_data <- function(x, 
                            droplets.use = NULL, 

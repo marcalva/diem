@@ -10,28 +10,31 @@ run_em(x, eps = 1e-08, max_iter = 1000, psc = 1e-04,
 \arguments{
 \item{x}{An SCE object.}
 
-\item{eps}{Numeric threshold. The EM algorithm converges when the percent change in log likihood is 
-less than \code{eps}.}
+\item{eps}{Numeric threshold. The EM algorithm converges when the 
+percent change in log likihood is less than \code{eps}.}
 
 \item{max_iter}{The maximum number of iterations allowed to run.}
+
+\item{psc}{Pseudocount to add to multinomial parameters 
+to avoid collapsing likelihood to 0.}
 
 \item{verbose}{Logical indicating verbosity.}
 }
 \value{
-An SCE object with EM output.
+An SCE object.
 }
 \description{
-Run expectation maximization (EM) to estimate the parameters of the multinomial 
-mixture model. This function takes an SCE object as input, and returns an SCE 
-object with diem information. First genes with no expression are removed. This is 
-to make sure the entire data likelihood doesn't collapse to 0. However, during the 
-EM run, a gene may cease to be expressed in either of the groups, collapsing the 
-likelihood to 0 and causing the run to fail. If this happens, it is necessary to 
-increase \code{cpm_threshold} in \code{\link{diem}}. Then, droplets with 0 
-counts in the resulting genes are removed. To initialize EM, the emprical means 
-are calculated from the droplets that are fixed as debris and those that are 
-unlabeled for the debris and clean groups, respectively. The parameters of 
-of the multinomial are re-estimated after each run, and the algorithm converges
-when the percent change in log likihood is less than \code{eps}. If the 
+Run expectation maximization (EM) to estimate the parameters of the 
+multinomial mixture model. This function takes an SCE 
+object as input, and returns an SCE object with the EM output. 
+The number of clusters and their initialized multinomial means 
+are taken from the initial clustering assignments calculated with 
+\code{\link{initialize_clusters}}. The EM algorithm is run  
+by repeatedly updating the membership probabilities and then 
+estimating the MLE parameters of the multinomial mixture model.
+The algorithm converges when the percent change in 
+the log likihood is less than \code{eps}. If the 
 algorithm doesn't converge by \code{max_iter}, it breaks off.
+The posterior probability is the calculated by taking the 
+sum of the likelihood fractions across the cell types.
 }

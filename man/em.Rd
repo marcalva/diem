@@ -2,13 +2,59 @@
 % Please edit documentation in R/em.R
 \name{em}
 \alias{em}
-\title{EM function
-Counts is sample x feature}
+\title{EM function}
 \usage{
-em(counts, k, mn_params, max_iter = 1000, eps = 1e-08, psc = 1e-04,
+em(counts, k, mn_params, max_iter = 100, eps = 1e-08, psc = 1e-04,
   labels = NULL, verbose = TRUE)
 }
+\arguments{
+\item{counts}{observation by variable matrix of non-negative 
+integer counts.}
+
+\item{k}{Number of clusters.}
+
+\item{mn_params}{A list containing 
+ \describe{
+   \item{Mu}{A variable by k matrix containing the means of the 
+   of the k multinomial distributions.}
+   \item{Mc}{A numeric vector of mixture coefficients.}
+}}
+
+\item{max_iter}{A numeric value indivating the maximum 
+number of iterations.}
+
+\item{eps}{The epsilon value, which is the convergence 
+threshold of the percent change in the log likelihood.}
+
+\item{psc}{Pseudocount to add to the multinomial mean 
+parameter to avoid the likelihood collapsing to 0.}
+
+\item{labels}{Numeric vector of same length as number of 
+observations in counts. Fixes the group probabilities 
+of the integer in this vector element to 1. In 
+other words, the latent variable for these samples 
+are treated as known.}
+
+\item{verbose}{verbosity.}
+}
+\value{
+A list with
+\describe{
+  \item{Z}{An observation by cluster matrix of log 
+  log likelihoods. Each element is the log likelihood 
+  of that data point under the the k multinomial.}
+  \item{Mu}{A variable by cluster matrix of 
+  multinomial parameters.}
+  \item{Mc}{A numeric vector of mixture coefficients.}
+  \item{loglk}{Data log likelihood.}
+  \item{converged}{logical indicating whether the 
+  EM algorithm converged (TRUE) or reached the 
+  maximum number of iterations.}
+}
+}
 \description{
-EM function
-Counts is sample x feature
+Run EM for a multinomial mixture model on a sample x feature matrix. 
+Take a matrix \code{counts} and classify the samples in each row into 
+one of \code{k} clusters. The initial parameters of the multinomial 
+mixture model must be given as a list in the parameter \code{mn_params}.
 }

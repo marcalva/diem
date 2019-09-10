@@ -20,6 +20,6 @@ SCE object
 Create an SCE object from a sparse matrix
 }
 \examples{
-counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
+counts <- matrix(sample(c(0,1,2), 1000, replace=TRUE),  nrow=10, ncol=100)
 mb_sce <- create_SCE(x=counts, name="Mouse Brain")
 }

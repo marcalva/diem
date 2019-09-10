@@ -32,6 +32,8 @@ and gene names, duplicates are removed with the make.unique function.
 The separator is specified by \code{sep} by default.
 }
 \examples{
-counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
-
+\dontrun{
+dir <- "path/to/10x" # should show 3 files described above
+counts <- read_10x(dir)
+}
 }

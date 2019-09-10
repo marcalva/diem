@@ -10,13 +10,14 @@ set_cluster_set(x, cluster_n = 1000, order_by = "gene",
 \arguments{
 \item{x}{An SCE object.}
 
+\item{cluster_n}{Numeric value specifying the number of droplets to use 
+in the cluster set. The top \code{cluster_n} droplets, ranked by 
+count or gene, are included in the cluster set.}
+
 \item{order_by}{Whether to order the droplets by total number of total 
 counts or total number of genes detected.}
 
-\item{top_n}{Numeric value specifying the number of droplets to use 
-in the test set.}
-
-\item{vebose}{verbosity}
+\item{verbose}{verbosity}
 }
 \value{
 An SCE object.

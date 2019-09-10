@@ -16,7 +16,9 @@ e_step_mn(x, p, mc, Llks = NULL, labels = NULL)
 \item{Llks}{If log likelihood was computed for the mixture, provide the 
 matrix here.}
 
-\item{log}{Logical. If TRUE, return matrix with log probabilities.}
+\item{labels}{Numeric vector of same length as number of rows in x. Fixes 
+the group probabilities of the integer in this vector element to 1. In 
+other words, the latent variable for these samples are treated as known.}
 }
 \value{
 a numeric matrix with n samples by k groups.

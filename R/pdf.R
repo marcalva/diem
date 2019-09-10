@@ -6,6 +6,7 @@
 #'  same as the number of columns in X.
 #'
 #' @importFrom Matrix rowSums
+#' @importFrom methods as
 #' @importMethodsFrom Matrix %*%
 dmultinom_sparse <- function(X, prob){
     if (length(prob) != ncol(X)){

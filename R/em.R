@@ -1,8 +1,21 @@
 
-#' Initialize EM parameters with very droplet assigned to a group
+#' Initialize EM parameters given group assignments
 #'
-#' @return List with mu0 a p x 2 matrix and mc0 a length 2 numeric
+#' @param counts an observation by variable matrix of non-negative
+#'  integer counts.
+#' @param groups A character vector or factor, the same length 
+#'  as the number of columns in counts. The assignment of the 
+#'  index in groups corresponds to the group assignment of the 
+#'  column index in counts. Thus, the ordering of groups must 
+#'  be consistent with the column ordering in counts.
+#' @param psc Pseudocount to add to the resulting mean for 
+#'  each multinomial mean parameter.
 #'
+#' @return List
+#' \describe{
+#'  \item{mu0}{A observation by k matrix of multinomial means.}
+#'  \item{mc0}{A numeric vector of length k of micture coefficients.}
+#' }
 #' @importFrom Matrix colSums
 init_param <- function(counts, groups, psc=1e-4){
 
@@ -30,7 +43,9 @@ init_param <- function(counts, groups, psc=1e-4){
     return(ret)
 }
 
-#' x is a vector
+#' fraction of logs
+#'
+#' @param x numeric vector
 fraction_log <- function(x){
     x_c = x - max(x)
     x_c = exp(x_c)
@@ -38,7 +53,9 @@ fraction_log <- function(x){
     return(frac);
 }
 
-#' x is a vector
+#' sum of logs
+#'
+#' @param x numeric vector
 sum_log <- function(x){
     max_x <- max(x)
     x_c = x - max_x
@@ -58,7 +75,7 @@ sum_log <- function(x){
 #'  Number of rows must be same as number of columns in X
 #' @param mc Numeric vector with mixture coefficients. Length must be same as 
 #'  number of columns in \code{p}.
-#' @param labels Numeric vector of same length as number of rows in x. Fixed 
+#' @param labels Numeric vector of same length as number of rows in x. Fixes 
 #'  the group probabilities of the integer in this vector element to 1. In 
 #'  other words, the latent variable for these samples are treated as known.
 #'
@@ -117,7 +134,9 @@ dmmn <- function(x, p, mc, labels=NULL){
 #' @param mc numeric. Mixture coefficients
 #' @param Llks If log likelihood was computed for the mixture, provide the 
 #'  matrix here.
-#' @param log Logical. If TRUE, return matrix with log probabilities.
+#' @param labels Numeric vector of same length as number of rows in x. Fixes 
+#'  the group probabilities of the integer in this vector element to 1. In 
+#'  other words, the latent variable for these samples are treated as known.
 #'
 #' @return a numeric matrix with n samples by k groups.
 e_step_mn <- function(x, p, mc, Llks=NULL, labels=NULL){
@@ -138,6 +157,16 @@ e_step_mn <- function(x, p, mc, Llks=NULL, labels=NULL){
 #' likelihood estimate (MLE) of p for each k group in 
 #' a p x k matrix.
 #'
+#' @param x An n x p count matrix.
+#' @param r An n x k membership prob. matrix.
+#' @param psc Pseudocount.
+#' 
+#' @return A list with 
+#' \describe{
+#'  \item{Mu}{An n x k matrix of multinomial means.}
+#'  \item{Mc}{A k-length numeric vector of mixture coefficients.}
+#' }
+#' 
 #' @importFrom Matrix t
 #' @importMethodsFrom Matrix %*%
 m_step_mn <- function(x, r, psc=1e-4){
@@ -151,9 +180,56 @@ m_step_mn <- function(x, r, psc=1e-4){
 }
 
 #' EM function
-#' Counts is sample x feature
+#' 
+#' Run EM for a multinomial mixture model on a sample x feature matrix. 
+#' Take a matrix \code{counts} and classify the samples in each row into 
+#' one of \code{k} clusters. The initial parameters of the multinomial 
+#' mixture model must be given as a list in the parameter \code{mn_params}.
+#'
+#' @param counts observation by variable matrix of non-negative 
+#'  integer counts.
+#' @param k Number of clusters.
+#' @param mn_params A list containing 
+#'  \describe{
+#'    \item{Mu}{A variable by k matrix containing the means of the 
+#'    of the k multinomial distributions.}
+#'    \item{Mc}{A numeric vector of mixture coefficients.}
+#' }
+#' @param max_iter A numeric value indivating the maximum 
+#'  number of iterations.
+#' @param eps The epsilon value, which is the convergence 
+#'  threshold of the percent change in the log likelihood.
+#' @param psc Pseudocount to add to the multinomial mean 
+#'  parameter to avoid the likelihood collapsing to 0.
+#' @param labels Numeric vector of same length as number of 
+#'  observations in counts. Fixes the group probabilities 
+#'  of the integer in this vector element to 1. In 
+#'  other words, the latent variable for these samples 
+#'  are treated as known.
+#' @param verbose verbosity.
+#'
+#' @return A list with
+#' \describe{
+#'   \item{Z}{An observation by cluster matrix of log 
+#'   log likelihoods. Each element is the log likelihood 
+#'   of that data point under the the k multinomial.}
+#'   \item{Mu}{A variable by cluster matrix of 
+#'   multinomial parameters.}
+#'   \item{Mc}{A numeric vector of mixture coefficients.}
+#'   \item{loglk}{Data log likelihood.}
+#'   \item{converged}{logical indicating whether the 
+#'   EM algorithm converged (TRUE) or reached the 
+#'   maximum number of iterations.}
+#' }
 #' @export
-em <- function(counts, k, mn_params, max_iter=1e3, eps=1e-8, psc=1e-4, labels=NULL, verbose=TRUE){
+em <- function(counts, 
+               k, 
+               mn_params, 
+               max_iter = 1e2, 
+               eps = 1e-8, 
+               psc = 1e-4, 
+               labels = NULL, 
+               verbose = TRUE){
     # Initialize parameters
     loglk <- -Inf
     loglks <- c(loglk)
