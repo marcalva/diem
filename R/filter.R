@@ -68,7 +68,7 @@ set_debris_test_set <- function(x,
     x@test_set <- setdiff(ts, fix_debris)
     x@bg_set <- setdiff(colnames(x@counts), x@test_set)
 
-    if (length(x@test_set) == 0) stop("No test droplets found. Check min_counts and min_genes.")
+    if (length(x@test_set) <= 1) stop("1 or less test droplets found. Check min_counts and min_genes.")
 
     return(x)
 }
