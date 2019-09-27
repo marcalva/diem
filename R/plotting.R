@@ -102,7 +102,7 @@ plot_umi_gene_call <- function(x,
 	ylab("Genes Detected") + 
 	scale_x_log10() + scale_y_log10() + 
 	theme_minimal() + theme(text=element_text(size=22)) + 
-	scale_colour_discrete(name=color_name) 
+	scale_colour_brewer(name=color_name, palette = "Set1") 
 	if (ret) return(p)
 	else print(p)
 }

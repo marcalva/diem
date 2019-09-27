@@ -1,25 +1,41 @@
 
-# DIEM v0.5
+# DIEM
 
-Clean out debris-containing droplets from single-cell based data, particularly from 
-single-nucleus RNA-seq of frozen tissue.
+Remove debris-contaminated droplets from single-cell based data.
 
 ## Installation
 
-Use devtools to install as an R package
+`diem` requires the following packages to be installed:
+
+* [Matrix](https://cran.r-project.org/web/packages/Matrix/index.html)
+* [dbscan](https://cran.r-project.org/web/packages/dbscan/index.html)
+* [igraph](https://cran.r-project.org/web/packages/igraph/index.html)
+
+The `diem` package also makes use of the ggplot2 and scales packages 
+for plotting.
+
+Currently, we only support installation of the `diem` R package 
+through devtools
 
 ```R
 library(devtools)
-devtools::install()
+devtools::install_github("marcalva/diem")
 ```
 
 ## Usage
 
-Shown below is the suggested workflow.
+Check out the vignette for a thorough tutorial on using `diem`. 
+
+Shown below is a quick workflow for reading 10X data, filtering 
+droplets using default parameters, and converting to a 
+seurat object
 
 ```R
 library(diem)
-x <- read_10x(path)
-sce <- create_SCE(x)
+library(Seurat)
+counts <- read_10x(path/to/10x)
+sce <- create_SCE(counts)
 sce <- diem(sce)
+seur <- convert_to_seurat(sce)
 ```
+

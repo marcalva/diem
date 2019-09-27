@@ -134,8 +134,6 @@ get_snn <- function(x,
 #' @importFrom igraph cluster_louvain
 #' @export
 initialize_clusters <- function(x, 
-                                cluster_n = 1000, 
-                                order_by = "gene", 
                                 use_var = TRUE, 
                                 n_var = 2000, 
                                 lss = 0.3, 
@@ -144,10 +142,7 @@ initialize_clusters <- function(x,
                                 min_size = 20, 
                                 verbose = TRUE){
 
-    x <- set_cluster_set(x, 
-                         cluster_n = cluster_n, 
-                         order_by = order_by, 
-                         verbose = verbose)
+    if (length(x@cluster_set) == 0) stop("0 droplets in cluster_set. Set droplets for initialization with set_cluster_set first")
     if (use_var)  x <- get_var_genes(x, n_genes = n_var, lss = lss)
     x <- normalize_data(x, use_var = use_var, sf = sf)
     x <- get_knn(x, nn = nn, verbose = verbose)

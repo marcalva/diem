@@ -143,11 +143,16 @@ diem <- function(sce,
     }
     sce@pp_thresh <- pp_thresh
 
-    sce <- set_debris_test_set(sce, top_n=top_n, min_counts=min_counts, min_genes=min_genes, fix_debris=fix_debris)
+    sce <- set_debris_test_set(sce, 
+                               top_n = top_n, 
+                               min_counts = min_counts, 
+                               min_genes = min_genes, 
+                               fix_debris = fix_debris)
     sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
+    sce <- set_cluster_set(sce, cluster_n = cluster_n, 
+                           order_by = order_by, 
+                           verbose = verbose)
     sce <- initialize_clusters(sce, 
-                               cluster_n=cluster_n, 
-                               order_by=order_by, 
                                use_var=use_var, 
                                n_var=n_var, 
                                lss=lss,

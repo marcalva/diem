@@ -158,6 +158,19 @@ gene_data <- function(x, min_droplets=1){
     return(x@gene_data[keep,,drop=FALSE])
 }
 
+#' Return raw counts
+#'
+#' Return the raw counts from an SCE object.
+#' 
+#' @param x An SCE object.
+#' 
+#' @return Sparse matrix
+#'
+#' @export
+raw_counts <- function(x){
+    return(x@counts)
+}
+
 #' Convert an SCE object to Seurat
 #'
 #' Convert an SCE object to a Seurat object. if \code{targets} is true (default), output only droplets that are 
