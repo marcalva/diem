@@ -18,10 +18,11 @@ sce <- create_SCE(counts)
 
 test_that("Filtering works", {
 
+          n_test <- 10
          sce_ts <- set_debris_test_set(sce, top_n = 1e4,
                                        min_counts = 0, min_genes = 0, 
-                                       fix_debris = colnames(counts)[1:(ncol(sce)-1)])
-         expect_equal(length(sce_ts@test_set), 1)
+                                       fix_debris = colnames(counts)[1:(ncol(sce) - n_test)])
+         expect_equal(length(sce_ts@test_set), n_test)
          expect_equal(length(intersect(sce_ts@test_set, sce_ts@bg_set)), 0)
 
          sce_ts <- set_debris_test_set(sce, top_n=1e4, 

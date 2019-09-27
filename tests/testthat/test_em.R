@@ -5,7 +5,7 @@ context("EM")
 
 # rf <- system.file("data", "mb_small.rda", package="diem")
 # load(rf)
-expect_equal(ncol(mb_small), 1386)
+expect_equal(ncol(mb_small), 2457)
 
 eps <- 1e-8
 
@@ -19,8 +19,8 @@ test_that("EM flags errors when initialized", {
 
 mb_small <- set_debris_test_set(mb_small)
 mb_small <- filter_genes(mb_small)
+mb_small <- set_cluster_set(mb_small, cluster_n = 500)
 mb_small <- initialize_clusters(mb_small, 
-                                cluster_n = 500, 
                                 nn = 30, n_var = 2000, 
                                 min_size = 10, verbose = FALSE)
 
