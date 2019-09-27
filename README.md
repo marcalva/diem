@@ -33,7 +33,7 @@ seurat object
 ```R
 library(diem)
 library(Seurat)
-counts <- read_10x(path/to/10x)
+counts <- read_10x("path/to/10x")
 sce <- create_SCE(counts)
 sce <- diem(sce)
 seur <- convert_to_seurat(sce)
