@@ -24,7 +24,7 @@ Imports:
     utils, 
     stats
 Suggests:
-    Seurat (>=3.0.0),
+    Seurat (>= 3.0.0),
     testthat,
     knitr,
     rmarkdown
