@@ -4,18 +4,11 @@
 \alias{initialize_clusters}
 \title{Initialize clustering for EM}
 \usage{
-initialize_clusters(x, cluster_n = 1000, order_by = "gene",
-  use_var = TRUE, n_var = 2000, lss = 0.3, sf = "median",
-  nn = 30, min_size = 20, verbose = TRUE)
+initialize_clusters(x, use_var = TRUE, n_var = 2000, lss = 0.3,
+  sf = "median", nn = 30, min_size = 20, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
-
-\item{cluster_n}{Numeric value specifying the number of droplets to use 
-in the test set.}
-
-\item{order_by}{Whether to order the droplets by total number of total 
-counts or total number of genes detected.}
 
 \item{use_var}{A logical indicating whether to subset the data to include
 only variable genes. This overrides \code{genes.use}.
@@ -36,6 +29,12 @@ graph.}
 cluster for it to be used for initialization as a cell type for EM.}
 
 \item{verbose}{verbosity.}
+
+\item{cluster_n}{Numeric value specifying the number of droplets to use 
+in the test set.}
+
+\item{order_by}{Whether to order the droplets by total number of total 
+counts or total number of genes detected.}
 }
 \value{
 An SCE object
