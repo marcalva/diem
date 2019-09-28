@@ -12,7 +12,7 @@ test_thresh <- 95
 pp_thresh <- 0.95
 min_genes <- 98
 
-set.seed(10)
+set.seed(1)
 counts <- sample(0:30, replace = TRUE, size = 1e4)
 counts <- matrix(counts, nrow = nr, ncol = nc)
 rownames(counts) <- paste0("G", as.character(1:nr))
@@ -37,7 +37,8 @@ test_that("Clean calling works",{
           nr2 <- ids[sce_c@droplet_data$n_genes < min_genes & ids %in% sce_c@test_set]
           expect_equal(sort(nr1), sort(nr2))
           sce_c <- get_gene_pct(sce_c, "G1", name = "G")
-          expect_equal(sce_c@droplet_data["C1","G"], 100*15/1329)
+          c1_g <- 100 * sce_c@counts["G1","C1"] / sum(sce_c@counts[,"C1"])
+          expect_equal(sce_c@droplet_data["C1","G"], c1_g)
 
           sce_c <- call_targets(sce, pp_thresh = 1.1, min_genes = 0)
           expect_equal(sum(sce_c@droplet_data$Call == "Clean"), 0)
