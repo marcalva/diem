@@ -4,18 +4,16 @@
 \alias{get_removed_ids}
 \title{Return IDs of removed droplets}
 \usage{
-get_removed_ids(x, min_genes = 200)
+get_removed_ids(x)
 }
 \arguments{
 \item{x}{An SCE object.}
-
-\item{min_genes}{The minimum number of genes detected in a droplet.}
 }
 \value{
 A character vector with the called droplet IDs.
 }
 \description{
-Return the droplet IDs that have been removed by DIEM. Filter 
-to include only those with at least \code{min_genes} detected.
+Return the droplet IDs in the test set that have been removed 
+by DIEM. 
 The function \code{\link{call_targets}} must be run beforehand.
 }

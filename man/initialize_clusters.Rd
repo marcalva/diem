@@ -29,26 +29,17 @@ graph.}
 cluster for it to be used for initialization as a cell type for EM.}
 
 \item{verbose}{verbosity.}
-
-\item{cluster_n}{Numeric value specifying the number of droplets to use 
-in the test set.}
-
-\item{order_by}{Whether to order the droplets by total number of total 
-counts or total number of genes detected.}
 }
 \value{
 An SCE object
 }
 \description{
-Given an SCE object, identify the cell types present in the top 
-\code{cluster_n} droplets.
+Given an SCE object, identify the cell types present.
 }
 \details{
 Instead of randomly initializing the EM, cell types are estimated from 
-droplets that are expected to contain cells/nuclei. The top 
-\code{cluster_n} droplets are ranked by "gene" or "count", given by the 
-parameter \code{order_by}. Then, droplets with at least those ranked 
-counts/genes are included in the cluster set. The data is then normalized 
+droplets that are expected to contain cells/nuclei. The initialization 
+is done with droplets in the cluster set. The data is then normalized 
 by first calculating the variable genes. A loess regression line 
 is fit between the log counts and log variance, and the only top genes 
 ranked by residual are used to initialize the clusters. The number of 

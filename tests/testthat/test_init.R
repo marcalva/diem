@@ -6,7 +6,7 @@ context("Initialization")
 #rf <- system.file("data", "mb_small.rda", package="diem")
 #load(rf)
 
-expect_equal(ncol(mb_small), 2457)
+expect_equal(ncol(mb_small), 2451)
 mb_small <- set_debris_test_set(mb_small)
 mb_small <- filter_genes(mb_small)
 
@@ -14,7 +14,7 @@ test_that("initialization works", {
          mb_small <- set_cluster_set(mb_small, cluster_n = 200, order_by="count")
          expect_equal(length(mb_small@cluster_set), 200)
          mb_small <- set_cluster_set(mb_small, cluster_n = 200)
-         expect_equal(length(mb_small@cluster_set), 203)
+         expect_equal(length(mb_small@cluster_set), 201)
          expect_error(set_cluster_set(mb_small, cluster_n = 0))
          mb_small <- set_cluster_set(mb_small, cluster_n = Inf)
          expect_equal(sort(mb_small@cluster_set), sort(mb_small@test_set))

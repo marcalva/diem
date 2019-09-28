@@ -5,7 +5,7 @@ context("EM")
 
 # rf <- system.file("data", "mb_small.rda", package="diem")
 # load(rf)
-expect_equal(ncol(mb_small), 2457)
+expect_equal(ncol(mb_small), 2451)
 
 eps <- 1e-8
 

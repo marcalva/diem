@@ -14,7 +14,6 @@
 #' @importFrom dbscan kNN
 #' @importFrom igraph graph_from_data_frame simplify
 #' @return An SCE object
-#' @export
 get_knn <- function(x, nn=30, weighted=TRUE, verbose=FALSE){
     if (length(x@norm) == 0) stop("Normalize data before running nearest neighbors.")
 
@@ -45,56 +44,13 @@ get_knn <- function(x, nn=30, weighted=TRUE, verbose=FALSE){
     return(x)
 }
 
-get_snn <- function(x,
-                    nn=30,
-                    kt=3,
-                    min_counts=10,
-                    droplets.use=NULL,
-                    weighted=TRUE,
-                    algorithm="kd_tree",
-                    verbose=FALSE){
-    if (is.null(droplets.use)) droplets.use <- colnames(x@counts)
-    if (length(x@norm) == 0) stop("Normalize data before running nearest neighbors.")
-    datf <- as.matrix(t(x@norm))
-    droplets.use <- rownames(datf)
-
-    if (verbose) cat(paste0("Finding shared nearest neighbors.\n"))
-    # knn.dbscan <- dbscan::sNN(x@pcs, k=nn, kt=2)
-    knn.dbscan <- dbscan::sNN(datf, k=nn, kt=kt)
-    rownames(knn.dbscan$shared) <- rownames(datf)
-    knn.dbscan$id <- knn.dbscan$id
-    knn.dbscan$shared <- knn.dbscan$shared
-
-    fnames <- as.vector(sapply(rownames(datf), rep, nn))
-    ti <- as.vector(t(knn.dbscan$id))
-    tnames <- sapply(ti, function(i) rownames(datf)[i])
-
-    if (weighted){
-        knn.w <- as.vector(t(knn.dbscan$shared))
-        knn.dat <- data.frame(from=fnames, to=tnames, weight=knn.w)
-    } else {
-        knn.dat <- data.frame(from=fnames, to=tnames)
-    }
-    knn.dat <- knn.dat[!is.na(knn.dat[,"to"]),]
-
-    g <- igraph::graph_from_data_frame(knn.dat, directed=FALSE)
-    g <- igraph::simplify(g)
-
-    x@nn_graph <- g
-    if (verbose) cat("Done.\n")
-    return(x)
-}
-
 #' Initialize clustering for EM
 #'
-#' Given an SCE object, identify the cell types present in the top 
-#' \code{cluster_n} droplets.
+#' Given an SCE object, identify the cell types present.
 #'
 #' Instead of randomly initializing the EM, cell types are estimated from 
-#' droplets that are expected to contain cells/nuclei. The top 
-#' \code{cluster_n} droplets are ranked by "gene" or "count", given by the 
-#' parameter \code{order_by}. Then, droplets with at least those ranked 
-#' counts/genes are included in the cluster set. The data is then normalized 
+#' droplets that are expected to contain cells/nuclei. The initialization 
+#' is done with droplets in the cluster set. The data is then normalized 
 #' by first calculating the variable genes. A loess regression line 
 #' is fit between the log counts and log variance, and the only top genes 
 #' ranked by residual are used to initialize the clusters. The number of 
@@ -112,10 +68,6 @@ get_snn <- function(x,
 #' \code{min_size} (20 by default) droplets are considered cell types.
 #'
 #' @param x An SCE object.
-#' @param cluster_n Numeric value specifying the number of droplets to use 
-#'  in the test set.
-#' @param order_by Whether to order the droplets by total number of total 
-#'  counts or total number of genes detected.
 #' @param use_var A logical indicating whether to subset the data to include
 #'  only variable genes. This overrides \code{genes.use}.
 #'  The default is TRUE as it may better identify cell types.

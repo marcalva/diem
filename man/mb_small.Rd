@@ -4,9 +4,9 @@
 \name{mb_small}
 \alias{mb_small}
 \title{Single-nucleus RNA-seq of mouse brain}
-\format{An SCE object with 1,000 rows (genes) and 1,386 droplets (columns)}
+\format{An SCE object with 1,001 rows (genes) and 2,451 droplets (columns)}
 \source{
-\url{https://www.10xgenomics.com}
+\url{https://support.10xgenomics.com/single-cell-gene-expression/datasets/2.1.0/nuclei_2k}
 }
 \usage{
 mb_small

@@ -46,23 +46,22 @@ get_clean_ids <- function(x){
 
 #' Return IDs of removed droplets
 #'
-#' Return the droplet IDs that have been removed by DIEM. Filter 
-#' to include only those with at least \code{min_genes} detected.
+#' Return the droplet IDs in the test set that have been removed 
+#' by DIEM. 
 #' The function \code{\link{call_targets}} must be run beforehand.
 #'
 #' @param x An SCE object.
-#' @param min_genes The minimum number of genes detected in a droplet. 
 #'
 #' @return A character vector with the called droplet IDs.
 #' @export
-get_removed_ids <- function(x, min_genes = 200){
+get_removed_ids <- function(x){
     if (!"Call" %in% colnames(x@droplet_data)) 
         stop("Call targets before calling get_clean_ids")
 
-    debris <- x@droplet_data$Call == "Debris"
-    mg <- x@droplet_data$n_genes >= min_genes
-    ids <- rownames(x@droplet_data)[debris & mg]
-    return(ids)
+    if (length(x@test_set) == 0) stop("No test set droplets")
+    debris <- rownames(x@droplet_data)[x@droplet_data$Call == "Debris"]
+    removed <- intersect(x@test_set, debris)
+    return(removed)
 }
 
 #' Get percent of reads align to given gene(s)

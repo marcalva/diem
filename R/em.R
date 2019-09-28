@@ -221,7 +221,6 @@ m_step_mn <- function(x, r, psc=1e-4){
 #'   EM algorithm converged (TRUE) or reached the 
 #'   maximum number of iterations.}
 #' }
-#' @export
 em <- function(counts, 
                k, 
                mn_params, 
