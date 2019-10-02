@@ -4,12 +4,14 @@
 \alias{filter_genes}
 \title{Filter out lowly expressed genes}
 \usage{
-filter_genes(x, cpm_thresh = 10)
+filter_genes(x, cpm_thresh = 10, verbose = FALSE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
 \item{cpm_thresh}{The minimum CPM threshold for removing genes.}
+
+\item{verbose}{verbosity}
 }
 \value{
 An SCE object

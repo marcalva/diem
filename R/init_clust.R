@@ -14,7 +14,7 @@
 #' @importFrom dbscan kNN
 #' @importFrom igraph graph_from_data_frame simplify
 #' @return An SCE object
-get_knn <- function(x, nn=30, weighted=TRUE, verbose=FALSE){
+get_knn <- function(x, nn = 30, weighted = TRUE, verbose = FALSE){
     if (length(x@norm) == 0) stop("Normalize data before running nearest neighbors.")
 
     datf <- t(x@norm)
@@ -40,7 +40,6 @@ get_knn <- function(x, nn=30, weighted=TRUE, verbose=FALSE){
     g <- simplify(g)
 
     x@nn_graph <- g
-    if (verbose) cat("Done.\n")
     return(x)
 }
 
@@ -92,7 +91,7 @@ initialize_clusters <- function(x,
                                 sf = "median", 
                                 nn = 30, 
                                 min_size = 20, 
-                                verbose = TRUE){
+                                verbose = FALSE){
 
     if (length(x@cluster_set) == 0) stop("0 droplets in cluster_set. Set droplets for initialization with set_cluster_set first")
     if (use_var)  x <- get_var_genes(x, n_genes = n_var, lss = lss)

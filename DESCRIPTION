@@ -29,3 +29,5 @@ Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
+URL: https://www.biorxiv.org/content/10.1101/786285v2
+BugReports: https://github.com/marcalva/diem/issues

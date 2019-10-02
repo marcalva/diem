@@ -301,7 +301,11 @@ em <- function(counts,
 #' @importFrom igraph gsize
 #' @importMethodsFrom Matrix %*%
 #' @export
-run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
+run_em <- function(x, 
+                   eps = 1e-8, 
+                   max_iter = 1e3, 
+                   psc = 1e-4, 
+                   verbose = TRUE){
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
     droplets.use <- c(x@test_set, x@bg_set)
@@ -328,7 +332,14 @@ run_em <- function(x, eps=1e-8, max_iter=1e3, psc=1e-4, verbose=TRUE){
     }
 
     # Run EM
-    emo <- em(counts, k=k, max_iter=max_iter, eps=eps, labels=labels, psc=psc, mn_params=mn_params, verbose=verbose)
+    emo <- em(counts, 
+              k = k, 
+              max_iter = max_iter, 
+              eps = eps, 
+              labels = labels, 
+              psc = psc, 
+              mn_params = mn_params, 
+              verbose = verbose)
     x@emo <- emo
 
     # Naive Bayes assignment

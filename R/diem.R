@@ -148,26 +148,38 @@ diem <- function(sce,
                                min_counts = min_counts, 
                                min_genes = min_genes, 
                                fix_debris = fix_debris)
-    sce <- filter_genes(sce, cpm_thresh=cpm_thresh)
+    sce <- filter_genes(sce, 
+                        cpm_thresh = cpm_thresh, 
+                        verbose = verbose)
     sce <- set_cluster_set(sce, cluster_n = cluster_n, 
                            order_by = order_by, 
                            verbose = verbose)
     sce <- initialize_clusters(sce, 
-                               use_var=use_var, 
-                               n_var=n_var, 
-                               lss=lss,
-                               sf=sf, 
-                               nn=nn, 
-                               min_size=min_size, 
-                               verbose=verbose)
-    sce <- run_em(x=sce, eps=eps, max_iter=max_iter, psc=psc, verbose=verbose)
-    sce <- call_targets(sce, pp_thresh=sce@pp_thresh, min_genes=gene_thresh)
+                               use_var = use_var, 
+                               n_var = n_var, 
+                               lss = lss,
+                               sf = sf, 
+                               nn = nn, 
+                               min_size = min_size, 
+                               verbose = verbose)
+    sce <- run_em(x = sce, 
+                  eps = eps, 
+                  max_iter = max_iter, 
+                  psc = psc, 
+                  verbose = verbose)
+    sce <- call_targets(sce, 
+                        pp_thresh = sce@pp_thresh, 
+                        min_genes = gene_thresh)
 
     if (verbose){
         n_clean <- length(get_clean_ids(sce))
         n_rm <- length(sce@test_set) - n_clean
-        cat(paste0("Removed ", as.character(n_rm), " debris droplets from the test set.\n"))
-        cat(paste0("Kept ", as.character(n_clean), " clean droplets.\n"))
+        cat(paste0("Removed ", 
+                   as.character(n_rm), 
+                   " debris droplets from the test set.\n"))
+        cat(paste0("Kept ", 
+                   as.character(n_clean), 
+                   " clean droplets.\n"))
     }
 
     return(sce)

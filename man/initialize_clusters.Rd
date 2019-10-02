@@ -5,7 +5,7 @@
 \title{Initialize clustering for EM}
 \usage{
 initialize_clusters(x, use_var = TRUE, n_var = 2000, lss = 0.3,
-  sf = "median", nn = 30, min_size = 20, verbose = TRUE)
+  sf = "median", nn = 30, min_size = 20, verbose = FALSE)
 }
 \arguments{
 \item{x}{An SCE object.}

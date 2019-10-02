@@ -1,6 +1,8 @@
 
 # DIEM
 
+[![Build Status](https://travis-ci.com/marcalva/diem.svg?branch=master)](https://travis-ci.com/marcalva/diem)
+
 Remove debris-contaminated droplets from single-cell based data.
 
 ## Installation

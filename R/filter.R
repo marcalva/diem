@@ -33,15 +33,17 @@
 #'  total genes detected a test droplet can have.
 #' @param fix_debris A character vector of droplet IDs that will be assigned 
 #'  to the debris set, regardless of its total counts or genes detected.
+#' @param verbose verbosity
 #'
 #' @return An SCE object.
 #' @importFrom Matrix colSums
 #' @export
 set_debris_test_set <- function(x, 
-                                top_n=1e4, 
-                                min_counts=100, 
-                                min_genes=100, 
-                                fix_debris=NULL){
+                                top_n = 1e4, 
+                                min_counts = 100, 
+                                min_genes = 100, 
+                                fix_debris = NULL, 
+                                verbose = FALSE){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -70,6 +72,12 @@ set_debris_test_set <- function(x,
 
     if (length(x@test_set) <= 1) stop("1 or less test droplets found. Check min_counts and min_genes.")
 
+    if (verbose){
+        m1 <- paste0("Using ", as.character(length(x@test_set)), " droplets in the test set")
+        m2 <- paste0(" and ", as.character(length(x@bg_set)), " droplets in the debris set.")
+        cat(paste0(m1, m2, "\n"))
+    }
+
     return(x)
 }
 
@@ -93,9 +101,9 @@ set_debris_test_set <- function(x,
 #' @importFrom Matrix colSums
 #' @export
 set_cluster_set <- function(x, 
-                            cluster_n=1000, 
-                            order_by="gene", 
-                            verbose=FALSE){
+                            cluster_n = 1000, 
+                            order_by = "gene", 
+                            verbose = FALSE){
     if (cluster_n <= 0) stop("cluster_n must be greater than 0.")
     if (order_by != "gene" & order_by != "count") stop("Parameter order_by must be one of 'gene' or 'count'.")
     if (length(x@test_set) == 0)
@@ -125,11 +133,12 @@ set_cluster_set <- function(x,
 #' 
 #' @param x An SCE object.
 #' @param cpm_thresh The minimum CPM threshold for removing genes.
+#' @param verbose verbosity
 #'
 #' @return An SCE object
 #' @importFrom Matrix rowSums
 #' @export
-filter_genes <- function(x, cpm_thresh=10){
+filter_genes <- function(x, cpm_thresh = 10, verbose = FALSE){
     if (length(x@test_set) == 0 || length(x@bg_set) == 0)
         stop("No test droplets found. Run set_debris_test_set before filtering genes.")
     groups <- list(x@test_set, x@bg_set)
@@ -144,6 +153,7 @@ filter_genes <- function(x, cpm_thresh=10){
         stop("No genes pass cpm_thresh threshold.")
     }
     x@gene_data[,"exprsd"] <- keep
+    if (verbose) cat(paste0("Using ", as.character(sum(keep)), " expressed genes.\n"))
     return(x)
 }
 

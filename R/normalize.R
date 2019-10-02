@@ -22,7 +22,6 @@ divide_by_colsum <- function(x){
 #'  normalizing for columns to sum to 1 and multiplying by scaling factor.
 #'
 #' @return Sparse Matrix
-#' @export
 norm_counts <- function(counts, scale_factor = 1e4, logt = TRUE){
     if (!inherits(counts, what="Matrix")) stop("Argument must be of class Matrix.")
     counts <- divide_by_colsum(counts)
@@ -66,7 +65,6 @@ norm_counts <- function(counts, scale_factor = 1e4, logt = TRUE){
 #' @return An SCE object
 #' @importFrom Matrix rowSums colSums
 #' @importFrom stats median
-#' @export
 normalize_data <- function(x, 
                            droplets.use = NULL, 
                            genes.use = NULL, 

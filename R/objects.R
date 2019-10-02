@@ -92,7 +92,7 @@ fill_counts <- function(x){
 #' @examples
 #' counts <- matrix(sample(c(0,1,2), 1000, replace=TRUE),  nrow=10, ncol=100)
 #' mb_sce <- create_SCE(x=counts, name="Mouse Brain")
-create_SCE <- function(x, name="SCE"){
+create_SCE <- function(x, name = "SCE"){
     if (is.null(rownames(x))) rownames(x) <- paste0("Gene", seq_len(nrow(x)))
     if (is.null(colnames(x))) colnames(x) <- paste0("Drop", seq_len(ncol(x)))
 
@@ -135,7 +135,7 @@ create_SCE <- function(x, name="SCE"){
 #' @return A data frame
 #'
 #' @export
-droplet_data <- function(x, min_counts=1){
+droplet_data <- function(x, min_counts = 1){
     keep <- x@droplet_data$total_counts >= min_counts
     return(x@droplet_data[keep,,drop=FALSE])
 }
@@ -153,7 +153,7 @@ droplet_data <- function(x, min_counts=1){
 #' @return A data frame
 #'
 #' @export
-gene_data <- function(x, min_droplets=1){
+gene_data <- function(x, min_droplets = 1){
     keep <- x@gene_data$n_cells >= min_droplets
     return(x@gene_data[keep,,drop=FALSE])
 }
@@ -193,7 +193,7 @@ raw_counts <- function(x){
 #'                              min.features = 500, 
 #'                              min.cells = 3, 
 #'                              project = mb_small@name)
-convert_to_seurat <- function(x, targets=TRUE, meta=TRUE, ...){
+convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
     if (!requireNamespace("Seurat", quietly = TRUE)) {
         stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
              call. = FALSE)
@@ -271,7 +271,10 @@ read_10x <- function(path, clip_end=TRUE, sep="."){
     }
 
     if (file.exists(genes_file)){
-        genes <- read.delim(genes_file, header = FALSE, stringsAsFactors = FALSE, sep = "\t")
+        genes <- read.delim(genes_file, 
+                            header = FALSE, 
+                            stringsAsFactors = FALSE, 
+                            sep = "\t")
     } else {
         stop(paste0(genes_file, " not found"))
     }
