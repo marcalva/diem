@@ -9,9 +9,9 @@ Remove debris-contaminated droplets from single-cell based data.
 
 `diem` requires the following packages to be installed:
 
-* [Matrix](https://cran.r-project.org/web/packages/Matrix/index.html)
-* [dbscan](https://cran.r-project.org/web/packages/dbscan/index.html)
-* [igraph](https://cran.r-project.org/web/packages/igraph/index.html)
+* [Matrix](https://cran.r-project.org/package=Matrix)
+* [dbscan](https://cran.r-project.org/package=dbscan)
+* [igraph](https://cran.r-project.org/package=igraph)
 
 The `diem` package also makes use of the ggplot2 and scales packages 
 for plotting.

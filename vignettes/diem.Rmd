@@ -35,7 +35,7 @@ set is available [here](https://support.10xgenomics.com/single-cell-gene-express
 experiment such as from 10X. Since the raw data consists of roughly 
 20,000 genes and over 100,000 droplets, the counts data has to be 
 stored as a sparse matrix from the R package 
-[Matrix](https://cran.r-project.org/web/packages/Matrix/index.html). 
+[Matrix](https://CRAN.R-project.org/package=Matrix). 
 Furthermore, `diem` takes advantage of the matrix manipulation 
 functions in the `Matrix` package to speed up computations. The R 
 object that wraps data access and the `diem` functions is the 
