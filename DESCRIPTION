@@ -14,7 +14,7 @@ RoxygenNote: 6.1.1
 Depends:
 	R (>= 3.5.0), 
     methods
-LinkingTo: Rcpp, RcppEigen, RcppProgress
+LinkingTo: Rcpp, RcppEigen
 Imports:
     ggplot2,
     Matrix,
