@@ -4,15 +4,10 @@
 \alias{plot_umi_gene_call}
 \title{Scatterplot of genes vs. UMI counts, colored by call}
 \usage{
-plot_umi_gene_call(x, color = "Call", color_name = "Call",
-  alpha = 0.1, ret = FALSE)
+plot_umi_gene_call(x, alpha = 0.1, ret = FALSE)
 }
 \arguments{
 \item{x}{An SCE object.}
-
-\item{color}{Column name of droplet_data to color points by.}
-
-\item{color_name}{Title of the color legend.}
 
 \item{alpha}{A numeric value controlling the transparency of the points. 
 From 0 (transparent) to 1 (no transparency).}

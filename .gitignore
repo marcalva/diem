@@ -5,7 +5,5 @@
 data-raw
 src/*.o
 src/*.so
-.DS_Store
-*.pdf
-*.Rproj
-.*
+vignettes/*.html
+vignettes/*.pdf

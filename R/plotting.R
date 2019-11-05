@@ -78,8 +78,6 @@ plot_umi_gene <- function(x,
 #' Scatterplot of genes vs. UMI counts, colored by call
 #'
 #' @param x An SCE object.
-#' @param color Column name of droplet_data to color points by.
-#' @param color_name Title of the color legend.
 #' @param alpha A numeric value controlling the transparency of the points. 
 #'  From 0 (transparent) to 1 (no transparency).
 #' @param ret A logical specifying whether to return the ggplot object 
@@ -89,12 +87,15 @@ plot_umi_gene <- function(x,
 #' @import ggplot2
 #' @export
 plot_umi_gene_call <- function(x, 
-                               color="Call", 
-                               color_name="Call", 
                                alpha=0.1, 
                                ret=FALSE){
 
+    color <- "Call"
+    color_name <- "Call"
+
 	df <- x@droplet_data[x@test_set,]
+    df <- df[order(df$Call),]
+    df$Call <- factor(df$Call, levels = c("Debris", "Clean"))
 
 	p <- ggplot(df, aes_string(x = "total_counts", y = "n_genes")) + 
     geom_point(alpha=alpha, aes_string(colour=color)) + 

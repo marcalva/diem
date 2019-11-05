@@ -1,0 +1,4 @@
+^\.travis\.yml$
+\.travis\.yml
+data-raw
+.*pdf$
