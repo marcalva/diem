@@ -24,7 +24,7 @@ get_var_genes <- function(x,
                           n_genes=2000, 
                           lss=0.3, 
                           verbose=FALSE){
-    if (verbose) cat("Getting variable genes.\n")
+    if (verbose) message("getting variable genes")
     
     counts <- x@counts[,x@cluster_set]
     if (sum(x@gene_data$exprsd) == 0) x <- filter_genes(x)
@@ -43,7 +43,7 @@ get_var_genes <- function(x,
     rownames(datf) <- gene_names
     x@vg <- vg[!is.na(vg)]
     x@vg_info <- datf
-    if (verbose) cat("Found variable genes.\n")
+    if (verbose) message("found variable genes")
     return(x)
 }
 

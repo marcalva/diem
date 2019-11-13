@@ -112,7 +112,7 @@
 #' @return SCE object.
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
 #' mb_sce <- create_SCE(x=counts, name="Mouse Brain")
 #' mb_sce <- diem(mb_sce)
@@ -174,12 +174,12 @@ diem <- function(sce,
     if (verbose){
         n_clean <- length(get_clean_ids(sce))
         n_rm <- length(sce@test_set) - n_clean
-        cat(paste0("Removed ", 
-                   as.character(n_rm), 
-                   " debris droplets from the test set.\n"))
-        cat(paste0("Kept ", 
-                   as.character(n_clean), 
-                   " clean droplets.\n"))
+        message(paste0("Removed ", 
+                       as.character(n_rm), 
+                       " debris droplets from the test set."))
+        message(paste0("Kept ", 
+                       as.character(n_clean), 
+                       " clean droplets."))
     }
 
     return(sce)

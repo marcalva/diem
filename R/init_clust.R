@@ -21,7 +21,7 @@ get_knn <- function(x, nn = 30, weighted = TRUE, verbose = FALSE){
 
     droplets.use <- rownames(datf)
 
-    if (verbose) cat(paste0("Finding ", as.character(nn), " nearest neighbors.\n"))
+    if (verbose) message("finding ", nn, " nearest neighbors")
 
     knn.dbscan <- kNN(datf, k=nn)
 
@@ -93,12 +93,13 @@ initialize_clusters <- function(x,
                                 min_size = 20, 
                                 verbose = FALSE){
 
-    if (length(x@cluster_set) == 0) stop("0 droplets in cluster_set. Set droplets for initialization with set_cluster_set first")
+    if (length(x@cluster_set) == 0) 
+        stop("0 droplets in cluster_set. Set droplets for initialization with set_cluster_set first")
     if (use_var)  x <- get_var_genes(x, n_genes = n_var, lss = lss)
     x <- normalize_data(x, use_var = use_var, sf = sf)
     x <- get_knn(x, nn = nn, verbose = verbose)
 
-    if (verbose) cat("Initializing clusters.\n")
+    if (verbose) message("initializing clusters")
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
 
@@ -111,8 +112,11 @@ initialize_clusters <- function(x,
     tb <- table(graph_clust)
     keep <- names(tb)[tb >= min_size]
     graph_clust <- graph_clust[graph_clust %in% keep]
-    if (length(graph_clust) == 0) 
-        stop("No clusters found during initialization. Try changing cluster_n, nn, or min_size parameters")
+    if (length(graph_clust) == 0){ 
+        stop("No clusters found during initialization. Try changing ", 
+             sQuote("cluster_n"), sQuote("nn"), " or ", 
+             sQuote("min_size"), "parameters")
+    }
 
     # Specify cluster 1 as Debris
     all_clusters <- rep("1", length(x@bg_set))
@@ -120,7 +124,9 @@ initialize_clusters <- function(x,
     all_clusters <- c(graph_clust, all_clusters)
     all_clusters <- factor(all_clusters)
     # Change labels
-    all_clusters <- factor(all_clusters, levels=levels(all_clusters), labels=seq(1, length(levels(all_clusters))))
+    all_clusters <- factor(all_clusters, 
+                           levels=levels(all_clusters), 
+                           labels=seq(1, length(levels(all_clusters))))
 
     # Specify which labels are debris, which are cell types
     asgn <- rep("Clean", nlevels(all_clusters))
@@ -128,7 +134,9 @@ initialize_clusters <- function(x,
     asgn[1] <- "Debris"
     asgn <- as.factor(asgn)
 
-    if (verbose) cat(paste0("Initialized k=", as.character(nlevels(all_clusters)-1), " cell types and 1 debris cluster.\n"))
+    if (verbose){
+        message("initialized k=", nlevels(all_clusters)-1, 
+                " cell types and 1 debris cluster")
 
     x@ic <- list(clusters=all_clusters, 
                  assignments=asgn)

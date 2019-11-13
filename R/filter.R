@@ -48,10 +48,11 @@ set_debris_test_set <- function(x,
         top_n <- ncol(x@counts)
     }
     if (top_n < 0){
-        stop("top_n must be greater than 0")
+        stop(sQuote("top_n"), " must be greater than 0")
     }
     if (min_counts < 0 || min_genes < 0){
-        stop("min_counts and min_genes must be greater than 0")
+        stop(sQuote("min_counts"), " and ", sQuote("min_genes"), 
+             " must be greater than 0")
     }
 
     top_n <- min(top_n, ncol(x@counts))
@@ -70,12 +71,12 @@ set_debris_test_set <- function(x,
     x@test_set <- setdiff(ts, fix_debris)
     x@bg_set <- setdiff(colnames(x@counts), x@test_set)
 
-    if (length(x@test_set) <= 1) stop("1 or less test droplets found. Check min_counts and min_genes.")
+    if (length(x@test_set) <= 1) stop("1 or less test droplets found. Check ", 
+                                      sQuote("min_counts"), " and ", sQuote("min_genes"))
 
     if (verbose){
-        m1 <- paste0("Using ", as.character(length(x@test_set)), " droplets in the test set")
-        m2 <- paste0(" and ", as.character(length(x@bg_set)), " droplets in the debris set.")
-        cat(paste0(m1, m2, "\n"))
+        message("using ", length(x@test_set), " droplets in the test set ", 
+                "and ", length(x@bg_set), " droplets in the debris set")
     }
 
     return(x)
@@ -104,10 +105,12 @@ set_cluster_set <- function(x,
                             cluster_n = 1000, 
                             order_by = "gene", 
                             verbose = FALSE){
-    if (cluster_n <= 0) stop("cluster_n must be greater than 0.")
-    if (order_by != "gene" & order_by != "count") stop("Parameter order_by must be one of 'gene' or 'count'.")
+    if (cluster_n <= 0) stop(sQuote("cluster_n"), " must be greater than 0")
+    if (order_by != "gene" & order_by != "count") stop(sQuote("order_by"), " must be one of ", 
+                                                       dQuote("gene"), " or ", 
+                                                       dQuote("count"))
     if (length(x@test_set) == 0)
-        stop("No test droplets found. Run set_debris_test_set before setting cluster droplets.")
+        stop("No test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
     if (order_by == "gene") totals <- colSums(x@counts > 0)
     else totals <- colSums(x@counts)
 
@@ -118,7 +121,11 @@ set_cluster_set <- function(x,
     min_c_counts <- totals[cluster_n]
     x@cluster_set <- names(totals)[totals >= min_c_counts]
 
-    if (verbose) cat(paste0("Using top ", as.character(length(x@cluster_set)), " droplets ranked by total ", order_by, "s for clustering.\n"))
+    if (verbose){
+        message("Using top ", length(x@cluster_set), 
+                " droplets ranked by total ", order_by, 
+                "s for clustering")
+    }
 
     return(x)
 }
@@ -140,7 +147,7 @@ set_cluster_set <- function(x,
 #' @export
 filter_genes <- function(x, cpm_thresh = 10, verbose = FALSE){
     if (length(x@test_set) == 0 || length(x@bg_set) == 0)
-        stop("No test droplets found. Run set_debris_test_set before filtering genes.")
+        stop("No test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
     groups <- list(x@test_set, x@bg_set)
     keep_all <- sapply(groups, function(g){
                        expr <- rowSums(x@counts[,g,drop=FALSE])
@@ -150,10 +157,12 @@ filter_genes <- function(x, cpm_thresh = 10, verbose = FALSE){
                            })
     keep <- apply(keep_all, 1, all)
     if (sum(keep) == 0){
-        stop("No genes pass cpm_thresh threshold.")
+        stop("no genes pass ", sQuote("cpm_thresh"), " threshold")
     }
     x@gene_data[,"exprsd"] <- keep
-    if (verbose) cat(paste0("Using ", as.character(sum(keep)), " expressed genes.\n"))
+    if (verbose){
+        message("using ", sum(keep), " expressed genes")
+    }
     return(x)
 }
 

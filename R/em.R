@@ -114,8 +114,8 @@ dmmn <- function(x, p, mc, labels=NULL){
     }
 
     if (any(apply(Llks, 1, function(i) all(is.infinite(i))))){
-        cat("WARNING: For at least one sample, probabilities returned 0 for all k groups.\n")
-        cat("         Setting likelihood to 1 for each group.\n")
+        warning("For at least one sample, probabilities returned 0 for all k groups. ", 
+                "Setting likelihood to 1 for each group.")
         Llks[apply(Llks, 1, function(i) all(is.infinite(i))), ] <- c(0,0)
     }
 
@@ -141,7 +141,9 @@ dmmn <- function(x, p, mc, labels=NULL){
 #' @return a numeric matrix with n samples by k groups.
 e_step_mn <- function(x, p, mc, Llks=NULL, labels=NULL){
     if (any(p == 0)) 
-        stop("Probability of a genes(s) in at least 1 group is 0, which would collapse likelihood to 0 and prevent classification. Increase cpm threshold to prevent this.")
+        stop("Probability of a genes(s) in at least 1 group is 0,",  "
+             which would collapse likelihood to 0 and prevent classification. ", 
+             "Increase cpm threshold to prevent this.")
 
     if (is.null(Llks)) Llks <- dmmn(x=x, p=p, mc=mc, labels=labels)
 
@@ -250,23 +252,23 @@ em <- function(counts,
         emo <- list(Z=Llks, Mu=mn_params$Mu, Mc=mn_params$Mc, loglk=loglk, converged=FALSE)
 
         if (verbose){
-            cat(paste0("Iteration ", as.character(iter), "; llk ", as.character(loglk), "\n"))
+            message("iteration ", iter, "; llk ", loglk)
         }
 
         if (iter > 1){
             dloglk <- (loglks[[iter]] - loglks[[iter-1]])/abs(loglks[[iter-1]])
             if (dloglk < 0){
-                cat("Warning: Likelihood decreased.\n")
+                warning("likelihood decreased")
             }
             if (dloglk < eps){
                 emo$converged=TRUE
-                if (verbose) cat("Converged!\n")
+                if (verbose) message("converged!")
                 break
             }
         }
         iter <- iter + 1
     }
-    if (!emo$converged) cat("Warning: EM did not converge.\n")
+    if (!emo$converged) warning("EM did not converge")
 
     emo$PP <- t(apply(emo$Z, 1, fraction_log))
 
@@ -328,7 +330,7 @@ run_em <- function(x,
     k <- nlevels(ic)
 
     if (verbose){
-        cat("Running EM.\n")
+        message("running EM")
     }
 
     # Run EM
@@ -356,7 +358,7 @@ run_em <- function(x,
     x@droplet_data[names(clust_prob), "ClusterProb"] <- clust_prob
 
     if (verbose){
-        cat("Finished EM\n")
+        message("finished EM")
     }
 
     return(x)

@@ -1,13 +1,22 @@
 Package: diem
 Title: Debris-Containing Droplet Identification using EM
 Version: 1.0
-Date: 2019-10-03
-Authors@R: person(given = "Marcus",
-        family = "Alvarez",
-        role = c("aut", "cre"),
-        email = "malvarez@mednet.ucla.edu")
-Description: Identification of debris-containing droplets in order to select droplets containing nuclei. Diem uses the expression profile of background RNA droplets, followed by EM clustering, to assign candidate droplets as debris or nuclei.
-License: GPL-3 | file LICENSE
+Date: 2019-11-05
+Authors@R: c(person(given = "Marcus",
+            family = "Alvarez", 
+            role = c("aut", "cre"),
+            email = "malvarez@mednet.ucla.edu"), 
+        person(given = "Elior", 
+            family = "Rahmani", 
+            role = "aut", 
+            email = "elior.rahmani@gmail.com"))
+Description: Identification of debris-containing droplets 
+        from a droplet-based single cell/nucleus RNA-seq. 'diem' uses 
+        the expression profile of background RNA droplets, followed 
+        by expectation maximization (EM), to assign candidates as 
+        debris or nuclei. See Alvarez M, Rahmani E, et al (2019) 
+        <doi:10.1101/786285> for details.
+License: GPL-3
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.1.1

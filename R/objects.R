@@ -237,7 +237,7 @@ convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' dir <- "path/to/10x" # should show 3 files described above
 #' counts <- read_10x(dir)
 #' }
