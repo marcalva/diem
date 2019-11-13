@@ -145,7 +145,7 @@ less than \code{pp_thresh} and with less than
 \code{n_genes} genes detected are marked as debris.
 }
 \examples{
-\dontrun{
+\donttest{
 counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")
 mb_sce <- create_SCE(x=counts, name="Mouse Brain")
 mb_sce <- diem(mb_sce)

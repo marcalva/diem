@@ -25,7 +25,7 @@ get_var_genes <- function(x,
                           lss=0.3, 
                           verbose=FALSE){
     if (verbose) message("getting variable genes")
-    
+
     counts <- x@counts[,x@cluster_set]
     if (sum(x@gene_data$exprsd) == 0) x <- filter_genes(x)
     counts <- counts[x@gene_data$exprsd,]

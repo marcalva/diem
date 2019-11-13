@@ -32,7 +32,7 @@ and gene names, duplicates are removed with the make.unique function.
 The separator is specified by \code{sep} by default.
 }
 \examples{
-\dontrun{
+\donttest{
 dir <- "path/to/10x" # should show 3 files described above
 counts <- read_10x(dir)
 }

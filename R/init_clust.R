@@ -137,6 +137,7 @@ initialize_clusters <- function(x,
     if (verbose){
         message("initialized k=", nlevels(all_clusters)-1, 
                 " cell types and 1 debris cluster")
+    }
 
     x@ic <- list(clusters=all_clusters, 
                  assignments=asgn)
