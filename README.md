@@ -41,3 +41,8 @@ sce <- diem(sce)
 seur <- convert_to_seurat(sce)
 ```
 
+## Version History
+
+January
+* version 1.1
+

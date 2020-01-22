@@ -26,7 +26,7 @@ get_var_genes <- function(x,
                           verbose=FALSE){
     if (verbose) message("getting variable genes")
 
-    counts <- x@counts[,x@cluster_set]
+    counts <- x@counts[,x@test_set]
     if (sum(x@gene_data$exprsd) == 0) x <- filter_genes(x)
     counts <- counts[x@gene_data$exprsd,]
     gene_means <- rowMeans(counts)

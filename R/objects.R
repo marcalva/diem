@@ -21,7 +21,10 @@ setOldClass("igraph", igraph::make_empty_graph())
 #' @exportClass SCE
 SCE <- setClass(Class = "SCE", 
                 slots = c(counts = "any_matrix", 
+                          counts_filt = "any_matrix", 
+                          coefs = "matrix", 
                           norm = "any_matrix", 
+                          pcs = "matrix", 
                           nn_graph = "igraph", 
                           test_set = "character", 
                           cluster_set = "character", 
@@ -193,19 +196,22 @@ raw_counts <- function(x){
 #'                              min.features = 500, 
 #'                              min.cells = 3, 
 #'                              project = mb_small@name)
-convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
+convert_to_seurat <- function(x, filt = FALSE, targets = TRUE, meta = TRUE, ...){
     if (!requireNamespace("Seurat", quietly = TRUE)) {
         stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
              call. = FALSE)
     }
 
-    if (targets) keep <- get_clean_ids(x)
-    else keep <- rownames(x@droplet_data)
+    if (targets) drops <- get_clean_ids(x)
+    else drops <- rownames(x@droplet_data)
 
-    if (meta) meta.data <- x@droplet_data[keep,,drop=FALSE]
+    if (meta) meta.data <- x@droplet_data[drops,,drop=FALSE]
     else meta.data <- NULL
 
-    seur <- Seurat::CreateSeuratObject(counts=x@counts[,keep], meta.data=meta.data, ...)
+    if (filt) counts <- x@counts_filt
+    else counts <- x@counts
+    counts <- counts[,drops,drop=FALSE]
+    seur <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta.data, ...)
     return(seur)
 }
 

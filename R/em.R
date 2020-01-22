@@ -14,7 +14,7 @@
 #' @return List
 #' \describe{
 #'  \item{mu0}{A observation by k matrix of multinomial means.}
-#'  \item{mc0}{A numeric vector of length k of micture coefficients.}
+#'  \item{mc0}{A numeric vector of length k of mixture coefficients.}
 #' }
 #' @importFrom Matrix colSums
 init_param <- function(counts, groups, psc=1e-4){
@@ -46,6 +46,7 @@ init_param <- function(counts, groups, psc=1e-4){
 #' fraction of logs
 #'
 #' @param x numeric vector
+#' @export
 fraction_log <- function(x){
     x_c = x - max(x)
     x_c = exp(x_c)
@@ -56,6 +57,7 @@ fraction_log <- function(x){
 #' sum of logs
 #'
 #' @param x numeric vector
+#' @export
 sum_log <- function(x){
     max_x <- max(x)
     x_c = x - max_x

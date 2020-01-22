@@ -31,6 +31,7 @@ Imports:
     dbscan, 
     igraph, 
     utils, 
+    nnls, 
     stats
 Suggests:
     Seurat (>= 3.0.0),

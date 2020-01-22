@@ -151,17 +151,20 @@ diem <- function(sce,
     sce <- filter_genes(sce, 
                         cpm_thresh = cpm_thresh, 
                         verbose = verbose)
-    sce <- set_cluster_set(sce, cluster_n = cluster_n, 
-                           order_by = order_by, 
-                           verbose = verbose)
-    sce <- initialize_clusters(sce, 
-                               use_var = use_var, 
-                               n_var = n_var, 
-                               lss = lss,
-                               sf = sf, 
-                               nn = nn, 
-                               min_size = min_size, 
-                               verbose = verbose)
+    sce <- get_var_genes(sce, n_genes = n_var, lss = lss)
+    sce <- get_pcs(sce, K = 50)
+    sce <- get_km(sce, K = 50)
+    #sce <- set_cluster_set(sce, cluster_n = cluster_n, 
+    #                       order_by = order_by, 
+    #                       verbose = verbose)
+    #sce <- initialize_clusters(sce, 
+    #                           use_var = use_var, 
+    #                           n_var = n_var, 
+    #                           lss = lss,
+    #                           sf = sf, 
+    #                           nn = nn, 
+    #                           min_size = min_size, 
+    #                           verbose = verbose)
     sce <- run_em(x = sce, 
                   eps = eps, 
                   max_iter = max_iter, 
@@ -181,6 +184,8 @@ diem <- function(sce,
                        as.character(n_clean), 
                        " clean droplets."))
     }
+
+    sce <- remove_debris(sce, verbose = verbose)
 
     return(sce)
 }

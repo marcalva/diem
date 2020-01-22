@@ -135,7 +135,7 @@ set_cluster_set <- function(x,
 #' This function removes genes that are lowly expressed. 
 #' The droplets are split into the test set and debris set, and the Counts 
 #' Per Million mapped reads (CPM) are calculated for each. Then, only genes 
-#' that have a CPM of at least \code{cpm_thresh} in both the test set and 
+#' that have a CPM greater than \code{cpm_thresh} in both the test set and 
 #' debris set are kept.
 #' 
 #' @param x An SCE object.
@@ -152,7 +152,7 @@ filter_genes <- function(x, cpm_thresh = 10, verbose = FALSE){
     keep_all <- sapply(groups, function(g){
                        expr <- rowSums(x@counts[,g,drop=FALSE])
                        cpm <- 1e6*expr/sum(expr)
-                       keep <- cpm >= cpm_thresh
+                       keep <- cpm > cpm_thresh
                        return(keep)
                            })
     keep <- apply(keep_all, 1, all)

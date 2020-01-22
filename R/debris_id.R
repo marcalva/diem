@@ -1,4 +1,70 @@
 
+#' Get betas from OLS
+#' @importFrom stats lm
+get_betas_lm <- function(y, X){
+    ret <- lm(y ~ 0 + X)
+    return(ret$coefficients)
+}
+
+#' Get betas from NNLS
+#' @importFrom nnls nnls
+get_betas_nnls <- function(y, X){
+    ret <- nnls(X, y)
+    return(ret$x)
+}
+
+#' Remove debris reads from droplets
+#'
+#' This function takes the raw counts matrix and removes the counts that 
+#' are estimated to originate from debris. For each droplet, the percent 
+#' of debris and cell type are estimated by non-negative least squares. 
+#' Then, a debris droplet is calculated with same total read count as 
+#' the droplet and multiplied by the debris proportion. The non-integer 
+#' numbers are rounded down. Finally, this debris vector is subtracted 
+#' from the droplet counts, keeping reads counts to non-negative.
+#' 
+#' @return An SCE object
+#'
+#' @importFrom Matrix sparseMatrix
+#' @importFrom methods as
+#' @export
+remove_debris <- function(x, verbose = FALSE){   
+    if (verbose) message("Filtering reads")
+    dg <- names(x@ic$assignments)[x@ic$assignments == "Debris"]
+    counts <- x@counts
+    total_counts <- colSums(counts)
+    drops <- x@test_set
+    genes <- rownames(subset(x@gene_data, exprsd == TRUE))
+    genes_all <- seq_along(rownames(x@counts)); names(genes_all) <- rownames(x@counts); 
+    gene_probs <- x@emo$Mu
+    coefs <- matrix(nrow = length(drops), ncol = ncol(gene_probs))
+    colnames(coefs) <- colnames(gene_probs); rownames(coefs) <- drops
+    counts <- counts[genes,drops]
+    total_counts <- total_counts[drops]
+    gene_probs <- gene_probs[genes,,drop=FALSE]
+    countsp <- divide_by_colsum(counts)
+
+    coefs <- sapply(drops, function(i) get_betas_nnls(countsp[,i], gene_probs))
+    coefs <- t(coefs)
+    colnames(coefs) <- colnames(gene_probs)
+    dc <- lapply(1:length(drops), function(j){
+                  to_rm <- (gene_probs[,dg,drop=FALSE] * total_counts[j]) %*% t(coefs[j,dg,drop=FALSE])
+                  to_rm <- floor(to_rm)
+                  genes_gt0 <- rownames(to_rm)[to_rm[,1] > 0]
+                  i <- genes_all[genes_gt0]
+                  if (length(i) == 0) return(NULL)
+                  datf <- data.frame("i" = i, "j" = j, "x" = to_rm[genes_gt0, 1])
+                  return(datf)})
+    dc <- do.call(rbind, dc)
+    dc <- sparseMatrix(i = dc[,"i"], j = dc[,"j"], x = dc[,"x"], dims = c(nrow(x@counts), length(drops)) )
+    colnames(dc) <- drops
+    cf <- x@counts[,drops,drop=FALSE] - dc
+    cf[cf < 0] <- 0
+    x@counts_filt <- as(cf, "CsparseMatrix")
+    x@coefs <- coefs
+    return(x)
+}
+
 #' Call clean droplets after running EM
 #'
 #' Call cells or nuclei from an SCE object. EM must be run beforehand.
@@ -17,6 +83,8 @@
 call_targets <- function(x, pp_thresh = 0.95, min_genes = 200){
 
     if (!"CleanProb" %in% colnames(x@droplet_data)) stop("Run DIEM before calling targets")
+
+
 
     calls <- rep("Debris", nrow(x@droplet_data))
     calls[x@droplet_data$CleanProb >= pp_thresh & x@droplet_data$n_genes >= min_genes] <- "Clean"

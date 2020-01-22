@@ -1,4 +1,106 @@
 
+#' Run k-means on multinomial
+#' @export
+kmeans_ss <- function(X, K = 30, labs, max_iter = 20){
+    N <- nrow(X)
+    G <- ncol(X)
+
+    if (length(labs) != N) labs <- rep(0, N)
+
+    means <- matrix(0, nrow = G, ncol = K)
+
+    clusts <- 1:K
+    labeled <- setdiff(unique(labs), 0)
+    unlabeled <- setdiff(clusts, labeled)
+    # Initialize
+    for (l in labeled){
+        means[,l] <- rowMeans(t(X[labs == l,]))
+    }
+    unl <- seq(N)[labs == 0]
+    ksize <- min(K, floor(length(unl) / K))
+    unl_s <- sample(unl, size = ksize * length(unlabeled))
+    for (u in seq_along(unlabeled)){
+        i1 <- (u - 1) * ksize + 1
+        i2 <- u * ksize
+        s <- unl_s[i1:i2]
+        means[,unlabeled[u]] <- rowMeans(t(X[s,]))
+    }
+
+    p_l <- labs
+    # Assignment
+    unl <- seq(N)[labs == 0]
+    Xmu <- as.matrix(X[unl,])
+    # First iter
+    d <- apply(Xmu, 1, function(x) colSums((x - means)^2))
+    asgn <- apply(d, 2, which.min)
+    p_l[unl] <- asgn
+
+    # Wss
+    message("WSS")
+    wss <- lapply(clusts, function(i) sum((t(X[p_l == i,]) - means[,i])^2))
+    wss <- do.call(sum, wss)
+    message("WSS:", sum(wss))
+
+    iter <- 1
+    while(iter <= max_iter){
+        n_l <- p_l
+        # Calculate means
+        for (i in clusts){
+            means[,i] <- rowMeans(t(X[p_l == i,]))
+        }
+        # Calculate distances
+        d <- apply(Xmu, 1, function(x) colSums((x - means)^2))
+        asgn <- apply(d, 2, which.min)
+        n_l[unl] <- asgn
+        wss <- lapply(clusts, function(i) sum((t(X[p_l == i,]) - means[,i])^2))
+        wss <- do.call(sum, wss)
+        message("WSS:", sum(wss))
+        if (all(p_l == n_l)) break
+        p_l <- n_l
+        iter <- iter + 1
+    }
+    if (iter > max_iter) message("Warning: did not converge")
+
+    return(list("labels" = n_l, 
+                "centers" = means, 
+                "wss" = wss))
+
+}
+
+#' Get k-means initialization of PCs
+#' @export
+get_km <- function(x, K, n_start = 10, max_iter = 10){
+    labs <- rep(0, nrow(x@pcs))
+    names(labs) <- rownames(x@pcs)
+    labs[intersect(names(labs), x@bg_set)] <- 1
+    ks <- replicate(10, 
+                    expr = {
+                        kmeans_ss(x@pcs, 
+                                  labs = labs, 
+                                  K = K, 
+                                  max_iter = max_iter)
+                    }, 
+                    simplify = FALSE)
+    wss <- sapply(ks, function(i) i$wss)
+    imin <- which.min(wss)
+    x@ic <- ks[[imin]]
+    return(x)
+}
+
+#' Get PCs
+#' @importFrom irlba prcomp_irlba
+#' @export
+get_pcs <- function(x, K = 50){
+    countsv <- t(x@counts[x@vg,])
+    countsv@x <- log10(countsv@x + 1)
+    prcret <- irlba::prcomp_irlba(countsv[x@test_set,], 
+                                  n = K, 
+                                  center = TRUE, 
+                                  scale. = FALSE)
+    x@pcs <- as.matrix(countsv %*% prcret$rotation)
+    return(x)
+}
+
 #' Get k-nearest neighbor graph
 #'
 #' Run a KNN graph and store as an igraph object. The nearest neighbors 
