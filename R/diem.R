@@ -101,8 +101,6 @@
 #' @param eps Numeric threshold. The EM algorithm converges when the 
 #'  percent change in log likihood is less than \code{eps}.
 #' @param max_iter The maximum number of iterations allowed to run.
-#' @param psc Pseudocount to add to multinomial parameters 
-#'  to avoid collapsing likelihood to 0.
 #' @param pp_thresh Numeric threshold, where clean droplets must have a 
 #'  posterior probability of at least \code{pp_thresh}.
 #' @param gene_thresh Numeric threshold, where clean droplets must have at least 
@@ -123,18 +121,18 @@ diem <- function(sce,
                  min_counts=100, 
                  min_genes=100, 
                  fix_debris=NULL, 
-                 cpm_thresh=10, 
-                 cluster_n=1000, 
+                 cpm_thresh=0, 
+                 n_pcs = 50, 
+                 K = 30, 
+                 Alpha0 = 1, 
+                 Beta0 = 5,
                  order_by="gene", 
-                 use_var=TRUE,
                  n_var=2000, 
                  lss=0.3, 
-                 sf = "median", 
-                 nn=30, 
+                 n_start = 10, 
                  min_size=20, 
-                 eps=1e-8, 
+                 eps=1e-6, 
                  max_iter=100, 
-                 psc=1e-4, 
                  pp_thresh=0.95, 
                  gene_thresh=200, 
                  verbose=TRUE){
@@ -152,24 +150,14 @@ diem <- function(sce,
                         cpm_thresh = cpm_thresh, 
                         verbose = verbose)
     sce <- get_var_genes(sce, n_genes = n_var, lss = lss)
-    sce <- get_pcs(sce, K = 50)
-    sce <- get_km(sce, K = 50)
-    #sce <- set_cluster_set(sce, cluster_n = cluster_n, 
-    #                       order_by = order_by, 
-    #                       verbose = verbose)
-    #sce <- initialize_clusters(sce, 
-    #                           use_var = use_var, 
-    #                           n_var = n_var, 
-    #                           lss = lss,
-    #                           sf = sf, 
-    #                           nn = nn, 
-    #                           min_size = min_size, 
-    #                           verbose = verbose)
-    sce <- run_em(x = sce, 
-                  eps = eps, 
-                  max_iter = max_iter, 
-                  psc = psc, 
-                  verbose = verbose)
+    sce <- get_pcs(sce, K = n_pcs)
+    sce <- initialize_clusters(sce, K = K, n_start = n_start, max_iter = 5)
+    sce <- run_vem(x = sce, 
+                   K = K, 
+                   Alpha0 = Alpha0, 
+                   Beta0 = Beta0, 
+                   eps = eps, 
+                   max_iter = max_iter)
     sce <- call_targets(sce, 
                         pp_thresh = sce@pp_thresh, 
                         min_genes = gene_thresh)

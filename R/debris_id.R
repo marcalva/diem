@@ -30,13 +30,14 @@ get_betas_nnls <- function(y, X){
 #' @export
 remove_debris <- function(x, verbose = FALSE){   
     if (verbose) message("Filtering reads")
-    dg <- names(x@ic$assignments)[x@ic$assignments == "Debris"]
+    dg <- x@assignments == "Debris"
     counts <- x@counts
     total_counts <- colSums(counts)
     drops <- x@test_set
     genes <- rownames(subset(x@gene_data, exprsd == TRUE))
     genes_all <- seq_along(rownames(x@counts)); names(genes_all) <- rownames(x@counts); 
-    gene_probs <- x@emo$Mu
+    gene_probs <- x@emo$params$Beta
+    gene_probs <- sweep(gene_probs, 2, colSums(gene_probs), "/")
     coefs <- matrix(nrow = length(drops), ncol = ncol(gene_probs))
     colnames(coefs) <- colnames(gene_probs); rownames(coefs) <- drops
     counts <- counts[genes,drops]
@@ -46,7 +47,6 @@ remove_debris <- function(x, verbose = FALSE){
 
     coefs <- sapply(drops, function(i) get_betas_nnls(countsp[,i], gene_probs))
     coefs <- t(coefs)
-    colnames(coefs) <- colnames(gene_probs)
     dc <- lapply(1:length(drops), function(j){
                   to_rm <- (gene_probs[,dg,drop=FALSE] * total_counts[j]) %*% t(coefs[j,dg,drop=FALSE])
                   to_rm <- floor(to_rm)
@@ -56,7 +56,10 @@ remove_debris <- function(x, verbose = FALSE){
                   datf <- data.frame("i" = i, "j" = j, "x" = to_rm[genes_gt0, 1])
                   return(datf)})
     dc <- do.call(rbind, dc)
-    dc <- sparseMatrix(i = dc[,"i"], j = dc[,"j"], x = dc[,"x"], dims = c(nrow(x@counts), length(drops)) )
+    dc <- Matrix::sparseMatrix(i = dc[,"i"], 
+                               j = dc[,"j"], 
+                               x = dc[,"x"], 
+                               dims = c(nrow(x@counts), length(drops)) )
     colnames(dc) <- drops
     cf <- x@counts[,drops,drop=FALSE] - dc
     cf[cf < 0] <- 0

@@ -1,48 +1,54 @@
 
-#' Sample from simplex
-#'
-#' @export
-sample_simplex <- function(n){
-    r <- rexp(n)
-    s <- sum(r)
-    return(r/s)
-}
-
 #' Initialize randomly
 #'
 #' @export
-init_random <- function(X, N, G, K, labs = NULL, a = 1){
-    groups <- 1:K
+init_random <- function(X, 
+                        N, 
+                        G, 
+                        K, 
+                        labs = NULL, 
+                        n_start = 1, 
+                        Alpha0 = 1e-3, 
+                        Beta0 = 1e-3){
+    clusts <- 1:K
     if (length(labs) != N) labs <- rep(0, N)
     if (length(labs) != N){
         stop("Size of labs must be the same as the number of rows in x.")
     }
 
-    Alpha <- rep(a, K)
-    Beta <- lapply(1:K, function(k){
-                   ru <- sample_simplex(G)
-                   return(ru)
-                   })
-    Beta <- do.call(cbind, Beta)
-    Beta[Beta == 0] <- 1e-16
-    # Beta <- sweep(Beta, 2, colSums(Beta), "/")
-    rownames(Beta) <- colnames(X)
+    Xt <- t(X)
 
-    R <- lapply(1:N, function(n){
-                if (labs[n] %in% groups){
-                    ret <- rep(0, K)
-                    ret[labs[n]] <- 1
-                } else {
-                    ret <- sample_simplex(K)
-                }
-                return(ret)
-                })
-    R <- do.call(rbind, R)
-    rownames(R) <- rownames(X)
+    Alpha <- rep(Alpha0, K)
+    
+    # Get labeled groups
+    clusts <- 1:K
+    labeled <- setdiff(unique(labs), 0)
+    unlabeled <- setdiff(clusts, labeled)
+    
+    labs_init <- labs
+    names(labs_init) <- seq(N)
 
-    params <- list("Alpha" = Alpha, 
-                   "Beta" = Beta, 
-                   "R" = R)
+    lbeta <- sapply(labeled, function(k){
+                    ru <- rowSums(Xt[,labs_init == k]) + Beta0
+                    return(ru)
+                    })
+    print(head(lbeta))
+
+    uix <- seq(N)[labs_init == 0]
+    params <- lapply(1:n_start, function(repl) {
+                         labs_init <- labs
+                         names(labs_init) <- seq(N)
+                         uix_s <- sample(uix, size = length(unlabeled))
+                         labs_init[uix_s] <- unlabeled
+                         ubeta <- as.matrix(Xt[,uix_s]) + Beta0
+                         colnames(ubeta) <- NULL
+                         thisBeta <- cbind(lbeta, ubeta)
+                         thisAlpha <- Alpha
+                         return(list("Alpha" = thisAlpha, 
+                                     "Beta" = thisBeta, 
+                                     "R" = NULL))
+                         })
+
     return(params)
 }
 
@@ -252,8 +258,6 @@ lower_bound <- function(X,
 #'  number of iterations.
 #' @param eps The epsilon value, which is the convergence 
 #'  threshold of the percent change in the log likelihood.
-#' @param psc Pseudocount to add to the multinomial mean 
-#'  parameter to avoid the likelihood collapsing to 0.
 #' @param labs Numeric vector of same length as number of 
 #'  observations in counts. Fixes the group probabilities 
 #'  of the integer in this vector element to 1. In 
@@ -280,51 +284,42 @@ vem <- function(counts,
                 hyperp, 
                 max_iter = 1e2, 
                 eps = 1e-6, 
-                psc = 1e-4, 
                 labs = NULL, 
                 verbose = TRUE){
-    # Initialize parameters
-    loglk <- -Inf
-    loglks <- c(loglk)
-    iter <- 1
-
     N <- nrow(counts)
     G <- ncol(counts)
 
-    if (nrow(params$Beta) != G) stop("Number of columns in counts must be the same as the number of features in mn_params.")
+    if (length(labs) != N) labs <- rep(0, N)
+    if (nrow(params$Beta) != G) stop("Number of columns in counts must be the same as the number of features in Beta.")
     if (ncol(params$Beta) != K) stop("Number of columns in Beta must be the number of clusters K.")
     if (length(params$Alpha) != K) stop("Length of Alpha must be the number of clusters K.")
-    if (nrow(params$R) != N) stop("Number of rows in R must be the same as the number of observations in counts.")
-    if (ncol(params$R) != K) stop("Number of columns in R must be the number of clusters K.")
+    # if (nrow(params$R) != N) stop("Number of rows in R must be the same as the number of observations in counts.")
+    # if (ncol(params$R) != K) stop("Number of columns in R must be the number of clusters K.")
     if (length(labs) != N) stop("Length of labs must be the same as the number of observations in counts.")
-
-    e_z <- get_e_z(params$R)
-    e_rho <- get_e_rho(params$Beta)
-    e_pi <- get_e_pi(params$Alpha)
 
     mn_num <- get_mn_num(counts, K)
     mn_den <- get_mn_den(counts, K)
-    Xrho <- get_Xrho(counts, e_rho)
     
-    lb_old <- lower_bound(X = counts, K = K, params = params, hyperp = hyperp, 
-                          e_z = e_z, e_rho = e_rho, e_pi = e_pi, 
-                          mn_num = mn_num, mn_den = mn_den, Xrho = Xrho) 
-
+    # Start with parameters Alpha and Beta. Iteration updates Z, then alpha and beta
+    e_rho <- get_e_rho(params$Beta)
+    Xrho <- get_Xrho(counts, e_rho)
+    e_pi <- get_e_pi(params$Alpha)
+    lb_old <- -Inf
     iter <- 1
     converged <- FALSE
     while (iter <= max_iter){
+        if (verbose) message("Iteration ", iter)
         # Update Z
         R <- update_z(X = counts, K = K, e_rho = e_rho, 
-                             e_pi = e_pi, mn_num = mn_num, mn_den = mn_den,
-                             Xrho = Xrho, labs = labs)
+                      e_pi = e_pi, mn_num = mn_num, mn_den = mn_den,
+                      Xrho = Xrho, labs = labs)
         e_z <- get_e_z(R)
 
         # Update Alpha and Beta
         Alpha <- update_alpha(hyperp, e_z)
-        Beta <- update_beta(X = counts, K, hyperp, e_z)
         e_pi <- get_e_pi(Alpha)
+        Beta <- update_beta(X = counts, K, hyperp, e_z)
         e_rho <- get_e_rho(Beta)
-
         Xrho <- get_Xrho(counts, e_rho)
 
         params <- list("R" = R, "Alpha" = Alpha, "Beta" = Beta)
@@ -333,97 +328,44 @@ vem <- function(counts,
                               e_z = e_z, e_rho = e_rho, e_pi = e_pi, 
                               mn_num = mn_num, mn_den = mn_den, Xrho = Xrho)
 
-        delt <- (lb_new - lb_old) / abs(lb_old)
-        message(lb_old, " ", lb_new)
+        if (iter > 1) delt <- (lb_new - lb_old) / abs(lb_old)
+        else delt <- Inf
 
         if (delt < 0) warning("lower bound decreased")
         if (delt < eps){
-            message("converged")
+            if (verbose) message("converged")
             converged <- TRUE
             break
         }
         lb_old <- lb_new
         iter <- iter + 1
     }
-    emo <- list("params" = params, 
+    vmo <- list("params" = params, 
                 "lb" = lb_new, 
                 "converged" = converged, 
                 "n_iter" = iter)
-    return(emo)
-
-}
-
-#' Get initial parametesr
-random_start <- function(counts, 
-                         K, 
-                         hyperp, 
-                         n_iter = 10, 
-                         labs = NULL, 
-                         verbose = TRUE){
-    N <- nrow(counts)
-    G <- ncol(counts)
-
-    if (length(labs) != N) labs <- rep(0, N)
-
-    params <- init_random(counts, N, G, K, labs, a=100)
-
-    e_z <- get_e_z(params$R)
-    e_rho <- get_e_rho(params$Beta)
-    e_pi <- get_e_pi(params$Alpha)
-
-    mn_num <- get_mn_num(counts, K)
-    mn_den <- get_mn_den(counts, K)
-    Xrho <- get_Xrho(counts, e_rho)
-    
-    lb_old <- lower_bound(X = counts, K = K, params = params, hyperp = hyperp, 
-                          e_z = e_z, e_rho = e_rho, e_pi = e_pi, 
-                          mn_num = mn_num, mn_den = mn_den, Xrho = Xrho) 
-
-    iter <- 1
-    converged <- FALSE
-    while (iter <= n_iter){
-        # Update Z
-        params$R <- update_z(X = counts, K = K, e_rho = e_rho, 
-                             e_pi = e_pi, mn_num = mn_num, mn_den = mn_den,
-                             Xrho = Xrho, labs = labs)
-        e_z <- get_e_z(params$R)
-
-        # Update Alpha and Beta
-        params$Alpha <- update_alpha(hyperp, e_z)
-        params$Beta <- update_beta(X = counts, K, hyperp, e_z)
-        e_rho <- get_e_rho(params$Beta)
-        e_pi <- get_e_pi(params$Alpha)
-
-        Xrho <- get_Xrho(counts, e_rho)
-
-        iter <- iter + 1
-    }
-
-    lb <- lower_bound(X = counts, K = K, params = params, hyperp = hyperp, 
-                      e_z = e_z, e_rho = e_rho, e_pi = e_pi, 
-                      mn_num = mn_num, mn_den = mn_den, Xrho = Xrho)
-    emo <- list("params" = params, 
-                "lb" = lb, 
-                "converged" = converged, 
-                "n_iter" = iter)
-    return(emo)
-
+    return(vmo)
 }
 
 #' Initialize best from random starts
-init_best <- function(counts, 
+init_best <- function(X, 
                          K, 
                          hyperp, 
                          n_start = 100, 
                          n_iter = 3, 
                          labs = NULL, 
                          verbose = TRUE){
-    vmol <- replicate(n = n_start, expr = {
-                      params <- init_random(counts, N, G, K, labs)
-                      vem(counts, K=K, labs=labs, params = params, hyperp=hyperp, 
-                          max_iter = n_iter, eps = -Inf, verbose=FALSE)
-                         }, 
-                      simplify=FALSE)
+    N <- nrow(X)
+    G <- ncol(X)
+    pl <- init_random(X = X, N = N, G = G, K = K, labs = labs, 
+                      Alpha = hyperp$Alpha[1], Beta = hyperp$Beta[1], 
+                      n_start = n_start)
+    print(class(pl[[1]]$Beta))
+    vl <- lapply(pl, function(p) {
+                 vem(counts = X, K = K, params = p, hyperp = hyperp, 
+                     max_iter = n_iter, eps = -Inf, labs = labs)
+                 })
+    return(vl)
     return(vmol)
     #lbs <- sapply(vmol, function(i) i$lb)
     #i <- which.max(lbs)
@@ -450,8 +392,6 @@ init_best <- function(counts,
 #' @param eps Numeric threshold. The EM algorithm converges when the 
 #'  percent change in log likihood is less than \code{eps}.
 #' @param max_iter The maximum number of iterations allowed to run.
-#' @param psc Pseudocount to add to multinomial parameters 
-#'  to avoid collapsing likelihood to 0.
 #' @param verbose Logical indicating verbosity.
 #'
 #' @return An SCE object.
@@ -460,15 +400,15 @@ init_best <- function(counts,
 #' @export
 run_vem <- function(x, 
                     K = 30, 
-                    Alpha0 = 1e-3, 
-                    Beta0 = 1e-3, 
+                    Alpha0 = 1, 
+                    Beta0 = 5, 
                     eps = 1e-6, 
                     max_iter = 1e2, 
-                    psc = 1e-4, 
                     verbose = TRUE){
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    droplets.use <- c(x@test_set, x@bg_set)
+    # droplets.use <- c(x@test_set, x@bg_set)
+    droplets.use <- colnames(x@counts)
 
     if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
 
@@ -485,18 +425,28 @@ run_vem <- function(x,
     hyperp <- list("Alpha" = rep(Alpha0, K), 
                    "Beta" = rep(Beta0, G))
 
-    # Initialize randomly
+    # Get initial parameters
     if (is.null(x@ic)){
-        params <- init_random(counts, N, G, K, labs)
+        countsv <- counts[,x@vg]
+        Gs <- ncol(countsv)
+        hyperps <- list("Alpha" = rep(Alpha0, K), "Beta" = rep(Beta0, Gs))
+        vmol <- init_best(countsv, K = K, hyperp = hyperps, labs = labs)
+        lbs <- sapply(vmol, function(i) i$lb)
+        i_max <- which.max(lbs)
+        params <- vmol[[i_max]]
     } else {
-        params$Beta <- x@ic$centers + 1e-16
-        params@R <- matrix(0, nrow = N, ncol = K)
-        params@R <- sapply(1:N, function(n){ params@R[i,] <- x@ic$labels[i] })
+        params <- list()
+        clusts <- 1:K
+        Beta <- sapply(clusts, 
+                       function(i){
+                           rowSums(x@counts[genes.use, x@ic$labels == i, drop=FALSE])})
+        params$Beta <- Beta + Beta0
+        params$R <- NULL
         params$Alpha <- rep(Alpha0, K)
     }
 
     if (verbose){
-        message("running EM")
+        message("Estimating parameters")
     }
 
     # Run EM
@@ -511,20 +461,35 @@ run_vem <- function(x,
 
     # Naive Bayes assignment
 
-    a <- x@ic$assignments
-    PP_summary <- sapply(levels(a), function(i) rowSums(emo$PP[,names(a)[a == i],drop=FALSE]))
-    clust_prob <- apply(emo$R, 1, function(i) i[which.max(i)])
-    clust_max <- apply(emo$R, 1, function(i) colnames(emo$PP)[which.max(i)])
-    clust_max <- as.factor(clust_max)
+    clusts <- colSums(vmo$params$R) > 0
+    vmo$params$R <- vmo$params$R[,clusts,drop=FALSE]
+    vmo$params$Beta <- vmo$params$Beta[,clusts,drop=FALSE]
+    vmo$params$Alpha <- vmo$params$Alpha[clusts]
+    x@assignments <- x@assignments[clusts]
+
+    a <- x@assignments
+    PP_summary <- sapply(levels(a), function(i){
+                         rowSums(vmo$params$R[,a == i,drop=FALSE])})
+    clust_prob <- apply(vmo$params$R, 1, function(i) i[which.max(i)])
+    clust_max <- apply(vmo$params$R, 1, function(i){
+                       (1:ncol(vmo$params$R))[which.max(i)]
+               })
+    #clust_max <- paste0("C", as.character(clust_max))
+    #clust_max <- as.factor(clust_max)
+    #clust_max <- droplevels(clust_max)
+    #cl <- paste0("C", seq(1,nlevels(clust_max)-1))
+    #levels(clust_max) <- c("Debris", cl)
 
     # Fill in droplet data
-    x@droplet_data[rownames(PP_summary),"CleanProb"] <- PP_summary[,"Clean"]
+    x@droplet_data[,"CleanProb"] <- PP_summary[,"Clean"]
     x@droplet_data$Cluster <- NULL
-    x@droplet_data[names(clust_max), "Cluster"] <- droplevels(clust_max)
-    x@droplet_data[names(clust_prob), "ClusterProb"] <- clust_prob
+    x@droplet_data$Cluster <- clust_max
+    x@droplet_data$ClusterProb <- clust_prob
+
+    x@emo <- vmo
 
     if (verbose){
-        message("finished EM")
+        message("finished variational EM")
     }
 
     return(x)

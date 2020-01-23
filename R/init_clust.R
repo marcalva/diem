@@ -1,153 +1,88 @@
 
+get_dist <- function(X, centers){
+    d <- apply(X, 1, function(x) colSums((x - centers)^2))
+    return(d)
+}
+
+get_wss <- function(Xt, centers, l){
+    clusts <- 1:ncol(centers)
+    wss <- sapply(clusts, function(i) sum(((Xt[,l == i]) - centers[,i])^2))
+    return(wss)
+}
+
+
 #' Run k-means on multinomial
 #' @export
-kmeans_ss <- function(X, K = 30, labs, max_iter = 20){
+kmeans_ss <- function(X, 
+                      K = 30, 
+                      labs = NULL, 
+                      max_iter = 20, 
+                      scale. = FALSE){
     N <- nrow(X)
     G <- ncol(X)
 
+    if (scale.) X <- scale(X)
+
+    Xt <- t(X)
+
     if (length(labs) != N) labs <- rep(0, N)
 
-    means <- matrix(0, nrow = G, ncol = K)
+    # Initialize centers
+    centers <- matrix(0, nrow = G, ncol = K)
 
     clusts <- 1:K
     labeled <- setdiff(unique(labs), 0)
     unlabeled <- setdiff(clusts, labeled)
-    # Initialize
+    uix <- seq(N)[labs == 0]
+    Xmu <- as.matrix(X[uix,])
+
+    # Initialize labeled
     for (l in labeled){
-        means[,l] <- rowMeans(t(X[labs == l,]))
+        centers[,l] <- rowMeans(Xt[,labs == l])
     }
-    unl <- seq(N)[labs == 0]
-    ksize <- min(K, floor(length(unl) / K))
-    unl_s <- sample(unl, size = ksize * length(unlabeled))
-    for (u in seq_along(unlabeled)){
-        i1 <- (u - 1) * ksize + 1
-        i2 <- u * ksize
-        s <- unl_s[i1:i2]
-        means[,unlabeled[u]] <- rowMeans(t(X[s,]))
-    }
+    # Initialize unlabeled
+    uix_s <- sample(uix, size = length(unlabeled))
+    centers[,unlabeled] <- as.matrix(Xt[,uix_s,drop=FALSE])
 
     p_l <- labs
-    # Assignment
-    unl <- seq(N)[labs == 0]
-    Xmu <- as.matrix(X[unl,])
     # First iter
-    d <- apply(Xmu, 1, function(x) colSums((x - means)^2))
+    d <- get_dist(Xmu, centers)
     asgn <- apply(d, 2, which.min)
-    p_l[unl] <- asgn
+    p_l[uix] <- asgn
 
     # Wss
-    message("WSS")
-    wss <- lapply(clusts, function(i) sum((t(X[p_l == i,]) - means[,i])^2))
-    wss <- do.call(sum, wss)
-    message("WSS:", sum(wss))
+    wss <- get_wss(Xt, centers, p_l)
 
     iter <- 1
     while(iter <= max_iter){
         n_l <- p_l
-        # Calculate means
-        for (i in clusts){
-            means[,i] <- rowMeans(t(X[p_l == i,]))
-        }
+        # Calculate centers
+        centers <- sapply(clusts, function(i) rowMeans(Xt[, p_l == i, drop=FALSE]))
+
         # Calculate distances
-        d <- apply(Xmu, 1, function(x) colSums((x - means)^2))
+        d <- get_dist(Xmu, centers)
         asgn <- apply(d, 2, which.min)
-        n_l[unl] <- asgn
-        wss <- lapply(clusts, function(i) sum((t(X[p_l == i,]) - means[,i])^2))
+        if (length(intersect(unique(asgn), unlabeled)) != length(unlabeled)){
+            break
+        }
+        n_l[uix] <- asgn
+        wss <- lapply(clusts, function(i) sum((t(X[p_l == i,]) - centers[,i])^2))
         wss <- do.call(sum, wss)
-        message("WSS:", sum(wss))
-        if (all(p_l == n_l)) break
+        if (all(p_l == n_l)){
+            break
+        }
         p_l <- n_l
         iter <- iter + 1
     }
-    if (iter > max_iter) message("Warning: did not converge")
 
     return(list("labels" = n_l, 
-                "centers" = means, 
-                "wss" = wss))
+                "centers" = centers, 
+                "withinss" = wss, 
+                "tot.withinss" = sum(wss)))
 
 }
 
-#' Get k-means initialization of PCs
-#' @export
-get_km <- function(x, K, n_start = 10, max_iter = 10){
-    labs <- rep(0, nrow(x@pcs))
-    names(labs) <- rownames(x@pcs)
-    labs[intersect(names(labs), x@bg_set)] <- 1
-    ks <- replicate(10, 
-                    expr = {
-                        kmeans_ss(x@pcs, 
-                                  labs = labs, 
-                                  K = K, 
-                                  max_iter = max_iter)
-                    }, 
-                    simplify = FALSE)
-    wss <- sapply(ks, function(i) i$wss)
-    imin <- which.min(wss)
-    x@ic <- ks[[imin]]
-    return(x)
-}
-
-#' Get PCs
-#' @importFrom irlba prcomp_irlba
-#' @export
-get_pcs <- function(x, K = 50){
-    countsv <- t(x@counts[x@vg,])
-    countsv@x <- log10(countsv@x + 1)
-    prcret <- irlba::prcomp_irlba(countsv[x@test_set,], 
-                                  n = K, 
-                                  center = TRUE, 
-                                  scale. = FALSE)
-    x@pcs <- as.matrix(countsv %*% prcret$rotation)
-    return(x)
-}
-
-#' Get k-nearest neighbor graph
-#'
-#' Run a KNN graph and store as an igraph object. The nearest neighbors 
-#' are calculated using the dbscan implementation. The edges 
-#' of the graph can be weighted with the inverse of the 
-#' euclidean distance.
-#' 
-#' @param x An SCE object.
-#' @param nn Number of nearest neighbors to use.
-#' @param weighted Logical indicating whether to weigh the knn graph.
-#' @param verbose verbosity
-#'
-#' @importFrom dbscan kNN
-#' @importFrom igraph graph_from_data_frame simplify
-#' @return An SCE object
-get_knn <- function(x, nn = 30, weighted = TRUE, verbose = FALSE){
-    if (length(x@norm) == 0) stop("Normalize data before running nearest neighbors.")
-
-    datf <- t(x@norm)
-
-    droplets.use <- rownames(datf)
-
-    if (verbose) message("finding ", nn, " nearest neighbors")
-
-    knn.dbscan <- kNN(datf, k=nn)
-
-    fnames <- as.vector(sapply(rownames(datf), rep, nn))
-    ti <- as.vector(t(knn.dbscan$id))
-    tnames <- sapply(ti, function(i) rownames(datf)[i])
-
-    if (weighted){
-        knn.w <- 1/as.vector(t(knn.dbscan$dist))
-        knn.dat <- data.frame(from=fnames, to=tnames, weight=knn.w)
-    } else {
-        knn.dat <- data.frame(from=fnames, to=tnames)
-    }
-
-    g <- graph_from_data_frame(knn.dat, directed=FALSE)
-    g <- simplify(g)
-
-    x@nn_graph <- g
-    return(x)
-}
-
-#' Initialize clustering for EM
-#'
-#' Given an SCE object, identify the cell types present.
+#' Initialize clustering
 #'
 #' Instead of randomly initializing the EM, cell types are estimated from 
 #' droplets that are expected to contain cells/nuclei. The initialization 
@@ -169,80 +104,53 @@ get_knn <- function(x, nn = 30, weighted = TRUE, verbose = FALSE){
 #' \code{min_size} (20 by default) droplets are considered cell types.
 #'
 #' @param x An SCE object.
-#' @param use_var A logical indicating whether to subset the data to include
-#'  only variable genes. This overrides \code{genes.use}.
-#'  The default is TRUE as it may better identify cell types.
-#' @param n_var Number of variable genes to use.
-#' @param lss Numeric value of the span parameter of the loess regression. 
-#' @param sf Either a numeric scaling factor to multiply counts after 
-#'  division by column sums, or "median" indicating to multiply by the median 
-#'  number of total read/UMI counts in droplets (default).
-#' @param nn Number of nearest neighbors to calculate in constructing the 
-#'  graph.
-#' @param min_size Numeric value giving the minimum number of droplets in 
-#'  cluster for it to be used for initialization as a cell type for EM. 
+#' @param K Number of clusters to return from k-means. This gives 
+#'  the Maximum number of clusters
 #' @param verbose verbosity.
 #'
 #' @return An SCE object
-#' @importFrom igraph cluster_louvain
+#' @export
 #' @export
 initialize_clusters <- function(x, 
-                                use_var = TRUE, 
-                                n_var = 2000, 
-                                lss = 0.3, 
-                                sf = "median", 
-                                nn = 30, 
-                                min_size = 20, 
+                                K = 30, 
+                                n_start = 10, 
+                                max_iter = 10, 
                                 verbose = FALSE){
+    if (verbose) message("Initializing clusters using k-means")
+    labs <- rep(0, nrow(x@pcs))
+    names(labs) <- rownames(x@pcs)
+    labs[intersect(names(labs), x@bg_set)] <- 1
+    pcss <- scale(x@pcs)
+    ks <- replicate(n_start, 
+                    expr = {
+                        kmeans_ss(pcss, 
+                                  labs = labs, 
+                                  K = K, 
+                                  max_iter = max_iter, 
+                                  scale. = FALSE)
+                    }, 
+                    simplify = FALSE)
+    wss <- sapply(ks, function(i) i$tot.withinss)
+    imin <- which.min(wss)
+    x@ic <- ks[[imin]]
+    a <- c("Debris", rep("Clean", K - 1))
+    x@assignments <- factor(a)
+    if (verbose) message("Done")
+    
+    return(x)
+}
 
-    if (length(x@cluster_set) == 0) 
-        stop("0 droplets in cluster_set. Set droplets for initialization with set_cluster_set first")
-    if (use_var)  x <- get_var_genes(x, n_genes = n_var, lss = lss)
-    x <- normalize_data(x, use_var = use_var, sf = sf)
-    x <- get_knn(x, nn = nn, verbose = verbose)
-
-    if (verbose) message("initializing clusters")
-
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-
-    # Set louvain clusters
-    gcl <- cluster_louvain(x@nn_graph)
-    graph_clust <- gcl$membership
-    names(graph_clust) <- gcl$names
-    if (any(is.na(graph_clust))) stop("Returned cluster values have NA.")
-    graph_clust <- graph_clust+1
-    tb <- table(graph_clust)
-    keep <- names(tb)[tb >= min_size]
-    graph_clust <- graph_clust[graph_clust %in% keep]
-    if (length(graph_clust) == 0){ 
-        stop("No clusters found during initialization. Try changing ", 
-             sQuote("cluster_n"), sQuote("nn"), " or ", 
-             sQuote("min_size"), "parameters")
-    }
-
-    # Specify cluster 1 as Debris
-    all_clusters <- rep("1", length(x@bg_set))
-    names(all_clusters) <- x@bg_set
-    all_clusters <- c(graph_clust, all_clusters)
-    all_clusters <- factor(all_clusters)
-    # Change labels
-    all_clusters <- factor(all_clusters, 
-                           levels=levels(all_clusters), 
-                           labels=seq(1, length(levels(all_clusters))))
-
-    # Specify which labels are debris, which are cell types
-    asgn <- rep("Clean", nlevels(all_clusters))
-    names(asgn) <- levels(all_clusters)
-    asgn[1] <- "Debris"
-    asgn <- as.factor(asgn)
-
-    if (verbose){
-        message("initialized k=", nlevels(all_clusters)-1, 
-                " cell types and 1 debris cluster")
-    }
-
-    x@ic <- list(clusters=all_clusters, 
-                 assignments=asgn)
+#' Get PCs
+#' @importFrom irlba prcomp_irlba
+#' @export
+get_pcs <- function(x, n_pcs = 50){
+    countsv <- t(x@counts[x@vg,])
+    countsv@x <- log10(countsv@x + 1)
+    prcret <- irlba::prcomp_irlba(countsv[x@test_set,], 
+                                  n = n_pcs, 
+                                  center = TRUE, 
+                                  scale. = FALSE)
+    x@pcs <- as.matrix(countsv %*% prcret$rotation)
     return(x)
 }
 
