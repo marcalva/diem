@@ -82,54 +82,6 @@ set_debris_test_set <- function(x,
     return(x)
 }
 
-#' Set droplets for cluster initialization
-#' 
-#' This function sets the droplets that will be used for the 
-#' initialization. The cell types from clustering these droplets are used to
-#' to intialize the parameters of the multinomal for the EM. The top 
-#' \code{cluster_n} droplets ranked by either gene or count are fixed as 
-#' to the debris group.
-#' 
-#' @param x An SCE object.
-#' @param cluster_n Numeric value specifying the number of droplets to use 
-#'  in the cluster set. The top \code{cluster_n} droplets, ranked by 
-#'  count or gene, are included in the cluster set.
-#' @param order_by Whether to order the droplets by total number of total 
-#'  counts or total number of genes detected.
-#' @param verbose verbosity
-#'
-#' @return An SCE object.
-#' @importFrom Matrix colSums
-#' @export
-set_cluster_set <- function(x, 
-                            cluster_n = 1000, 
-                            order_by = "gene", 
-                            verbose = FALSE){
-    if (cluster_n <= 0) stop(sQuote("cluster_n"), " must be greater than 0")
-    if (order_by != "gene" & order_by != "count") stop(sQuote("order_by"), " must be one of ", 
-                                                       dQuote("gene"), " or ", 
-                                                       dQuote("count"))
-    if (length(x@test_set) == 0)
-        stop("No test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
-    if (order_by == "gene") totals <- colSums(x@counts > 0)
-    else totals <- colSums(x@counts)
-
-    cluster_n <- min(cluster_n, length(x@test_set))
-    totals <- totals[x@test_set]
-    o <- order(totals, decreasing=TRUE)
-    totals <- totals[o]
-    min_c_counts <- totals[cluster_n]
-    x@cluster_set <- names(totals)[totals >= min_c_counts]
-
-    if (verbose){
-        message("Using top ", length(x@cluster_set), 
-                " droplets ranked by total ", order_by, 
-                "s for clustering")
-    }
-
-    return(x)
-}
-
 #' Filter out lowly expressed genes
 #'
 #' This function removes genes that are lowly expressed. 

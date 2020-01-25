@@ -5,11 +5,11 @@
 \title{Run DIEM pipeline}
 \usage{
 diem(sce, top_n = 10000, min_counts = 100, min_genes = 100,
-  fix_debris = NULL, cpm_thresh = 10, cluster_n = 1000,
-  order_by = "gene", use_var = TRUE, n_var = 2000, lss = 0.3,
-  sf = "median", nn = 30, min_size = 20, eps = 1e-08,
-  max_iter = 100, psc = 1e-04, pp_thresh = 0.95, gene_thresh = 200,
-  verbose = TRUE)
+  fix_debris = NULL, order_by = "gene", cpm_thresh = 0,
+  n_var = 2000, lss = 0.3, K = 30, n_pcs = 50, gamm = 1e+20,
+  gamm_s = 1e-16, eta = 1e-16, eta_s = 30, n_start = 10,
+  km_iter = 3, eps = 1e-06, max_iter = 100, pp_thresh = 0.95,
+  gene_thresh = 200, verbose = TRUE)
 }
 \arguments{
 \item{sce}{An SCE object.}
@@ -28,42 +28,19 @@ total genes detected a test droplet can have.}
 \item{fix_debris}{A character vector of droplet IDs that will be assigned 
 to the debris set, regardless of its total counts or genes detected.}
 
-\item{cpm_thresh}{The minimum CPM threshold for removing genes.}
-
-\item{cluster_n}{Numeric value specifying the number of droplets to use 
-in the test set.}
-
 \item{order_by}{Whether to order the droplets by total number of total 
 counts or total number of genes detected in calculating the 
 cluster set.}
 
-\item{use_var}{A logical indicating whether to subset the data to include
-only variable genes when initializing the clusters.
-The default is TRUE as it may better identify cell types.}
-
-\item{n_var}{Number of variable genes to use when initializing the clusters.}
+\item{cpm_thresh}{The minimum CPM threshold for removing genes.}
 
 \item{lss}{Numeric value of the span parameter of the loess regression 
 when identifying variable genes.}
-
-\item{sf}{The scaling factor for the normalization. 
-Either a numeric scaling factor to multiply counts after 
-division by column sums, or "median" indicating to multiply by the median 
-number of total read/UMI counts in droplets (default).}
-
-\item{nn}{Number of nearest neighbors to calculate in constructing the 
-kNN graph for cluster initialization.}
-
-\item{min_size}{Numeric value giving the minimum number of droplets in 
-cluster for it to be used for initialization as a cell type for EM.}
 
 \item{eps}{Numeric threshold. The EM algorithm converges when the 
 percent change in log likihood is less than \code{eps}.}
 
 \item{max_iter}{The maximum number of iterations allowed to run.}
-
-\item{psc}{Pseudocount to add to multinomial parameters 
-to avoid collapsing likelihood to 0.}
 
 \item{pp_thresh}{Numeric threshold, where clean droplets must have a 
 posterior probability of at least \code{pp_thresh}.}
@@ -72,6 +49,9 @@ posterior probability of at least \code{pp_thresh}.}
 \code{min_genes} genes detected.}
 
 \item{verbose}{Logical indicating verbosity.}
+
+\item{cluster_n}{Numeric value specifying the number of droplets to use 
+in the test set.}
 }
 \value{
 SCE object.

@@ -4,7 +4,7 @@
 \alias{convert_to_seurat}
 \title{Convert an SCE object to Seurat}
 \usage{
-convert_to_seurat(x, targets = TRUE, meta = TRUE, ...)
+convert_to_seurat(x, filt = FALSE, targets = TRUE, meta = TRUE, ...)
 }
 \arguments{
 \item{x}{An SCE object.}

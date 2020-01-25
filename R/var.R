@@ -43,7 +43,6 @@ get_var_genes <- function(x,
     rownames(datf) <- gene_names
     x@vg <- vg[!is.na(vg)]
     x@vg_info <- datf
-    if (verbose) message("found variable genes")
     return(x)
 }
 

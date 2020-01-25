@@ -84,20 +84,8 @@
 #' @param order_by Whether to order the droplets by total number of total 
 #'  counts or total number of genes detected in calculating the 
 #'  cluster set.
-#' @param use_var A logical indicating whether to subset the data to include
-#'  only variable genes when initializing the clusters.
-#'  The default is TRUE as it may better identify cell types.
-#' @param n_var Number of variable genes to use when initializing the clusters.
 #' @param lss Numeric value of the span parameter of the loess regression 
 #'  when identifying variable genes.
-#' @param sf The scaling factor for the normalization. 
-#'  Either a numeric scaling factor to multiply counts after 
-#'  division by column sums, or "median" indicating to multiply by the median 
-#'  number of total read/UMI counts in droplets (default).
-#' @param nn Number of nearest neighbors to calculate in constructing the 
-#'  kNN graph for cluster initialization.
-#' @param min_size Numeric value giving the minimum number of droplets in 
-#'  cluster for it to be used for initialization as a cell type for EM. 
 #' @param eps Numeric threshold. The EM algorithm converges when the 
 #'  percent change in log likihood is less than \code{eps}.
 #' @param max_iter The maximum number of iterations allowed to run.
@@ -121,21 +109,23 @@ diem <- function(sce,
                  min_counts=100, 
                  min_genes=100, 
                  fix_debris=NULL, 
-                 cpm_thresh=0, 
-                 n_pcs = 50, 
-                 K = 30, 
-                 Alpha0 = 1, 
-                 Beta0 = 5,
                  order_by="gene", 
+                 cpm_thresh=0, 
                  n_var=2000, 
                  lss=0.3, 
+                 K = 30, 
+                 n_pcs = 50, 
+                 gamm = 1e20, 
+                 gamm_s = 1e-16, 
+                 eta = 1e-16, 
+                 eta_s = 30, 
                  n_start = 10, 
-                 min_size=20, 
-                 eps=1e-6, 
-                 max_iter=100, 
-                 pp_thresh=0.95, 
-                 gene_thresh=200, 
-                 verbose=TRUE){
+                 km_iter = 3, 
+                 eps = 1e-6, 
+                 max_iter = 100, 
+                 pp_thresh = 0.95, 
+                 gene_thresh = 200, 
+                 verbose = TRUE){
     if ((pp_thresh < 0) | (pp_thresh > 1)){
         stop("pp_thresh must be between 0 and 1")
     }
@@ -145,19 +135,28 @@ diem <- function(sce,
                                top_n = top_n, 
                                min_counts = min_counts, 
                                min_genes = min_genes, 
-                               fix_debris = fix_debris)
+                               fix_debris = fix_debris, 
+                               verbose = verbose)
     sce <- filter_genes(sce, 
                         cpm_thresh = cpm_thresh, 
                         verbose = verbose)
-    sce <- get_var_genes(sce, n_genes = n_var, lss = lss)
-    sce <- get_pcs(sce, K = n_pcs)
-    sce <- initialize_clusters(sce, K = K, n_start = n_start, max_iter = 5)
+    sce <- get_var_genes(sce, 
+                         n_genes = n_var, 
+                         lss = lss, 
+                         verbose = verbose)
+    sce <- get_pcs(sce, n_pcs = n_pcs)
+    sce <- initialize_clusters(sce, 
+                               K = K, 
+                               n_start = n_start, 
+                               km_iter = km_iter, 
+                               verbose = verbose)
     sce <- run_vem(x = sce, 
                    K = K, 
-                   Alpha0 = Alpha0, 
-                   Beta0 = Beta0, 
+                   gamm = gamm, gamm_s = gamm_s, 
+                   eta = eta, eta_s = eta_s, 
                    eps = eps, 
-                   max_iter = max_iter)
+                   max_iter = max_iter, 
+                   verbose = verbose)
     sce <- call_targets(sce, 
                         pp_thresh = sce@pp_thresh, 
                         min_genes = gene_thresh)

@@ -13,7 +13,7 @@ setOldClass("igraph", igraph::make_empty_graph())
 #' single-cell RNA-seq experiment. It is the class that is used by 
 #' DIEM. The results from filtering are stored in the \code{droplet_data} 
 #' slot, and the converged EM parameters are stored in a list in the 
-#' \code{emo} slot.
+#' \code{vemo} slot.
 #'
 #' Single Cell Expression object
 #' @name SCE-class
@@ -34,19 +34,17 @@ SCE <- setClass(Class = "SCE",
                           droplet_data = "data.frame", 
                           ic = "list", 
                           assignments = "factor", 
-                          emo = "list", 
+                          vemo = "list", 
                           vg_info = "data.frame", 
                           vg = "character", 
                           name = "character"))
 
-# emo contains the EM output of each iteration.
+# vemo contains the EM output of each iteration.
 # Each element of this list contains
-#    Z sample by group matrix of log likelihoods
-#    Mu means numeric vector
-#    Mc Mixture Coefficient numeric vector
-#    loglk log likelihood value at final iteration numeric
-#    converged logical indicating whether EM converged
-#    PP sample by group matrix of posterior probabilities
+#    params  list with the R, Alpha, and Beta values
+#    lb  value of the lower bound
+#    converged  whether the EM convrged
+#    n_iter  the number of iterations
 
 #' @method dim SCE
 #' @export
@@ -211,6 +209,7 @@ convert_to_seurat <- function(x, filt = FALSE, targets = TRUE, meta = TRUE, ...)
 
     if (filt) counts <- x@counts_filt
     else counts <- x@counts
+
     counts <- counts[,drops,drop=FALSE]
     seur <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta.data, ...)
     return(seur)

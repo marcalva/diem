@@ -2,31 +2,16 @@
 % Please edit documentation in R/init_clust.R
 \name{initialize_clusters}
 \alias{initialize_clusters}
-\title{Initialize clustering for EM}
+\title{Initialize clustering}
 \usage{
-initialize_clusters(x, use_var = TRUE, n_var = 2000, lss = 0.3,
-  sf = "median", nn = 30, min_size = 20, verbose = FALSE)
+initialize_clusters(x, K = 30, n_start = 10, km_iter = 3,
+  verbose = FALSE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{use_var}{A logical indicating whether to subset the data to include
-only variable genes. This overrides \code{genes.use}.
-The default is TRUE as it may better identify cell types.}
-
-\item{n_var}{Number of variable genes to use.}
-
-\item{lss}{Numeric value of the span parameter of the loess regression.}
-
-\item{sf}{Either a numeric scaling factor to multiply counts after 
-division by column sums, or "median" indicating to multiply by the median 
-number of total read/UMI counts in droplets (default).}
-
-\item{nn}{Number of nearest neighbors to calculate in constructing the 
-graph.}
-
-\item{min_size}{Numeric value giving the minimum number of droplets in 
-cluster for it to be used for initialization as a cell type for EM.}
+\item{K}{Number of clusters to return from k-means. This gives 
+the Maximum number of clusters}
 
 \item{verbose}{verbosity.}
 }
@@ -34,9 +19,6 @@ cluster for it to be used for initialization as a cell type for EM.}
 An SCE object
 }
 \description{
-Given an SCE object, identify the cell types present.
-}
-\details{
 Instead of randomly initializing the EM, cell types are estimated from 
 droplets that are expected to contain cells/nuclei. The initialization 
 is done with droplets in the cluster set. The data is then normalized 

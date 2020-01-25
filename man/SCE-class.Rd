@@ -13,7 +13,7 @@ This class is used to store the expression data from a
 single-cell RNA-seq experiment. It is the class that is used by 
 DIEM. The results from filtering are stored in the \code{droplet_data} 
 slot, and the converged EM parameters are stored in a list in the 
-\code{emo} slot.
+\code{vemo} slot.
 
 Single Cell Expression object
 }

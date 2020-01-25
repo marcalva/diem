@@ -16,7 +16,7 @@ get_wss <- function(Xt, centers, l){
 kmeans_ss <- function(X, 
                       K = 30, 
                       labs = NULL, 
-                      max_iter = 20, 
+                      max_iter = 10, 
                       scale. = FALSE){
     N <- nrow(X)
     G <- ncol(X)
@@ -75,7 +75,7 @@ kmeans_ss <- function(X,
         iter <- iter + 1
     }
 
-    return(list("labels" = n_l, 
+    return(list("labels" = factor(n_l, levels = 1:K), 
                 "centers" = centers, 
                 "withinss" = wss, 
                 "tot.withinss" = sum(wss)))
@@ -114,9 +114,9 @@ kmeans_ss <- function(X,
 initialize_clusters <- function(x, 
                                 K = 30, 
                                 n_start = 10, 
-                                max_iter = 10, 
+                                km_iter = 3, 
                                 verbose = FALSE){
-    if (verbose) message("Initializing clusters using k-means")
+    if (verbose) message("initializing clusters using k-means")
     labs <- rep(0, nrow(x@pcs))
     names(labs) <- rownames(x@pcs)
     labs[intersect(names(labs), x@bg_set)] <- 1
@@ -126,7 +126,7 @@ initialize_clusters <- function(x,
                         kmeans_ss(pcss, 
                                   labs = labs, 
                                   K = K, 
-                                  max_iter = max_iter, 
+                                  max_iter = km_iter, 
                                   scale. = FALSE)
                     }, 
                     simplify = FALSE)
@@ -135,21 +135,21 @@ initialize_clusters <- function(x,
     x@ic <- ks[[imin]]
     a <- c("Debris", rep("Clean", K - 1))
     x@assignments <- factor(a)
-    if (verbose) message("Done")
     
     return(x)
 }
 
 #' Get PCs
 #' @importFrom irlba prcomp_irlba
+#' @importFrom Matrix t
 #' @export
 get_pcs <- function(x, n_pcs = 50){
     countsv <- t(x@counts[x@vg,])
     countsv@x <- log10(countsv@x + 1)
-    prcret <- irlba::prcomp_irlba(countsv[x@test_set,], 
-                                  n = n_pcs, 
-                                  center = TRUE, 
-                                  scale. = FALSE)
+    prcret <- prcomp_irlba(countsv[x@test_set,], 
+                           n = n_pcs, 
+                           center = TRUE, 
+                           scale. = FALSE)
     x@pcs <- as.matrix(countsv %*% prcret$rotation)
     return(x)
 }

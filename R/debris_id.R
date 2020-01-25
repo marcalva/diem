@@ -36,7 +36,7 @@ remove_debris <- function(x, verbose = FALSE){
     drops <- x@test_set
     genes <- rownames(subset(x@gene_data, exprsd == TRUE))
     genes_all <- seq_along(rownames(x@counts)); names(genes_all) <- rownames(x@counts); 
-    gene_probs <- x@emo$params$Beta
+    gene_probs <- x@vemo$params$Beta
     gene_probs <- sweep(gene_probs, 2, colSums(gene_probs), "/")
     coefs <- matrix(nrow = length(drops), ncol = ncol(gene_probs))
     colnames(coefs) <- colnames(gene_probs); rownames(coefs) <- drops
@@ -65,6 +65,7 @@ remove_debris <- function(x, verbose = FALSE){
     cf[cf < 0] <- 0
     x@counts_filt <- as(cf, "CsparseMatrix")
     x@coefs <- coefs
+    if (verbose) message("Done")
     return(x)
 }
 

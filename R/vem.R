@@ -1,58 +1,4 @@
 
-#' Initialize randomly
-#'
-#' @export
-init_random <- function(X, 
-                        N, 
-                        G, 
-                        K, 
-                        labs = NULL, 
-                        n_start = 1, 
-                        Alpha0 = 1e-3, 
-                        Beta0 = 1e-3){
-    clusts <- 1:K
-    if (length(labs) != N) labs <- rep(0, N)
-    if (length(labs) != N){
-        stop("Size of labs must be the same as the number of rows in x.")
-    }
-
-    Xt <- t(X)
-
-    Alpha <- rep(Alpha0, K)
-    
-    # Get labeled groups
-    clusts <- 1:K
-    labeled <- setdiff(unique(labs), 0)
-    unlabeled <- setdiff(clusts, labeled)
-    
-    labs_init <- labs
-    names(labs_init) <- seq(N)
-
-    lbeta <- sapply(labeled, function(k){
-                    ru <- rowSums(Xt[,labs_init == k]) + Beta0
-                    return(ru)
-                    })
-    print(head(lbeta))
-
-    uix <- seq(N)[labs_init == 0]
-    params <- lapply(1:n_start, function(repl) {
-                         labs_init <- labs
-                         names(labs_init) <- seq(N)
-                         uix_s <- sample(uix, size = length(unlabeled))
-                         labs_init[uix_s] <- unlabeled
-                         ubeta <- as.matrix(Xt[,uix_s]) + Beta0
-                         colnames(ubeta) <- NULL
-                         thisBeta <- cbind(lbeta, ubeta)
-                         thisAlpha <- Alpha
-                         return(list("Alpha" = thisAlpha, 
-                                     "Beta" = thisBeta, 
-                                     "R" = NULL))
-                         })
-
-    return(params)
-}
-
-
 #' fraction of logs
 #'
 #' @param x numeric vector
@@ -140,7 +86,7 @@ get_Xrho <- function(X, e_rho){
 
 #' Update Z
 #' @export
-update_z <- function(X, 
+update_r <- function(X, 
                      K, 
                      e_rho, 
                      e_pi, 
@@ -161,27 +107,26 @@ update_z <- function(X,
     Xu <- X[unfixd,,drop=FALSE]
     mn_num_u <- mn_num[unfixd,,drop=FALSE]
     mn_den_u <- mn_den[unfixd,,drop=FALSE]
-    # Xurho <- get_Xrho(Xu, e_rho)
     Xurho <- Xrho[unfixd,,drop=FALSE]
     e_pi_u <- matrix(e_pi, nrow = nrow(Xu), ncol = K, byrow = TRUE)
 
-    zu <- as.matrix(mn_num_u - mn_den_u + Xurho + e_pi_u)
-    rownames(zu) <- rownames(X)[unfixd]
+    ru <- as.matrix(mn_num_u - mn_den_u + Xurho + e_pi_u)
+    rownames(ru) <- rownames(X)[unfixd]
 
     # Get E(Z) for fixed observations
-    zf <- matrix(-Inf, nrow = length(fixd), ncol = K)
-    rownames(zf) <- rownames(X)[fixd]
+    rf <- matrix(-Inf, nrow = length(fixd), ncol = K)
+    rownames(rf) <- rownames(X)[fixd]
     rv <- 1:length(fixd)
     cv <- labs[fixd]
-    zf[rv + nrow(zf) * (cv - 1)] <- 0
+    rf[rv + nrow(rf) * (cv - 1)] <- 0
 
-    z <- rbind(zu, zf)
-    z <- z[rownames(X),]
+    r <- rbind(ru, rf)
+    r <- r[rownames(X),]
 
-    z <- apply(z, 1, fraction_log)
-    z <- t(z)
+    r <- apply(r, 1, fraction_log)
+    r <- t(r)
 
-    return(z)
+    return(r)
 }
 
 #' @export
@@ -191,8 +136,7 @@ update_alpha <- function(hyperp, e_z){
 
 #' @export
 update_beta <- function(X, K, hyperp, e_z){
-    Beta0_m <- matrix(hyperp$Beta, nrow = length(hyperp$Beta), ncol = K, byrow=FALSE)
-    return(Beta0_m + as.matrix(t(X) %*% e_z))
+    hyperp$Beta + as.matrix(t(X) %*% e_z)
 }
 
 #' Compute lower bound
@@ -212,33 +156,37 @@ lower_bound <- function(X,
     N <- nrow(X)
     G <- ncol(X)
 
-    p_x <- sum(e_z * (mn_num - mn_den + Xrho))
+    e_p_x <- sum(e_z * (mn_num - mn_den + Xrho))
 
     
     e_pi_m <- matrix(e_pi, nrow = nrow(X), ncol = K, byrow = TRUE)
-    p_z <- sum(e_z * e_pi_m)
+    e_p_z <- sum(e_z * e_pi_m)
 
-    p_pi <- dir_c(hyperp$Alpha) + t(hyperp$Alpha - 1) %*% e_pi
+    e_p_pi <- dir_c(hyperp$Alpha) + t(hyperp$Alpha - 1) %*% e_pi
 
-    p_rho <- sum(rep(dir_c(hyperp$Beta), K) + (t(hyperp$Beta - 1) %*% e_rho))
+    e_p_rho <- sapply(1:K, function(k){
+                          bk <- hyperp$Beta[,k]
+                          dir_c(bk) + t(bk - 1) %*% e_rho[,k]})
+    e_p_rho <- sum(e_p_rho)
 
     ln_e_z <- log(e_z)
     ln_e_z[is.infinite(ln_e_z)] <- 0
-    q_z <- e_z * ln_e_z
-    q_z <- sum(q_z)
+    e_q_z <- e_z * ln_e_z
+    e_q_z <- sum(e_q_z)
 
-    q_pi <- dir_c(params$Alpha) + ((params$Alpha - 1) %*% e_pi)
+    e_q_pi <- dir_c(params$Alpha) + ((params$Alpha - 1) %*% e_pi)
 
-    q_rho <- apply(params$Beta, 2, dir_c) + 
-        sapply(1:K, function(k){ (params$Beta[,k]- 1 ) %*% e_rho[,k] })
-    q_rho <- sum(q_rho)
+    e_q_rho <- sapply(1:K, function(k){
+                      bk <- params$Beta[,k]
+                      dir_c(bk) + (bk - 1) %*% e_rho[,k]})
+    e_q_rho <- sum(e_q_rho)
 
-    ret <- p_x + p_z + p_pi + p_rho - q_z - q_pi - q_rho
+    ret <- e_p_x + e_p_z + e_p_pi + e_p_rho - e_q_z - e_q_pi - e_q_rho
 
     return(ret)
 }
 
-#' EM function
+#' Variational EM function
 #' 
 #' Run EM for a multinomial mixture model on a sample x feature matrix. 
 #' Take a matrix \code{counts} and classify the samples in each row into 
@@ -293,8 +241,6 @@ vem <- function(counts,
     if (nrow(params$Beta) != G) stop("Number of columns in counts must be the same as the number of features in Beta.")
     if (ncol(params$Beta) != K) stop("Number of columns in Beta must be the number of clusters K.")
     if (length(params$Alpha) != K) stop("Length of Alpha must be the number of clusters K.")
-    # if (nrow(params$R) != N) stop("Number of rows in R must be the same as the number of observations in counts.")
-    # if (ncol(params$R) != K) stop("Number of columns in R must be the number of clusters K.")
     if (length(labs) != N) stop("Length of labs must be the same as the number of observations in counts.")
 
     mn_num <- get_mn_num(counts, K)
@@ -310,7 +256,7 @@ vem <- function(counts,
     while (iter <= max_iter){
         if (verbose) message("Iteration ", iter)
         # Update Z
-        R <- update_z(X = counts, K = K, e_rho = e_rho, 
+        R <- update_r(X = counts, K = K, e_rho = e_rho, 
                       e_pi = e_pi, mn_num = mn_num, mn_den = mn_den,
                       Xrho = Xrho, labs = labs)
         e_z <- get_e_z(R)
@@ -347,31 +293,6 @@ vem <- function(counts,
     return(vmo)
 }
 
-#' Initialize best from random starts
-init_best <- function(X, 
-                         K, 
-                         hyperp, 
-                         n_start = 100, 
-                         n_iter = 3, 
-                         labs = NULL, 
-                         verbose = TRUE){
-    N <- nrow(X)
-    G <- ncol(X)
-    pl <- init_random(X = X, N = N, G = G, K = K, labs = labs, 
-                      Alpha = hyperp$Alpha[1], Beta = hyperp$Beta[1], 
-                      n_start = n_start)
-    print(class(pl[[1]]$Beta))
-    vl <- lapply(pl, function(p) {
-                 vem(counts = X, K = K, params = p, hyperp = hyperp, 
-                     max_iter = n_iter, eps = -Inf, labs = labs)
-                 })
-    return(vl)
-    return(vmol)
-    #lbs <- sapply(vmol, function(i) i$lb)
-    #i <- which.max(lbs)
-    #return(vmol[[i]])
-}
-
 #' Run EM on counts to estimate multinomial mixture model
 #' 
 #' Run expectation maximization (EM) to estimate the parameters of the 
@@ -400,14 +321,15 @@ init_best <- function(X,
 #' @export
 run_vem <- function(x, 
                     K = 30, 
-                    Alpha0 = 1, 
-                    Beta0 = 5, 
+                    gamm = 1e20, 
+                    gamm_s = 1e-16, 
+                    eta = 1e-16, 
+                    eta_s = 30, 
                     eps = 1e-6, 
                     max_iter = 1e2, 
                     verbose = TRUE){
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    # droplets.use <- c(x@test_set, x@bg_set)
     droplets.use <- colnames(x@counts)
 
     if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
@@ -417,33 +339,31 @@ run_vem <- function(x,
     N <- nrow(counts)
     G <- ncol(counts)
 
-    # Fix labs
+    # Fix labels of debris
     labs <- rep(0, N)
     names(labs) <- droplets.use
     labs[x@bg_set] <- 1
 
-    hyperp <- list("Alpha" = rep(Alpha0, K), 
-                   "Beta" = rep(Beta0, G))
+    c_bar <- mean(colSums(x@counts[genes.use,x@test_set]))
 
-    # Get initial parameters
+    # Priors
+    Alpha <- c(gamm, rep(gamm_s, K-1))
+    Beta <- matrix(eta_s * c_bar / G, nrow = G, ncol = K)
+    Beta[,1] <- eta * c_bar / G
+    hyperp <- list("Alpha" = Alpha, 
+                   "Beta" = Beta, 
+                   "R" = NULL)
+
+    # Initialize parameters parameters
     if (is.null(x@ic)){
-        countsv <- counts[,x@vg]
-        Gs <- ncol(countsv)
-        hyperps <- list("Alpha" = rep(Alpha0, K), "Beta" = rep(Beta0, Gs))
-        vmol <- init_best(countsv, K = K, hyperp = hyperps, labs = labs)
-        lbs <- sapply(vmol, function(i) i$lb)
-        i_max <- which.max(lbs)
-        params <- vmol[[i_max]]
-    } else {
-        params <- list()
-        clusts <- 1:K
-        Beta <- sapply(clusts, 
-                       function(i){
-                           rowSums(x@counts[genes.use, x@ic$labels == i, drop=FALSE])})
-        params$Beta <- Beta + Beta0
-        params$R <- NULL
-        params$Alpha <- rep(Alpha0, K)
+        stop("Initialize clusters before running DIEM")
     }
+    clusts <- 1:K
+    a_init <- table(x@ic$labels) + hyperp$Alpha
+    b_init <- sapply(clusts, function(i) 
+                     colSums(counts[x@ic$labels == i, ,drop=FALSE]))
+    b_init <- b_init + hyperp$Beta
+    params <- list("Alpha" = a_init, "Beta" = b_init)
 
     if (verbose){
         message("Estimating parameters")
@@ -460,7 +380,6 @@ run_vem <- function(x,
                verbose = verbose)
 
     # Naive Bayes assignment
-
     clusts <- colSums(vmo$params$R) > 0
     vmo$params$R <- vmo$params$R[,clusts,drop=FALSE]
     vmo$params$Beta <- vmo$params$Beta[,clusts,drop=FALSE]
@@ -474,11 +393,6 @@ run_vem <- function(x,
     clust_max <- apply(vmo$params$R, 1, function(i){
                        (1:ncol(vmo$params$R))[which.max(i)]
                })
-    #clust_max <- paste0("C", as.character(clust_max))
-    #clust_max <- as.factor(clust_max)
-    #clust_max <- droplevels(clust_max)
-    #cl <- paste0("C", seq(1,nlevels(clust_max)-1))
-    #levels(clust_max) <- c("Debris", cl)
 
     # Fill in droplet data
     x@droplet_data[,"CleanProb"] <- PP_summary[,"Clean"]
@@ -486,12 +400,90 @@ run_vem <- function(x,
     x@droplet_data$Cluster <- clust_max
     x@droplet_data$ClusterProb <- clust_prob
 
-    x@emo <- vmo
+    x@vemo <- vmo
 
     if (verbose){
         message("finished variational EM")
     }
 
     return(x)
+}
+
+#' Initialize best from random starts
+init_best <- function(X, 
+                         K, 
+                         hyperp, 
+                         n_start = 100, 
+                         n_iter = 3, 
+                         labs = NULL, 
+                         verbose = TRUE){
+    N <- nrow(X)
+    G <- ncol(X)
+    pl <- init_random(X = X, N = N, G = G, K = K, labs = labs, 
+                      Alpha = hyperp$Alpha[1], Beta = hyperp$Beta[1], 
+                      n_start = n_start)
+    print(class(pl[[1]]$Beta))
+    vl <- lapply(pl, function(p) {
+                 vem(counts = X, K = K, params = p, hyperp = hyperp, 
+                     max_iter = n_iter, eps = -Inf, labs = labs)
+                 })
+    return(vl)
+    return(vmol)
+    #lbs <- sapply(vmol, function(i) i$lb)
+    #i <- which.max(lbs)
+    #return(vmol[[i]])
+}
+
+#' Initialize randomly
+#'
+#' @export
+init_random <- function(X, 
+                        N, 
+                        G, 
+                        K, 
+                        labs = NULL, 
+                        n_start = 1, 
+                        Alpha0 = 1e-3, 
+                        Beta0 = 1e-3){
+    clusts <- 1:K
+    if (length(labs) != N) labs <- rep(0, N)
+    if (length(labs) != N){
+        stop("Size of labs must be the same as the number of rows in x.")
+    }
+
+    Xt <- t(X)
+
+    Alpha <- rep(Alpha0, K)
+    
+    # Get labeled groups
+    clusts <- 1:K
+    labeled <- setdiff(unique(labs), 0)
+    unlabeled <- setdiff(clusts, labeled)
+    
+    labs_init <- labs
+    names(labs_init) <- seq(N)
+
+    lbeta <- sapply(labeled, function(k){
+                    ru <- rowSums(Xt[,labs_init == k]) + Beta0
+                    return(ru)
+                    })
+    print(head(lbeta))
+
+    uix <- seq(N)[labs_init == 0]
+    params <- lapply(1:n_start, function(repl) {
+                         labs_init <- labs
+                         names(labs_init) <- seq(N)
+                         uix_s <- sample(uix, size = length(unlabeled))
+                         labs_init[uix_s] <- unlabeled
+                         ubeta <- as.matrix(Xt[,uix_s]) + Beta0
+                         colnames(ubeta) <- NULL
+                         thisBeta <- cbind(lbeta, ubeta)
+                         thisAlpha <- Alpha
+                         return(list("Alpha" = thisAlpha, 
+                                     "Beta" = thisBeta, 
+                                     "R" = NULL))
+                         })
+
+    return(params)
 }
 
