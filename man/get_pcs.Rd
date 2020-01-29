@@ -4,7 +4,7 @@
 \alias{get_pcs}
 \title{Get PCs}
 \usage{
-get_pcs(x, n_pcs = 50)
+get_pcs(x, n_pcs = 30)
 }
 \description{
 Get PCs

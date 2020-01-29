@@ -114,7 +114,7 @@ diem <- function(sce,
                  n_var=2000, 
                  lss=0.3, 
                  K = 30, 
-                 n_pcs = 50, 
+                 n_pcs = 30, 
                  gamm = 1e20, 
                  gamm_s = 1e-16, 
                  eta = 1e-16, 
@@ -172,7 +172,7 @@ diem <- function(sce,
                        " clean droplets."))
     }
 
-    sce <- remove_debris(sce, verbose = verbose)
+    # sce <- remove_debris(sce, verbose = verbose)
 
     return(sce)
 }

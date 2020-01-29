@@ -276,6 +276,7 @@ vem <- function(counts,
 
         if (iter > 1) delt <- (lb_new - lb_old) / abs(lb_old)
         else delt <- Inf
+        print(delt)
 
         if (delt < 0) warning("lower bound decreased")
         if (delt < eps){
@@ -321,11 +322,14 @@ vem <- function(counts,
 #' @export
 run_vem <- function(x, 
                     K = 30, 
-                    gamm = 1e20, 
+                    gamm = 1, 
                     gamm_s = 1e-16, 
                     eta = 1e-16, 
                     eta_s = 30, 
                     eps = 1e-6, 
+                    top_n = 1000, 
+                    init_start = 5, 
+                    init_iter = 3, 
                     max_iter = 1e2, 
                     verbose = TRUE){
 
@@ -355,15 +359,19 @@ run_vem <- function(x,
                    "R" = NULL)
 
     # Initialize parameters parameters
-    if (is.null(x@ic)){
-        stop("Initialize clusters before running DIEM")
-    }
+    #if (is.null(x@ic)){
+    #    stop("Initialize clusters before running DIEM")
+    #}
     clusts <- 1:K
-    a_init <- table(x@ic$labels) + hyperp$Alpha
-    b_init <- sapply(clusts, function(i) 
-                     colSums(counts[x@ic$labels == i, ,drop=FALSE]))
-    b_init <- b_init + hyperp$Beta
-    params <- list("Alpha" = a_init, "Beta" = b_init)
+    #a_init <- table(x@ic$labels) + hyperp$Alpha
+    #b_init <- sapply(clusts, function(i) 
+    #                 colSums(counts[x@ic$labels == i, ,drop=FALSE]))
+    #b_init <- b_init + hyperp$Beta
+    #params <- list("Alpha" = a_init, "Beta" = b_init)
+    params <- init_best(counts,  
+                   labs, 
+                   K, 
+                   hyperp)
 
     if (verbose){
         message("Estimating parameters")
@@ -411,27 +419,43 @@ run_vem <- function(x,
 
 #' Initialize best from random starts
 init_best <- function(X, 
-                         K, 
-                         hyperp, 
-                         n_start = 100, 
-                         n_iter = 3, 
-                         labs = NULL, 
-                         verbose = TRUE){
+                      labs = NULL, 
+                      K, 
+                      hyperp, 
+                      top_n = 1000, 
+                      init_start = 5, 
+                      init_iter = 3, 
+                      verbose = TRUE){
     N <- nrow(X)
     G <- ncol(X)
-    pl <- init_random(X = X, N = N, G = G, K = K, labs = labs, 
-                      Alpha = hyperp$Alpha[1], Beta = hyperp$Beta[1], 
-                      n_start = n_start)
-    print(class(pl[[1]]$Beta))
-    vl <- lapply(pl, function(p) {
-                 vem(counts = X, K = K, params = p, hyperp = hyperp, 
-                     max_iter = n_iter, eps = -Inf, labs = labs)
-                 })
-    return(vl)
-    return(vmol)
-    #lbs <- sapply(vmol, function(i) i$lb)
-    #i <- which.max(lbs)
-    #return(vmol[[i]])
+    X_unl <- X[labs == 0,]
+    N_unl <- nrow(X_unl)
+    o <- order(rowSums(X_unl), decreasing = TRUE)
+    top_n <- min(top_n, N_unl)
+    keep <- o[1:top_n]
+    pl <- list()
+    for (i in 1:init_start){
+        b_init <- matrix(nrow = G, ncol = K)
+        b_init[,1] <- colSums(X[labs == 1,])
+        s <- sample(keep, size = (K - 1))
+        b_init[,2:K] <- as.matrix(t(X_unl[s,]))
+        b_init <- b_init + 1e-16
+        a_init <- rep(1, K)
+        params <- list("Alpha" = a_init, "Beta" = b_init)
+        vmo <- vem(X, 
+                   K = K, 
+                   params = params, 
+                   hyperp = hyperp, 
+                   max_iter = init_iter, 
+                   eps = -Inf, 
+                   labs = labs, 
+                   verbose = verbose)
+        pl[[i]] <- vmo
+    }
+    vls <- sapply(pl, function(i) i$lb)
+    i_max <- which.max(vls)
+    params <- pl[[i]]$params
+    return(params)
 }
 
 #' Initialize randomly

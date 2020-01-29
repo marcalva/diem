@@ -143,7 +143,7 @@ initialize_clusters <- function(x,
 #' @importFrom irlba prcomp_irlba
 #' @importFrom Matrix t
 #' @export
-get_pcs <- function(x, n_pcs = 50){
+get_pcs <- function(x, n_pcs = 30){
     countsv <- t(x@counts[x@vg,])
     countsv@x <- log10(countsv@x + 1)
     prcret <- prcomp_irlba(countsv[x@test_set,], 
