@@ -363,11 +363,11 @@ run_vem <- function(x,
     #    stop("Initialize clusters before running DIEM")
     #}
     clusts <- 1:K
-    #a_init <- table(x@ic$labels) + hyperp$Alpha
-    #b_init <- sapply(clusts, function(i) 
-    #                 colSums(counts[x@ic$labels == i, ,drop=FALSE]))
-    #b_init <- b_init + hyperp$Beta
-    #params <- list("Alpha" = a_init, "Beta" = b_init)
+    a_init <- table(x@ic$labels) + hyperp$Alpha
+    b_init <- sapply(clusts, function(i) 
+                     colSums(counts[x@ic$labels == i, ,drop=FALSE]))
+    b_init <- b_init + hyperp$Beta
+    params <- list("Alpha" = a_init, "Beta" = b_init)
     params <- init_best(counts,  
                    labs, 
                    K, 
@@ -510,4 +510,68 @@ init_random <- function(X,
 
     return(params)
 }
+
+#' Estimate parameters of Dirichlet
+#'
+#' x are the observed data values of dirichlet
+#' a are the alpha parameters of dirichlet
+#' x and a must be same length
+est_dir <- function(x, 
+                    a, 
+                    N = 1, 
+                    rho = .1, 
+                    eps = 1e-10, 
+                    max_iter = 1e5){
+    if (length(x) != length(a)) stop("x and a must be the same length")
+
+    a_old <- a
+    delt <- Inf
+    iter <- 1
+    while (delt > eps & iter <= max_iter){
+        a_old_sum <- sum(a_old)
+        g <- digamma(a_old_sum) - digamma(a_old) + x
+        g <- N * g
+        h <- -N * trigamma(a_old)
+        z <- N * trigamma(a_old_sum)
+        b <- (sum(g/h)) / ( (1/z) + sum(1/h) )
+
+        Hinv_g <- (g - b) / h
+        a_new <- a_old - rho*Hinv_g
+        a_new[a_new < 0] <- 1e-16
+        delt <- (a_new - a_old) %*% (a_new - a_old)
+        a_old <- a_new
+        iter <- iter + 1
+    }
+    p <- lgamma(sum(a_new)) - lgamma(sum(a_new)) + (a_new-1) %*% x
+    print(iter)
+    print(p)
+    return(a_new)
+}
+
+#' Newton-Raphson optimization for Dir-Mult with sparse matrix
+#' 
+#' x is gene by droplet matrix
+#' a is current value of alpha parameter, gene by k matrix
+#' z is current membership
+dm_nr <- function(x, a, z){
+    a_new = a
+    ks = unique(z)
+    K <- length(ks)
+    for (k in ks){
+        xk <- x[,z == k]
+        a_sum <- sum(a[,k])
+        N <- ncol(xk)
+        sizes <- colSums(xk)
+        e <- sizes + a_sum # n_i + sum alpha_k
+        num_zero <- rowSums(xk == 0)
+        xkna <- xk
+        xkna@x <- 
+        Xlf@x <- lfactorial(Xlf@x)
+
+        gr <- N * a_sum - 
+              sum(digamma(e)) + 
+              num_zero * digamma(a[,k]) + 
+
+
+
 
