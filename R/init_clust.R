@@ -41,8 +41,13 @@ kmeans_ss <- function(X,
         centers[,l] <- rowMeans(Xt[,labs == l])
     }
     # Initialize unlabeled
-    uix_s <- sample(uix, size = length(unlabeled))
-    centers[,unlabeled] <- as.matrix(Xt[,uix_s,drop=FALSE])
+    labs_init <- labs
+    unl_ix <- labs == 0
+    labs_init[unl_ix] <- sample(1:K, size = sum(unl_ix), replace = TRUE)
+
+    centers <- sapply(clusts, function(i) rowMeans(Xt[,labs_init == i]))
+    #uix_s <- sample(uix, size = length(unlabeled))
+    #centers[,unlabeled] <- as.matrix(Xt[,uix_s,drop=FALSE])
 
     p_l <- labs
     # First iter

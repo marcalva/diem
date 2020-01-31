@@ -6,6 +6,68 @@
 
 using namespace Rcpp;
 
+// LlkDirMultSparse
+NumericVector LlkDirMultSparse(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector alpha, bool debug);
+RcppExport SEXP _diem_LlkDirMultSparse(SEXP xSEXP, SEXP sizesSEXP, SEXP alphaSEXP, SEXP debugSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sizes(sizesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
+    rcpp_result_gen = Rcpp::wrap(LlkDirMultSparse(x, sizes, alpha, debug));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_step
+NumericVector compute_step(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, int tol, bool debug);
+RcppExport SEXP _diem_compute_step(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP tolSEXP, SEXP debugSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sizes(sizesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_step(x, sizes, weights, alpha, tol, debug));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_LOO_step
+NumericVector compute_LOO_step(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, int tol, bool debug);
+RcppExport SEXP _diem_compute_LOO_step(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP tolSEXP, SEXP debugSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sizes(sizesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_LOO_step(x, sizes, weights, alpha, tol, debug));
+    return rcpp_result_gen;
+END_RCPP
+}
+// compute_fp_step
+NumericVector compute_fp_step(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, int tol, bool debug);
+RcppExport SEXP _diem_compute_fp_step(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP tolSEXP, SEXP debugSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sizes(sizesSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
+    rcpp_result_gen = Rcpp::wrap(compute_fp_step(x, sizes, weights, alpha, tol, debug));
+    return rcpp_result_gen;
+END_RCPP
+}
 // fast_varCPP
 NumericVector fast_varCPP(Eigen::SparseMatrix<double> x, NumericVector mu);
 RcppExport SEXP _diem_fast_varCPP(SEXP xSEXP, SEXP muSEXP) {
@@ -20,6 +82,10 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_diem_LlkDirMultSparse", (DL_FUNC) &_diem_LlkDirMultSparse, 4},
+    {"_diem_compute_step", (DL_FUNC) &_diem_compute_step, 6},
+    {"_diem_compute_LOO_step", (DL_FUNC) &_diem_compute_LOO_step, 6},
+    {"_diem_compute_fp_step", (DL_FUNC) &_diem_compute_fp_step, 6},
     {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 2},
     {NULL, NULL, 0}
 };

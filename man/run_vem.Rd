@@ -4,8 +4,9 @@
 \alias{run_vem}
 \title{Run EM on counts to estimate multinomial mixture model}
 \usage{
-run_vem(x, K = 30, gamm = 1e+20, gamm_s = 1e-16, eta = 1e-16,
-  eta_s = 30, eps = 1e-06, max_iter = 100, verbose = TRUE)
+run_vem(x, K = 30, gamm = 1, gamm_s = 1e-16, eta = 1e-16,
+  eta_s = 30, eps = 1e-06, top_n = 1000, init_start = 5,
+  init_iter = 3, max_iter = 100, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}

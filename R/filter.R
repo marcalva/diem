@@ -108,6 +108,9 @@ filter_genes <- function(x, cpm_thresh = 10, verbose = FALSE){
                        return(keep)
                            })
     keep <- apply(keep_all, 1, all)
+    expr <- rowSums(x@counts)
+    cpm <- 1e6*expr/sum(expr)
+    keep <- cpm > cpm_thresh
     if (sum(keep) == 0){
         stop("no genes pass ", sQuote("cpm_thresh"), " threshold")
     }

@@ -39,390 +39,10 @@ hd <- function(a){
     (digamma(a0) * (a0 - K) )- (digamma(a) %*% (a-1)) - dir_c(a)
 }
 
-#' Get expected log rho
-#' @export
-get_e_rho <- function(Beta){
-    apply(Beta, 2, function(b){ digamma(b) - digamma(sum(b)) })
-}
-
-#' Get expected log pi
-#' @export
-get_e_pi <- function(Alpha){
-    digamma(Alpha) - digamma(sum(Alpha))
-}
-
-#' Get expected Z
-#' @export
-get_e_z <- function(R){
-    R
-}
-
-# Store m_num
-#' @export
-get_mn_num <- function(X, K){
-    N <- nrow(X)
-    nsum <- rowSums(X)
-    mnnum <- lfactorial(nsum)
-    mnnum <- matrix(mnnum, nrow = N, ncol = K, byrow=FALSE)
-    return(mnnum)
-}
-
-# Store m_den
-#' @export
-get_mn_den <- function(X, K){
-    N <- nrow(X)
-    Xlf <- X
-    Xlf@x <- lfactorial(Xlf@x)
-    xlogg <- rowSums(Xlf)
-    xlogg <- matrix(xlogg, nrow = N, ncol = K, byrow=FALSE)
-    return(xlogg)
-}
-
-# Store Xtrho
-#' @export
-get_Xrho <- function(X, e_rho){
-    return(as.matrix(X %*% e_rho))
-}
-
-#' Update Z
-#' @export
-update_r <- function(X, 
-                     K, 
-                     e_rho, 
-                     e_pi, 
-                     mn_num, 
-                     mn_den, 
-                     Xrho, 
-                     labs = NULL){
-    groups <- 1:K
-    N <- nrow(X)
-    G <- ncol(X)
-    if (length(labs) != N) labs <- rep(0, N)
-
-    if (is.null(rownames(X))) rownames(X) <- seq(N)
-    seq_n <- seq(N)
-    fixd <- seq_n[labs != 0]
-    unfixd <- seq_n[labs == 0]
-
-    Xu <- X[unfixd,,drop=FALSE]
-    mn_num_u <- mn_num[unfixd,,drop=FALSE]
-    mn_den_u <- mn_den[unfixd,,drop=FALSE]
-    Xurho <- Xrho[unfixd,,drop=FALSE]
-    e_pi_u <- matrix(e_pi, nrow = nrow(Xu), ncol = K, byrow = TRUE)
-
-    ru <- as.matrix(mn_num_u - mn_den_u + Xurho + e_pi_u)
-    rownames(ru) <- rownames(X)[unfixd]
-
-    # Get E(Z) for fixed observations
-    rf <- matrix(-Inf, nrow = length(fixd), ncol = K)
-    rownames(rf) <- rownames(X)[fixd]
-    rv <- 1:length(fixd)
-    cv <- labs[fixd]
-    rf[rv + nrow(rf) * (cv - 1)] <- 0
-
-    r <- rbind(ru, rf)
-    r <- r[rownames(X),]
-
-    r <- apply(r, 1, fraction_log)
-    r <- t(r)
-
-    return(r)
-}
-
-#' @export
-update_alpha <- function(hyperp, e_z){
-    colSums(e_z) + hyperp$Alpha
-}
-
-#' @export
-update_beta <- function(X, K, hyperp, e_z){
-    hyperp$Beta + as.matrix(t(X) %*% e_z)
-}
-
-#' Compute lower bound
-#'
-#' @export
-lower_bound <- function(X, 
-                        K, 
-                        params, 
-                        hyperp, 
-                        e_z, 
-                        e_rho, 
-                        e_pi, 
-                        mn_num, 
-                        mn_den, 
-                        Xrho){
-    groups <- 1:K
-    N <- nrow(X)
-    G <- ncol(X)
-
-    e_p_x <- sum(e_z * (mn_num - mn_den + Xrho))
-
-    
-    e_pi_m <- matrix(e_pi, nrow = nrow(X), ncol = K, byrow = TRUE)
-    e_p_z <- sum(e_z * e_pi_m)
-
-    e_p_pi <- dir_c(hyperp$Alpha) + t(hyperp$Alpha - 1) %*% e_pi
-
-    e_p_rho <- sapply(1:K, function(k){
-                          bk <- hyperp$Beta[,k]
-                          dir_c(bk) + t(bk - 1) %*% e_rho[,k]})
-    e_p_rho <- sum(e_p_rho)
-
-    ln_e_z <- log(e_z)
-    ln_e_z[is.infinite(ln_e_z)] <- 0
-    e_q_z <- e_z * ln_e_z
-    e_q_z <- sum(e_q_z)
-
-    e_q_pi <- dir_c(params$Alpha) + ((params$Alpha - 1) %*% e_pi)
-
-    e_q_rho <- sapply(1:K, function(k){
-                      bk <- params$Beta[,k]
-                      dir_c(bk) + (bk - 1) %*% e_rho[,k]})
-    e_q_rho <- sum(e_q_rho)
-
-    ret <- e_p_x + e_p_z + e_p_pi + e_p_rho - e_q_z - e_q_pi - e_q_rho
-
-    return(ret)
-}
-
-#' Variational EM function
-#' 
-#' Run EM for a multinomial mixture model on a sample x feature matrix. 
-#' Take a matrix \code{counts} and classify the samples in each row into 
-#' one of \code{k} clusters. The initial parameters of the multinomial 
-#' mixture model must be given as a list in the parameter \code{mn_params}.
-#'
-#' @param counts observation by variable matrix of non-negative 
-#'  integer counts.
-#' @param k Number of clusters.
-#' @param mn_params A list containing 
-#'  \describe{
-#'    \item{Mu}{A variable by k matrix containing the means of the 
-#'    of the k multinomial distributions.}
-#'    \item{Mc}{A numeric vector of mixture coefficients.}
-#' }
-#' @param max_iter A numeric value indivating the maximum 
-#'  number of iterations.
-#' @param eps The epsilon value, which is the convergence 
-#'  threshold of the percent change in the log likelihood.
-#' @param labs Numeric vector of same length as number of 
-#'  observations in counts. Fixes the group probabilities 
-#'  of the integer in this vector element to 1. In 
-#'  other words, the latent variable for these samples 
-#'  are treated as known.
-#' @param verbose verbosity.
-#'
-#' @return A list with
-#' \describe{
-#'   \item{Z}{An observation by cluster matrix of log 
-#'   log likelihoods. Each element is the log likelihood 
-#'   of that data point under the the k multinomial.}
-#'   \item{Mu}{A variable by cluster matrix of 
-#'   multinomial parameters.}
-#'   \item{Mc}{A numeric vector of mixture coefficients.}
-#'   \item{loglk}{Data log likelihood.}
-#'   \item{converged}{logical indicating whether the 
-#'   EM algorithm converged (TRUE) or reached the 
-#'   maximum number of iterations.}
-#' }
-vem <- function(counts, 
-                K, 
-                params, 
-                hyperp, 
-                max_iter = 1e2, 
-                eps = 1e-6, 
-                labs = NULL, 
-                verbose = TRUE){
-    N <- nrow(counts)
-    G <- ncol(counts)
-
-    if (length(labs) != N) labs <- rep(0, N)
-    if (nrow(params$Beta) != G) stop("Number of columns in counts must be the same as the number of features in Beta.")
-    if (ncol(params$Beta) != K) stop("Number of columns in Beta must be the number of clusters K.")
-    if (length(params$Alpha) != K) stop("Length of Alpha must be the number of clusters K.")
-    if (length(labs) != N) stop("Length of labs must be the same as the number of observations in counts.")
-
-    mn_num <- get_mn_num(counts, K)
-    mn_den <- get_mn_den(counts, K)
-    
-    # Start with parameters Alpha and Beta. Iteration updates Z, then alpha and beta
-    e_rho <- get_e_rho(params$Beta)
-    Xrho <- get_Xrho(counts, e_rho)
-    e_pi <- get_e_pi(params$Alpha)
-    lb_old <- -Inf
-    iter <- 1
-    converged <- FALSE
-    while (iter <= max_iter){
-        if (verbose) message("Iteration ", iter)
-        # Update Z
-        R <- update_r(X = counts, K = K, e_rho = e_rho, 
-                      e_pi = e_pi, mn_num = mn_num, mn_den = mn_den,
-                      Xrho = Xrho, labs = labs)
-        e_z <- get_e_z(R)
-
-        # Update Alpha and Beta
-        Alpha <- update_alpha(hyperp, e_z)
-        e_pi <- get_e_pi(Alpha)
-        Beta <- update_beta(X = counts, K, hyperp, e_z)
-        e_rho <- get_e_rho(Beta)
-        Xrho <- get_Xrho(counts, e_rho)
-
-        params <- list("R" = R, "Alpha" = Alpha, "Beta" = Beta)
-
-        lb_new <- lower_bound(X = counts, K = K, params = params, hyperp = hyperp, 
-                              e_z = e_z, e_rho = e_rho, e_pi = e_pi, 
-                              mn_num = mn_num, mn_den = mn_den, Xrho = Xrho)
-
-        if (iter > 1) delt <- (lb_new - lb_old) / abs(lb_old)
-        else delt <- Inf
-        print(delt)
-
-        if (delt < 0) warning("lower bound decreased")
-        if (delt < eps){
-            if (verbose) message("converged")
-            converged <- TRUE
-            break
-        }
-        lb_old <- lb_new
-        iter <- iter + 1
-    }
-    vmo <- list("params" = params, 
-                "lb" = lb_new, 
-                "converged" = converged, 
-                "n_iter" = iter)
-    return(vmo)
-}
-
-#' Run EM on counts to estimate multinomial mixture model
-#' 
-#' Run expectation maximization (EM) to estimate the parameters of the 
-#' multinomial mixture model. This function takes an SCE 
-#' object as input, and returns an SCE object with the EM output. 
-#' The number of clusters and their initialized multinomial means 
-#' are taken from the initial clustering assignments calculated with 
-#' \code{\link{initialize_clusters}}. The EM algorithm is run  
-#' by repeatedly updating the membership probabilities and then 
-#' estimating the MLE parameters of the multinomial mixture model.
-#' The algorithm converges when the percent change in 
-#' the log likihood is less than \code{eps}. If the 
-#' algorithm doesn't converge by \code{max_iter}, it breaks off.
-#' The posterior probability is the calculated by taking the 
-#' sum of the likelihood fractions across the cell types.
-#'
-#' @param x An SCE object.
-#' @param eps Numeric threshold. The EM algorithm converges when the 
-#'  percent change in log likihood is less than \code{eps}.
-#' @param max_iter The maximum number of iterations allowed to run.
-#' @param verbose Logical indicating verbosity.
-#'
-#' @return An SCE object.
-#' @importFrom igraph gsize
-#' @importMethodsFrom Matrix %*%
-#' @export
-run_vem <- function(x, 
-                    K = 30, 
-                    gamm = 1, 
-                    gamm_s = 1e-16, 
-                    eta = 1e-16, 
-                    eta_s = 30, 
-                    eps = 1e-6, 
-                    top_n = 1000, 
-                    init_start = 5, 
-                    init_iter = 3, 
-                    max_iter = 1e2, 
-                    verbose = TRUE){
-
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    droplets.use <- colnames(x@counts)
-
-    if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
-
-    counts <- t(x@counts[genes.use,droplets.use])
-
-    N <- nrow(counts)
-    G <- ncol(counts)
-
-    # Fix labels of debris
-    labs <- rep(0, N)
-    names(labs) <- droplets.use
-    labs[x@bg_set] <- 1
-
-    c_bar <- mean(colSums(x@counts[genes.use,x@test_set]))
-
-    # Priors
-    Alpha <- c(gamm, rep(gamm_s, K-1))
-    Beta <- matrix(eta_s * c_bar / G, nrow = G, ncol = K)
-    Beta[,1] <- eta * c_bar / G
-    hyperp <- list("Alpha" = Alpha, 
-                   "Beta" = Beta, 
-                   "R" = NULL)
-
-    # Initialize parameters parameters
-    #if (is.null(x@ic)){
-    #    stop("Initialize clusters before running DIEM")
-    #}
-    clusts <- 1:K
-    a_init <- table(x@ic$labels) + hyperp$Alpha
-    b_init <- sapply(clusts, function(i) 
-                     colSums(counts[x@ic$labels == i, ,drop=FALSE]))
-    b_init <- b_init + hyperp$Beta
-    params <- list("Alpha" = a_init, "Beta" = b_init)
-    params <- init_best(counts,  
-                   labs, 
-                   K, 
-                   hyperp)
-
-    if (verbose){
-        message("Estimating parameters")
-    }
-
-    # Run EM
-    vmo <- vem(counts, 
-               K = K, 
-               params = params,
-               hyperp = hyperp,
-               max_iter = max_iter, 
-               eps = eps, 
-               labs = labs, 
-               verbose = verbose)
-
-    # Naive Bayes assignment
-    clusts <- colSums(vmo$params$R) > 0
-    vmo$params$R <- vmo$params$R[,clusts,drop=FALSE]
-    vmo$params$Beta <- vmo$params$Beta[,clusts,drop=FALSE]
-    vmo$params$Alpha <- vmo$params$Alpha[clusts]
-    x@assignments <- x@assignments[clusts]
-
-    a <- x@assignments
-    PP_summary <- sapply(levels(a), function(i){
-                         rowSums(vmo$params$R[,a == i,drop=FALSE])})
-    clust_prob <- apply(vmo$params$R, 1, function(i) i[which.max(i)])
-    clust_max <- apply(vmo$params$R, 1, function(i){
-                       (1:ncol(vmo$params$R))[which.max(i)]
-               })
-
-    # Fill in droplet data
-    x@droplet_data[,"CleanProb"] <- PP_summary[,"Clean"]
-    x@droplet_data$Cluster <- NULL
-    x@droplet_data$Cluster <- clust_max
-    x@droplet_data$ClusterProb <- clust_prob
-
-    x@vemo <- vmo
-
-    if (verbose){
-        message("finished variational EM")
-    }
-
-    return(x)
-}
-
-#' Initialize best from random starts
 init_best <- function(X, 
                       labs = NULL, 
                       K, 
-                      hyperp, 
-                      top_n = 1000, 
+                      top_n = Inf,  
                       init_start = 5, 
                       init_iter = 3, 
                       verbose = TRUE){
@@ -435,25 +55,12 @@ init_best <- function(X,
     keep <- o[1:top_n]
     pl <- list()
     for (i in 1:init_start){
-        b_init <- matrix(nrow = G, ncol = K)
-        b_init[,1] <- colSums(X[labs == 1,])
-        s <- sample(keep, size = (K - 1))
-        b_init[,2:K] <- as.matrix(t(X_unl[s,]))
-        b_init <- b_init + 1e-16
-        a_init <- rep(1, K)
-        params <- list("Alpha" = a_init, "Beta" = b_init)
-        vmo <- vem(X, 
-                   K = K, 
-                   params = params, 
-                   hyperp = hyperp, 
-                   max_iter = init_iter, 
-                   eps = -Inf, 
-                   labs = labs, 
-                   verbose = verbose)
-        pl[[i]] <- vmo
+        pinit <- init_random(X, N, G, K, labs = labs)
+        params <- dm(X, Alpha = pinit$Alpha, labs = labs, max_iter = init_iter)
+        pl[[i]] <- params
     }
-    vls <- sapply(pl, function(i) i$lb)
-    i_max <- which.max(vls)
+    llks <- sapply(pl, function(i) i$ellk)
+    i_max <- which.max(llks)
     params <- pl[[i]]$params
     return(params)
 }
@@ -466,9 +73,7 @@ init_random <- function(X,
                         G, 
                         K, 
                         labs = NULL, 
-                        n_start = 1, 
-                        Alpha0 = 1e-3, 
-                        Beta0 = 1e-3){
+                        add_to = 1e-16){
     clusts <- 1:K
     if (length(labs) != N) labs <- rep(0, N)
     if (length(labs) != N){
@@ -477,8 +82,6 @@ init_random <- function(X,
 
     Xt <- t(X)
 
-    Alpha <- rep(Alpha0, K)
-    
     # Get labeled groups
     clusts <- 1:K
     labeled <- setdiff(unique(labs), 0)
@@ -487,29 +90,136 @@ init_random <- function(X,
     labs_init <- labs
     names(labs_init) <- seq(N)
 
-    lbeta <- sapply(labeled, function(k){
-                    ru <- rowSums(Xt[,labs_init == k]) + Beta0
-                    return(ru)
-                    })
-    print(head(lbeta))
+    unl_ix <- labs == 0
+    labs_init[unl_ix] <- sample(1:K, size = sum(unl_ix), replace = TRUE)
 
-    uix <- seq(N)[labs_init == 0]
-    params <- lapply(1:n_start, function(repl) {
-                         labs_init <- labs
-                         names(labs_init) <- seq(N)
-                         uix_s <- sample(uix, size = length(unlabeled))
-                         labs_init[uix_s] <- unlabeled
-                         ubeta <- as.matrix(Xt[,uix_s]) + Beta0
-                         colnames(ubeta) <- NULL
-                         thisBeta <- cbind(lbeta, ubeta)
-                         thisAlpha <- Alpha
-                         return(list("Alpha" = thisAlpha, 
-                                     "Beta" = thisBeta, 
-                                     "R" = NULL))
-                         })
+    Alpha <- sapply(clusts, function(k) Matrix::colSums(X[labs_init == k,]))
+    Alpha <- Alpha + add_to
+    Z <- model.matrix(~ 0 + as.factor(labs_init))
+    colnames(Z) <- NULL
+    rownames(Z) <- rownames(X)
+    return(list("Alpha" = Alpha, "Z" = Z))
+}
 
+dm <- function(counts, Alpha, labs, eps = 1, max_iter = 1e2){
+    countst <- t(counts)
+    sizes <- colSums(countst)
+    K <- ncol(Alpha)
+    llks <- sapply(1:K, function(k) LlkDirMultSparse(countst, sizes = sizes, alpha = Alpha[,k]))
+    Z <- t(apply(llks, 1, fraction_log))
+    rownames(Z) <- rownames(counts)
+    Z[labs == 1,1] <- 1
+    Z[labs == 1,2:K] <- 0
+
+    delta <- Inf
+    iter <- 1
+    while (iter <= max_iter & delta > eps){
+        Alpha_new <- dm_loo(counts, Alpha, Z, eps = 1e-10)
+        llks <- sapply(1:K, function(k) LlkDirMultSparse(countst, sizes = sizes, alpha = Alpha_new[,k]))
+        Z_new <- t(apply(llks, 1, fraction_log))
+        rownames(Z_new) <- rownames(counts)
+        Z_new[labs == 1,1] <- 1
+        Z_new[labs == 1,2:K] <- 0
+        delta <- sum(abs(Z_new - Z))
+        print(delta)
+        print(colSums(Z_new))
+        iter <- iter + 1
+        Alpha <- Alpha_new
+        Z <- Z_new
+    }
+    clust_max <- apply(Z, 1, which.max)
+    clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
+    ellk <- sum(sapply(1:nrow(Z), function(i) llks[i, clust_max[i]]))
+    params <- list("Alpha" = Alpha, 
+                   "llk" = llks, 
+                   "Z" = Z,  
+                   "Cluster" = clust_max, 
+                   "ClusterProb" = clust_prob, 
+                   "ellk" = ellk)
     return(params)
 }
+
+#' Run dm
+run_dm <- function(x, 
+                   K = 30, 
+                   eps = 1, 
+                   max_iter = 1e2, 
+                   Alpha = NULL, 
+                   verbose = TRUE){
+
+    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
+    droplets.use <- colnames(x@counts)
+
+    if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
+
+    countst <- x@counts[genes.use,droplets.use]
+    counts <- t(x@counts[genes.use,droplets.use])
+    sizes <- colSums(countst)
+
+    N <- nrow(counts)
+    G <- ncol(counts)
+
+    # Fix labels of debris
+    labs <- rep(0, N)
+    names(labs) <- droplets.use
+    labs[x@bg_set] <- 1
+
+    # Random init?
+    # pinit <- init_random(counts, N, G, K)
+    # Initialize alphas and Z
+    # A_old <- pinit$Alpha
+    if (is.null(Alpha)){
+        A_old <- init_dm(counts, x@ic$labels)
+    } else {
+        A_old <- Alpha
+    }
+    params <- dm(counts, A_old, labs = labs, eps = eps, max_iter = max_iter)
+    Alpha <- params$Alpha
+    Z <- params$Z
+
+    clust_max <- apply(Z, 1, which.max)
+    clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
+    ellk <- sum(sapply(1:nrow(Z), function(i) llks[i, clust_max[i]]))
+
+    emo <- list("Alpha" = A_new, "Z" = Z, "llk" = ellk)
+
+    # Fill in droplet data
+    x@droplet_data[,"CleanProb"] <- 1 - Z[,1]
+    x@droplet_data$Cluster <- NULL
+    x@droplet_data$Cluster <- clust_max
+    x@droplet_data$ClusterProb <- clust_prob
+
+    x@emo <- emo
+
+    if (verbose){
+        message("Finished EM")
+    }
+
+    return(x)
+}
+
+#' Select k
+get_k <- function(x, kmin = 2, kmax = 5, top_n = 500){
+    ret <- matrix(nrow = length(kmin:kmax), ncol = 3)
+    rownames(ret) <- kmin:kmax
+    colnames(ret) <- c("Pass", "Fail", "PercentFail")
+    for (k in kmin:kmax){
+        xk <- x
+        tc <- order(xk@droplet_data[xk@bg_set,"total_counts"], decreasing=T)[1:top_n]
+        l2 <- xk@bg_set[tc]
+        xk@bg_set <- setdiff(xk@bg_set, l2)
+        xk <- initialize_clusters(xk, K = k, n_start = 10, km_iter = 3)
+        xk <- run_dm(xk, K = k, max_iter = 5)
+        n_pass <- sum(xk@droplet_data$Cluster != 1)
+        nf <- sum(xk@droplet_data[l2,"Cluster"] != 1)
+        ret[k,"Pass"] <- n_pass
+        ret[k,"Fail"] <- nf
+        ret[k,"PercentFail"] <- nf / top_n
+    }
+    return(ret)
+}
+
+        
 
 #' Estimate parameters of Dirichlet
 #'
@@ -548,30 +258,107 @@ est_dir <- function(x,
     return(a_new)
 }
 
+#' Initialize Dirichlet-Multinomial parameters from k-means init
+#'
+init_dm <- function(counts, labs, add_to = 1e-16){
+    clusts <- unique(labs)
+    rs <- sapply(clusts, function(k) colSums(counts[labs == k,]))
+    # rs <- sweep(rs, 2, colSums(rs), "/")
+    rs <- rs + add_to
+    return(rs)
+}
+
 #' Newton-Raphson optimization for Dir-Mult with sparse matrix
 #' 
-#' x is gene by droplet matrix
+#' counts is a droplet by gene matrix
 #' a is current value of alpha parameter, gene by k matrix
 #' z is current membership
-dm_nr <- function(x, a, z){
-    a_new = a
-    ks = unique(z)
-    K <- length(ks)
+dm_nr <- function(counts, A, Z, eps = 1e-3, max_newton = 10, rho = .1, add_to = 1e-16, tol = 100){
+    N <- nrow(counts)
+    G <- ncol(counts)
+    A_new <- A
+    A_old <- A_new
+    K <- ncol(Z)
+    ks <- 1:K
+    sizes <- rowSums(counts)
     for (k in ks){
-        xk <- x[,z == k]
-        a_sum <- sum(a[,k])
-        N <- ncol(xk)
-        sizes <- colSums(xk)
-        e <- sizes + a_sum # n_i + sum alpha_k
-        num_zero <- rowSums(xk == 0)
-        xkna <- xk
-        xkna@x <- 
-        Xlf@x <- lfactorial(Xlf@x)
+        message("K = ", k)
+        print(k)
+        delt <- Inf
+        iter <- 1
+        while (delt > eps && iter <= max_newton){
+            A_old[,k] <- A_new[,k]
+            hg <- compute_step(counts, sizes, Z[,k], A_old[,k], tol = tol)
+            names(hg) <- colnames(counts)
+            A_new[,k] <- A_old[,k] - (rho*hg)
+            psc <- min(add_to, min(A_new[A_new[,k] > 0,k]))
+            A_new[A_new[,k] < 0, k] <- psc
+            # delt <- sum((A_new[,k] - A_old[,k])^2) / sum((A_old[,k])^2)
+            delt <- mean(abs((A_new[,k] - A_old[,k])/A_old[,k]))
+            message("Delta: ", delt)
+            iter <- iter + 1
+        }
+    }
+    return(A_new)
+}
 
-        gr <- N * a_sum - 
-              sum(digamma(e)) + 
-              num_zero * digamma(a[,k]) + 
+#' LOO optimization
+#' 
+#' counts is a droplet by gene matrix
+#' a is current value of alpha parameter, gene by k matrix
+#' z is current membership
+dm_loo <- function(counts, A, Z, eps = 1e-4, max_loo = 3, add_to = 1e-16){
+    N <- nrow(counts)
+    G <- ncol(counts)
+    A_new <- A
+    A_old <- A_new
+    K <- ncol(Z)
+    ks <- 1:K
+    sizes <- rowSums(counts)
+    for (k in ks){
+        print(k)
+        delt <- Inf
+        iter <- 1
+        while (delt > eps && iter <= max_loo){
+            A_old[,k] <- A_new[,k]
+            A_new[,k] <- compute_LOO_step(counts, sizes, Z[,k], A_old[,k])
+            A_new[A_new[,k] < 0,k] <- 0
+            A_new[, k] <- A_new[, k] + add_to
+            delt <- sum((A_new[,k] - A_old[,k])^2) / sum((A_old[,k])^2)
+            iter <- iter + 1
+        }
+    }
+    return(A_new)
+}
 
-
-
+#' Fixed point optimization
+#' 
+#' counts is a droplet by gene matrix
+#' a is current value of alpha parameter, gene by k matrix
+#' z is current membership
+dm_fp <- function(counts, A, Z, eps = 1e-4, max_fp = 3, add_to = 1e-10, tol = 100){
+    N <- nrow(counts)
+    G <- ncol(counts)
+    A_new <- A
+    A_old <- A_new
+    K <- ncol(Z)
+    ks <- 1:K
+    sizes <- rowSums(counts)
+    for (k in ks){
+        delt <- Inf
+        iter <- 1
+        while (delt > eps && iter <= max_fp){
+            A_old[,k] <- A_new[,k]
+            A_new[,k] <- compute_fp_step(counts, sizes, Z[,k], A_old[,k], tol = tol)
+            # A_new[,k] <- A_new[,k] + add_to
+            psc <- min(add_to, min(A_new[A_new[,k] > 0,k]))
+            A_new[, k] <- A_new[, k] + psc
+            delt <- mean(abs((A_new[,k] - A_old[,k])/A_old[,k]))
+            # delt <- sum((A_new[,k] - A_old[,k])^2) / sum((A_old[,k])^2)
+            print(delt)
+            iter <- iter + 1
+        }
+    }
+    return(A_new)
+}
 

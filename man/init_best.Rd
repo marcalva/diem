@@ -4,8 +4,8 @@
 \alias{init_best}
 \title{Initialize best from random starts}
 \usage{
-init_best(X, K, hyperp, n_start = 100, n_iter = 3, labs = NULL,
-  verbose = TRUE)
+init_best(X, labs = NULL, K, hyperp, top_n = 1000, init_start = 5,
+  init_iter = 3, verbose = TRUE)
 }
 \description{
 Initialize best from random starts
