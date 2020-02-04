@@ -6,9 +6,9 @@
 \usage{
 diem(sce, top_n = 10000, min_counts = 100, min_genes = 100,
   fix_debris = NULL, order_by = "gene", cpm_thresh = 0,
-  n_var = 2000, lss = 0.3, K = 30, n_pcs = 30, gamm = 1e+20,
-  gamm_s = 1e-16, eta = 1e-16, eta_s = 30, n_start = 10,
-  km_iter = 3, eps = 1e-06, max_iter = 100, pp_thresh = 0.95,
+  n_var = 2000, lss = 0.3, n_pcs = 30, K = 10, top_pct = 100,
+  iter.max = 30, nstart = 30, thresh = 0.05, seedn = 1,
+  psc = 1e-16, eps = 1, max_iter = 100, pp_thresh = 0.95,
   gene_thresh = 200, verbose = TRUE)
 }
 \arguments{

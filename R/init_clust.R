@@ -1,147 +1,21 @@
 
-get_dist <- function(X, centers){
-    d <- apply(X, 1, function(x) colSums((x - centers)^2))
-    return(d)
-}
-
-get_wss <- function(Xt, centers, l){
-    clusts <- 1:ncol(centers)
-    wss <- sapply(clusts, function(i) sum(((Xt[,l == i]) - centers[,i])^2))
-    return(wss)
-}
-
-
-#' Run k-means on multinomial
 #' @export
-kmeans_ss <- function(X, 
-                      K = 30, 
-                      labs = NULL, 
-                      max_iter = 10, 
-                      scale. = FALSE){
-    N <- nrow(X)
-    G <- ncol(X)
-
-    if (scale.) X <- scale(X)
-
-    Xt <- t(X)
-
-    if (length(labs) != N) labs <- rep(0, N)
-
-    # Initialize centers
-    centers <- matrix(0, nrow = G, ncol = K)
-
-    clusts <- 1:K
-    labeled <- setdiff(unique(labs), 0)
-    unlabeled <- setdiff(clusts, labeled)
-    uix <- seq(N)[labs == 0]
-    Xmu <- as.matrix(X[uix,])
-
-    # Initialize labeled
-    for (l in labeled){
-        centers[,l] <- rowMeans(Xt[,labs == l])
-    }
-    # Initialize unlabeled
-    labs_init <- labs
-    unl_ix <- labs == 0
-    labs_init[unl_ix] <- sample(1:K, size = sum(unl_ix), replace = TRUE)
-
-    centers <- sapply(clusts, function(i) rowMeans(Xt[,labs_init == i]))
-    #uix_s <- sample(uix, size = length(unlabeled))
-    #centers[,unlabeled] <- as.matrix(Xt[,uix_s,drop=FALSE])
-
-    p_l <- labs
-    # First iter
-    d <- get_dist(Xmu, centers)
-    asgn <- apply(d, 2, which.min)
-    p_l[uix] <- asgn
-
-    # Wss
-    wss <- get_wss(Xt, centers, p_l)
-
-    iter <- 1
-    while(iter <= max_iter){
-        n_l <- p_l
-        # Calculate centers
-        centers <- sapply(clusts, function(i) rowMeans(Xt[, p_l == i, drop=FALSE]))
-
-        # Calculate distances
-        d <- get_dist(Xmu, centers)
-        asgn <- apply(d, 2, which.min)
-        if (length(intersect(unique(asgn), unlabeled)) != length(unlabeled)){
-            break
-        }
-        n_l[uix] <- asgn
-        wss <- lapply(clusts, function(i) sum((t(X[p_l == i,]) - centers[,i])^2))
-        wss <- do.call(sum, wss)
-        if (all(p_l == n_l)){
-            break
-        }
-        p_l <- n_l
-        iter <- iter + 1
-    }
-
-    return(list("labels" = factor(n_l, levels = 1:K), 
-                "centers" = centers, 
-                "withinss" = wss, 
-                "tot.withinss" = sum(wss)))
-
-}
-
-#' Initialize clustering
-#'
-#' Instead of randomly initializing the EM, cell types are estimated from 
-#' droplets that are expected to contain cells/nuclei. The initialization 
-#' is done with droplets in the cluster set. The data is then normalized 
-#' by first calculating the variable genes. A loess regression line 
-#' is fit between the log counts and log variance, and the only top genes 
-#' ranked by residual are used to initialize the clusters. The number of 
-#' genes is specified with \code{n_var}. Optionally, one can use all genes 
-#' by setting \code{use_var} to FALSE. The span of the loess regression line 
-#' is given by \code{lss} (default is 0.3).
-#' The data is normalized by dividing counts by the total counts per droplet. 
-#' Then, the counts are multiplied by a scaling factor, given by 
-#' \code{sf} (the median of total counts by default). Finally, the data is 
-#' log transformed after adding a constant value of 1.
-#' After normalization, the k-nearest neighbors are identified in the 
-#' cluster set. The number of nearest neighbors is specified by 
-#' \code{nn}. Clusters are identified from the KNN graph 
-#' using the Louvain algorithm. Finally, only clusters with at least 
-#' \code{min_size} (20 by default) droplets are considered cell types.
-#'
-#' @param x An SCE object.
-#' @param K Number of clusters to return from k-means. This gives 
-#'  the Maximum number of clusters
-#' @param verbose verbosity.
-#'
-#' @return An SCE object
-#' @export
-#' @export
-initialize_clusters <- function(x, 
-                                K = 30, 
-                                n_start = 10, 
-                                km_iter = 3, 
-                                verbose = FALSE){
-    if (verbose) message("initializing clusters using k-means")
-    labs <- rep(0, nrow(x@pcs))
-    names(labs) <- rownames(x@pcs)
-    labs[intersect(names(labs), x@bg_set)] <- 1
-    pcss <- scale(x@pcs)
-    ks <- replicate(n_start, 
-                    expr = {
-                        kmeans_ss(pcss, 
-                                  labs = labs, 
-                                  K = K, 
-                                  max_iter = km_iter, 
-                                  scale. = FALSE)
-                    }, 
-                    simplify = FALSE)
-    wss <- sapply(ks, function(i) i$tot.withinss)
-    imin <- which.min(wss)
-    x@ic <- ks[[imin]]
-    a <- c("Debris", rep("Clean", K - 1))
-    x@assignments <- factor(a)
-    
-    return(x)
+get_alpha <- function(x, labs, psc = 1e-16){
+    labs <- factor(labs)
+    labsu <- unclass(labs)
+    clusts <- levels(labs)
+    alphas <- sapply(clusts, function(j){
+                     clust_mem <- labs == as.character(j)
+                     rowSums(x[,clust_mem,drop=FALSE]) + psc
+                           })
+    z = lapply(1:ncol(x), function(i) {
+               ret = rep(0, length(clusts))
+               ret[labsu[i]] = 1
+               return(ret)})
+    z = do.call(rbind, z)
+    alphas = dm_loo(t(x), alphas, z)
+    colnames(alphas) <- clusts
+    return(alphas)
 }
 
 #' Get PCs
@@ -149,13 +23,151 @@ initialize_clusters <- function(x,
 #' @importFrom Matrix t
 #' @export
 get_pcs <- function(x, n_pcs = 30){
-    countsv <- t(x@counts[x@vg,])
-    countsv@x <- log10(countsv@x + 1)
-    prcret <- prcomp_irlba(countsv[x@test_set,], 
-                           n = n_pcs, 
-                           center = TRUE, 
-                           scale. = FALSE)
-    x@pcs <- as.matrix(countsv %*% prcret$rotation)
+    #countsv <- t(x@counts[x@vg,])
+    #countsv@x <- log10(countsv@x + 1)
+    #prcret <- prcomp_irlba(countsv[x@test_set,], 
+    #                       n = n_pcs, 
+    #                       center = TRUE, 
+    #                       scale. = FALSE)
+    #x@pcs <- as.matrix(countsv %*% prcret$rotation)
+
+    pcs <- prcomp_irlba(t(x@norm[x@vg,]), n = n_pcs, center = TRUE, scale. = TRUE)
+    pcs <- pcs$x
+    rownames(pcs) <- colnames(x@norm)
+    x@pcs <- pcs
     return(x)
 }
+
+#' @export
+condense_labs <- function(labs){
+    cts <- setdiff(sort(unique(labs)), "1")
+    to <- c("1", as.character(seq(2, length(cts) + 1)))
+    from <- c("1", cts)
+    names(to) <- from
+    nms <- names(labs)
+    labs <- to[as.character(labs)]
+    names(labs) <- nms
+    return(labs)
+}
+
+#' Merge small clusters
+#' 
+#' 
+#' @export
+merge_size <- function(labs, dat, min_size = 30){
+    labs <- as.character(labs)
+    freq <- table(labs)
+    while(min(freq) < min_size){
+        clusts <- names(freq)
+        means <- sapply(clusts, function(i) colMeans(dat[labs == i,,drop=FALSE]))
+        dists <- as.matrix(dist(t(means), upper = TRUE, diag = TRUE))
+        small_clust <- names(freq)[which.min(freq)]
+        others <- colnames(dists)[colnames(dists) != small_clust]
+        dists <- dists[others,,drop=FALSE]
+        closest <- rownames(dists)[which.min(dists[,small_clust])]
+        labs[labs == small_clust] <- closest
+        freq <- table(labs)
+    }
+    labs <- condense_labs(labs)
+    return(labs)
+}
+
+#' Initialize clusters using hierarchical clustering
+#' k is a positive integer or vector of positive integers
+#' @importFrom Matrix Diagonal colSums rowMeans rowSums
+#' @export
+init <- function(x, 
+                 n_pcs = 30, 
+                 K = 10, 
+                 iter.max = 30, 
+                 nstart = 30, 
+                 min_size = 10, 
+                 thresh = 0.05, 
+                 seedn = 1, 
+                 top_pct = 100, 
+                 psc = 1e-16, 
+                 verbose = TRUE){ 
+    if (verbose) message("initializing parameters")
+
+    # Subset to top percent of test droplets
+    sizes <- x@droplet_data[x@test_set, "total_counts"]
+    n_keep <- round(length(x@test_set) * (top_pct / 100))
+    o <- order(sizes, decreasing=TRUE)
+    keep <- x@test_set[o[1:n_keep]]
+
+    # Get PCs
+    x <- get_var_genes(x, droplets.use = keep)
+    x <- normalize_data(x, droplets.use = keep)
+    x <- get_pcs(x, n_pcs = n_pcs)
+
+    labs <- rep(0, ncol(x@counts))
+    names(labs) <- colnames(x@counts)
+    labs[x@bg_set] <- 1
+
+    pcs <- x@pcs[keep,,drop=FALSE]
+    pcs_s <- scale(pcs)
+    dpcs <- dist(pcs_s)
+
+    params <- list()
+    set.seed(seedn)
+    options(warn = -1)
+    #hc <- hclust(dist(pcs_s), method = "ward.D2")
+
+    for (k in K){
+        km <- kmeans(x = pcs_s, 
+                     centers = k, 
+                     iter.max = iter.max, 
+                     nstart = nstart)
+        kclust <- km$cluster
+        wss <- km$betweenss
+
+        # Merge small clusters from k-means
+        kclust <- merge_size(kclust, pcs_s, min_size)
+        kclust <- as.numeric(kclust)
+        names(kclust) <- rownames(pcs_s)
+        
+        # kclust <- cutree(hc, k = k)
+        labs_k <- labs
+        labs_k[names(kclust)] <- kclust + 1
+        labs_k <- factor(labs_k)
+        alphas <- get_alpha(x@counts, labs_k, psc = psc)
+
+        # Merge similar cell type clusters
+        to_merge <- c()
+        pcts <- c()
+        cts <- setdiff(colnames(alphas), "1")
+        for (ct in cts){
+            ctc <- x@counts[,labs_k == ct, drop=FALSE]
+            ctc_sizes <- colSums(ctc)
+            p1 <- LlkDirMultSparse(ctc, sizes = ctc_sizes, alpha = alphas[,"1"])
+            p2 <- LlkDirMultSparse(ctc, sizes = ctc_sizes, alpha = alphas[,ct])
+            pg <- sum(p1 > p2) / length(p2)
+            pcts[ct] <- pg
+            if (pg > thresh) to_merge <- union(to_merge, ct)
+        }
+
+        labs_k[labs_k %in% to_merge] <- "1"
+        labs_k <- condense_labs(labs_k)
+        alphas <- get_alpha(x@counts, labs_k, psc = psc)
+
+        kc <- as.character(k)
+        params[[kc]] <- list("labels" = labs_k, 
+                             "Alpha" = alphas, 
+                             "SSE" = wss)
+    }
+    options(warn = 0)
+
+    x@init <- params
+    return(x)
+}
+
+rdirm <- function(n, size, a){
+    nt <- length(a) * n
+    xi <- rgamma(n = nt, shape = a, scale = 1)
+    datf <- matrix(xi, nrow = length(a))
+    datf <- apply(datf, 2, function(i) i / sum(i))
+    ret <- sapply(1:n, function(i) rmultinom(1, size = size[i], prob = datf[,i]))
+    return(ret)
+}
+
 

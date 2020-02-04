@@ -87,8 +87,8 @@ set_debris_test_set <- function(x,
 #' This function removes genes that are lowly expressed. 
 #' The droplets are split into the test set and debris set, and the Counts 
 #' Per Million mapped reads (CPM) are calculated for each. Then, only genes 
-#' that have a CPM greater than \code{cpm_thresh} in both the test set and 
-#' debris set are kept.
+#' that have a CPM greater than \code{cpm_thresh} in across the entire 
+#' data set are kept.
 #' 
 #' @param x An SCE object.
 #' @param cpm_thresh The minimum CPM threshold for removing genes.
@@ -97,17 +97,17 @@ set_debris_test_set <- function(x,
 #' @return An SCE object
 #' @importFrom Matrix rowSums
 #' @export
-filter_genes <- function(x, cpm_thresh = 10, verbose = FALSE){
+filter_genes <- function(x, cpm_thresh = 0, verbose = FALSE){
     if (length(x@test_set) == 0 || length(x@bg_set) == 0)
         stop("No test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
-    groups <- list(x@test_set, x@bg_set)
+    groups <- list(c(x@test_set, x@bg_set))
     keep_all <- sapply(groups, function(g){
                        expr <- rowSums(x@counts[,g,drop=FALSE])
                        cpm <- 1e6*expr/sum(expr)
                        keep <- cpm > cpm_thresh
                        return(keep)
                            })
-    keep <- apply(keep_all, 1, all)
+    keep <- apply(as.matrix(keep_all), 1, all)
     expr <- rowSums(x@counts)
     cpm <- 1e6*expr/sum(expr)
     keep <- cpm > cpm_thresh

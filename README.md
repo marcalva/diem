@@ -43,6 +43,7 @@ seur <- convert_to_seurat(sce)
 
 ## Version History
 
-January
+February 2, 2020
 * version 1.1
-
+    * Use Dirichlet-Multinomial mixture model
+    * Improved initialization using hierarchical clustering

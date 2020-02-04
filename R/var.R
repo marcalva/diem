@@ -23,12 +23,18 @@
 get_var_genes <- function(x, 
                           n_genes=2000, 
                           lss=0.3, 
+                          droplets.use = NULL, 
                           verbose=FALSE){
     if (verbose) message("getting variable genes")
 
-    counts <- x@counts[,x@test_set]
+    if (is.null(droplets.use)){
+        droplets.use <- x@test_set
+    }
+    counts <- x@counts[,droplets.use]
     if (sum(x@gene_data$exprsd) == 0) x <- filter_genes(x)
     counts <- counts[x@gene_data$exprsd,]
+    exprsd <- rowSums(counts) > 0
+    counts <- counts[exprsd,,drop=FALSE]
     gene_means <- rowMeans(counts)
     gene_names <- rownames(counts)
 
@@ -43,6 +49,7 @@ get_var_genes <- function(x,
     rownames(datf) <- gene_names
     x@vg <- vg[!is.na(vg)]
     x@vg_info <- datf
+    if (verbose) message("found ", n_genes, " variable genes")
     return(x)
 }
 

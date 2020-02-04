@@ -27,11 +27,10 @@ LinkingTo: Rcpp, RcppEigen
 Imports:
     ggplot2,
     Matrix,
+    irlba,
     scales,
-    dbscan, 
-    igraph, 
-    utils, 
-    nnls, 
+    utils,
+    nnls,
     stats
 Suggests:
     Seurat (>= 3.0.0),

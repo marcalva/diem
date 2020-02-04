@@ -13,6 +13,7 @@ get_betas_nnls <- function(y, X){
     return(ret$x)
 }
 
+# Experimental
 #' Remove debris reads from droplets
 #'
 #' This function takes the raw counts matrix and removes the counts that 
@@ -84,16 +85,46 @@ remove_debris <- function(x, verbose = FALSE){
 #'
 #' @return An SCE object.
 #' @export
-call_targets <- function(x, pp_thresh = 0.95, min_genes = 200){
+call_targets <- function(x, 
+                         pp_thresh = 0.95, 
+                         min_genes = 200, 
+                         K = NULL, 
+                         verbose = TRUE){
 
-    if (!"CleanProb" %in% colnames(x@droplet_data)) stop("Run DIEM before calling targets")
+    if (length(x@emo) == 0) stop("Run ", sQuote("run_em"), " before calling targets")
 
+    if (is.null(K)){
+        if (length(x@emo) > 1){
+            stop(sQuote("K"), " must be specified to a value from: ", 
+                 paste(names(x@emo), collapse = " "))
+        } else {
+            K <- names(x@emo)[1]
+        }
+    } else {
+        if (length(K) != 1){
+            stop(sQuote("K"), " must be a single value")
+        }
+        if ( ! K %in% names(x@emo) ){
+            stop(sQuote("K"), " must an initialized k value taken from: ", 
+                 paste(names(x@emo), collapse = " "))
+        }
+    }
+    if (verbose){
+        message("Calling targets from ", sQuote("K"), "=", K)
+    }
 
+    K <- as.character(K)
 
+    emo <- x@emo[[K]]
+    probs <- 1 - emo$Z[,1]
     calls <- rep("Debris", nrow(x@droplet_data))
-    calls[x@droplet_data$CleanProb >= pp_thresh & x@droplet_data$n_genes >= min_genes] <- "Clean"
+    calls[probs >= pp_thresh & x@droplet_data$n_genes >= min_genes] <- "Clean"
     calls <- as.factor(calls)
     x@droplet_data[,"Call"] <- calls
+
+    x@droplet_data[,"Cluster"] <- emo$Cluster
+    x@droplet_data[,"ClusterProb"] <- emo$ClusterProb
+    x@droplet_data[,"DebrisProb"] <- emo$Z[,1]
 
     return(x)
 }

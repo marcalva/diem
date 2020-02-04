@@ -21,20 +21,18 @@ setOldClass("igraph", igraph::make_empty_graph())
 #' @exportClass SCE
 SCE <- setClass(Class = "SCE", 
                 slots = c(counts = "any_matrix", 
-                          counts_filt = "any_matrix", 
-                          coefs = "matrix", 
                           norm = "any_matrix", 
+                          coefs = "matrix", 
                           pcs = "matrix", 
-                          nn_graph = "igraph", 
                           test_set = "character", 
-                          cluster_set = "character", 
                           bg_set = "character", 
                           pp_thresh = "numeric", 
                           gene_data = "data.frame", 
                           droplet_data = "data.frame", 
-                          ic = "list", 
+                          init = "list", 
                           assignments = "factor", 
                           emo = "list", 
+                          test_k = "matrix", 
                           vg_info = "data.frame", 
                           vg = "character", 
                           name = "character"))
@@ -253,13 +251,13 @@ read_10x <- function(path, clip_end=TRUE, sep="."){
     v3 <- "matrix.mtx.gz" %in% files_names
 
     if (v3){
-        mtx_file <- paste0(path, "/matrix.mtx.gz")
-        genes_file <- paste0(path, "/features.tsv.gz")
-        barcode_file <- paste0(path, "/barcodes.tsv.gz")
+        mtx_file <- file.path(path, "matrix.mtx.gz")
+        genes_file <- file.path(path, "features.tsv.gz")
+        barcode_file <- file.path(path, "barcodes.tsv.gz")
     } else {
-        mtx_file <- paste0(path, "/matrix.mtx")
-        genes_file <- paste0(path, "/genes.tsv")
-        barcode_file <- paste0(path, "/barcodes.tsv")
+        mtx_file <- file.path(path, "matrix.mtx")
+        genes_file <- file.path(path, "genes.tsv")
+        barcode_file <- file.path(path, "barcodes.tsv")
     }
 
     if (file.exists(mtx_file)) {

@@ -4,7 +4,7 @@
 \alias{filter_genes}
 \title{Filter out lowly expressed genes}
 \usage{
-filter_genes(x, cpm_thresh = 10, verbose = FALSE)
+filter_genes(x, cpm_thresh = 0, verbose = FALSE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -20,6 +20,6 @@ An SCE object
 This function removes genes that are lowly expressed. 
 The droplets are split into the test set and debris set, and the Counts 
 Per Million mapped reads (CPM) are calculated for each. Then, only genes 
-that have a CPM greater than \code{cpm_thresh} in both the test set and 
-debris set are kept.
+that have a CPM greater than \code{cpm_thresh} in across the entire 
+data set are kept.
 }
