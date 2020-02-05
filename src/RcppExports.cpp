@@ -7,14 +7,14 @@
 using namespace Rcpp;
 
 // LlkDirMultSparse
-NumericVector LlkDirMultSparse(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector alpha, bool debug);
+NumericVector LlkDirMultSparse(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericMatrix alpha, bool debug);
 RcppExport SEXP _diem_LlkDirMultSparse(SEXP xSEXP, SEXP sizesSEXP, SEXP alphaSEXP, SEXP debugSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type sizes(sizesSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
     rcpp_result_gen = Rcpp::wrap(LlkDirMultSparse(x, sizes, alpha, debug));
     return rcpp_result_gen;

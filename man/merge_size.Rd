@@ -4,7 +4,7 @@
 \alias{merge_size}
 \title{Merge small clusters}
 \usage{
-merge_size(labs, dat, min_size = 30)
+merge_size(labs, dat, min_size = 10, verbose = TRUE)
 }
 \description{
 Merge small clusters

@@ -110,7 +110,7 @@ call_targets <- function(x,
         }
     }
     if (verbose){
-        message("Calling targets from ", sQuote("K"), "=", K)
+        message("calling targets from ", sQuote("K"), "=", K)
     }
 
     K <- as.character(K)

@@ -4,7 +4,7 @@
 \alias{test_k}
 \title{Select k}
 \usage{
-test_k(x, K = 1:15, pct_debris = 5, eps = 5)
+test_k(x, K = 1:15, thresh = 0.1, pct_debris = 5, eps = 5)
 }
 \description{
 Select k

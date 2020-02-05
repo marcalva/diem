@@ -5,7 +5,8 @@
 \title{Run EM
 Run EM for each initialized K, storing output in SCE object.}
 \usage{
-run_em(x, K = NULL, eps = 1, max_iter = 100, verbose = TRUE)
+run_em(x, K = NULL, eps = 1, thresh = 0.1, max_iter = 100,
+  seedn = 1, verbose = TRUE)
 }
 \description{
 Run EM

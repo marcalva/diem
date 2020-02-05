@@ -18,7 +18,88 @@ sum_log <- function(x){
     max_x <- max(x)
     x_c = x - max_x
     x_sum <- log(sum(exp(x_c))) + max_x
-    return(x_sum);
+    return(x_sum)
+}
+
+#' Get total log likelihood
+get_llk <- function(counts, Alpha, sizes = NULL){
+    sapply_f <- ifelse(nbrOfWorkers() == 1, sapply, future_sapply)
+
+    if (is.null(sizes)){
+        sizes <- colSums(counts)
+    }
+    
+    llks <- sapply_f(1:ncol(Alpha), function(j) LlkDirMultSparse(counts, sizes, alpha = Alpha[,j,drop=FALSE]) )
+    llks <- matrix(llks, ncol = ncol(Alpha))
+    rownames(llks) <- colnames(counts)
+    return(llks)
+}
+
+get_z <- function(llks, Pi, labs){
+    if (length(Pi) != ncol(llks)){
+        stop("Length of Pi must match the number of columns in llks")
+    }
+
+    K <- length(Pi)
+    if (K == 1){
+        Z <- matrix(1, nrow = K, ncol = 1)
+        rownames(Z) <- rownames(llks)
+        return(Z)
+    }
+
+    apply_f <- ifelse(nbrOfWorkers() == 1, apply, future_apply)
+
+    llks_pi <- t(apply_f(llks, 1, function(j) j + log(Pi)))
+    Z <- t(apply_f(llks_pi, 1, fraction_log))
+    rownames(Z) <- rownames(llks)
+    Z[labs == 1,1] <- 1
+    Z[labs == 1,2:K] <- 0
+    return(Z)
+}
+
+#' Simulate from dirichlet-multinoimal
+rdirm <- function(n, size, a){
+    if (length(size) == 1) size <- rep(size, n)
+    nt <- length(a) * n
+    xi <- rgamma(n = nt, shape = a, scale = 1)
+    datf <- matrix(xi, nrow = length(a))
+    datf <- apply(datf, 2, function(i) i / sum(i))
+    ret <- sapply(1:n, function(i) rmultinom(1, size = size[i], prob = datf[,i]))
+    return(ret)
+}
+
+rm_debris_clust <- function(counts, Alpha, Z, labs, Pi=NULL, thresh = 0.10, verbose = TRUE){
+    if (verbose) message("checking to remove clusters similar to debris...")
+    llks <- get_llk(counts, Alpha)
+    if (is.null(Pi)) {
+        llksf <- t(apply(llks, 1, fraction_log))
+        pis <- colSums(llksf)
+        Pi <- pis / sum(pis)
+    }
+    Z <- get_z(llks, Pi, labs)
+    s = c()
+    for (k in 2:ncol(Alpha)){
+        diffs = llks[,k] - llks[,1]
+        diffs = diffs * Z[,k]
+        diffs = sum(diffs) / sum(Z[,k])
+        s[k-1] = diffs
+    }
+    s_p <- s / max(s)
+    ckeep <- s_p >= thresh
+    ckeep <- c(TRUE, ckeep)
+
+    if (verbose){
+        torm <- length(ckeep) - sum(ckeep)
+        if (torm > 0){
+            message("removed ", torm, 
+                    ngettext(torm, " cluster", " clusters"),
+                    " similar to debris")
+        }
+    }
+    Alpha <- Alpha[,ckeep,drop=FALSE]
+    Pi <- Pi[ckeep] / sum(Pi[ckeep])
+    Z <- t(apply(Z[,ckeep], 1, function(i) i / sum(i)))
+    return(list("Alpha" = Alpha, "Pi" = Pi, "s" = s_p, "Z" = Z))
 }
 
 #' @importFrom future.apply future_sapply
@@ -26,43 +107,40 @@ sum_log <- function(x){
 #' @export
 em <- function(counts, 
                Alpha, 
+               Pi,
                labs, 
                eps = 1, 
                max_iter = 1e2, 
                verbose = TRUE){
 
-    sapply_f <- ifelse(nbrOfWorkers() == 1, sapply, future_sapply)
-    apply_f <- ifelse(nbrOfWorkers() == 1, apply, future_apply)
-    
     countst <- t(counts)
     sizes <- colSums(countst)
     K <- ncol(Alpha)
-    llks <- sapply_f(1:K, function(k) LlkDirMultSparse(countst, sizes = sizes, alpha = Alpha[,k]))
-    Z <- t(apply_f(llks, 1, fraction_log))
-    rownames(Z) <- rownames(counts)
-    Z[labs == 1,1] <- 1
-    Z[labs == 1,2:K] <- 0
-    Pi <- colSums(Z)
-    Pi <- Pi / sum(Pi)
 
     delta <- Inf
+    Z_old <- -Inf
     iter <- 1
     while (iter <= max_iter & delta > eps){
-        Alpha_new <- dm_loo(counts, Alpha, Z, eps = 1e-10)
-        llks <- sapply_f(1:K, function(k) LlkDirMultSparse(countst, sizes = sizes, alpha = Alpha_new[,k]))
-        llks_pi <- t(apply_f(llks, 1, function(j) j + log(Pi)))
-        Z_new <- t(apply_f(llks_pi, 1, fraction_log))
-        rownames(Z_new) <- rownames(counts)
-        Z_new[labs == 1,1] <- 1
-        Z_new[labs == 1,2:K] <- 0
-        Pi_new <- colSums(Z_new)
-        Pi_new <- Pi_new / sum(Pi_new)
-        delta <- sum(abs(Z_new - Z))
+
+        # Estimate prob of Z
+        llks <- get_llk(countst, Alpha, sizes)
+        rownames(llks) <- colnames(countst)
+        Z <- get_z(llks, Pi, labs)
+
+        # Estimate pi
+        Pi <- colSums(Z)
+        Pi <- Pi / sum(Pi)
+
+        # Estimate alpha
+        Alpha <- dm_loo(counts, Alpha, Z, eps = 1e-10)
+
+        # Evaluate change in Z
+        delta <- sum(abs(Z - Z_old))
         if (verbose) message("iteration ", iter, "; delta = ", round(delta, 3))
         iter <- iter + 1
-        Alpha <- Alpha_new
-        Z <- Z_new
-        Pi <- Pi_new
+        Alpha_old <- Alpha
+        Z_old <- Z
+        Pi_old <- Pi
     }
 
     if (iter > max_iter) {
@@ -91,7 +169,9 @@ em <- function(counts,
 run_em <- function(x, 
                    K = NULL, 
                    eps = 1, 
+                   thresh = 0.1, 
                    max_iter = 1e2, 
+                   seedn = 1, 
                    verbose = TRUE){
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
@@ -124,16 +204,43 @@ run_em <- function(x,
         }
     }
 
+    set.seed(seedn)
     emo <- list()
     for (k in K){
         k <- as.character(k)
         if (verbose) message("running EM for k = ", k)
-        emo[[k]] <- em(counts, 
-                       x@init[[k]]$Alpha[genes.use,], 
-                       labs = labs, 
-                       eps = eps, 
-                       max_iter = max_iter, 
-                       verbose = verbose)
+        Alpha <- x@init[[k]]$Alpha[genes.use,]
+        Pi <- x@init[[k]]$Pi
+        while (TRUE){
+            emo[[k]] <- em(counts, 
+                           Alpha, 
+                           Pi, 
+                           labs = labs, 
+                           eps = eps, 
+                           max_iter = max_iter, 
+                           verbose = verbose)
+            # Remove distributions close to debris
+            Alpha <- emo[[k]]$Alpha
+            Pi <- emo[[k]]$Pi
+            Z <- emo[[k]]$Z
+            prev_k <- ncol(Alpha)
+            ret <- rm_debris_clust(counts, 
+                                   Alpha, 
+                                   Z, 
+                                   Pi, 
+                                   thresh = thresh, 
+                                   verbose = verbose)
+            Alpha <- ret$Alpha
+            Pi <- ret$Pi
+            merged_k <- ncol(Alpha)
+            if (merged_k == prev_k){
+                break
+            } else {
+                if (verbose){
+                    message("restarting EM")
+                }
+            }
+        }
     }
     
     x@emo <- emo
@@ -153,28 +260,30 @@ run_em <- function(x,
 
 #' Select k
 #' @export
-test_k <- function(x, K = 1:15, pct_debris = 5, eps = 5){
-    xk <- x
-    top_n <- round(length(xk@test_set) * (pct_debris/100))
-    tc <- order(xk@droplet_data[xk@bg_set,"total_counts"], decreasing=T)[1:top_n]
-    l2 <- xk@bg_set[tc]
-    xk@bg_set <- setdiff(xk@bg_set, l2)
+test_k <- function(x, K = 1:15, thresh = 0.1, pct_debris = 5, eps = 5){
+    #xk <- x
+    #top_n <- round(length(xk@test_set) * (pct_debris/100))
+    #tc <- order(xk@droplet_data[xk@bg_set,"total_counts"], decreasing=T)[1:top_n]
+    #l2 <- xk@bg_set[tc]
+    #xk@bg_set <- setdiff(xk@bg_set, l2)
 
-    xk <- init(xk, K = K)
-    xk <- run_em(xk, eps = eps)
+    x <- init(x, K = K, thresh = thresh)
+    x <- run_em(x, eps = eps, thresh = thresh)
 
-    ret <- matrix(nrow = length(K), ncol = 3)
-    rownames(ret) <- as.character(K)
-    colnames(ret) <- c("Pass", "Fail", "PercentFail")
+    ret <- c()
+    #ret <- matrix(nrow = length(K), ncol = 3)
+    #rownames(ret) <- as.character(K)
+    #colnames(ret) <- c("Pass", "Fail", "PercentFail")
     for (k in K){
         kc <- as.character(k)
-        xk <- call_targets(xk, K = kc)
-        emo <- xk@emo[[kc]]
-        n_pass <- sum(xk@droplet_data[,"Call"] == "Clean")
-        nf <- sum(emo$cluster[l2] != 1)
-        ret[kc,"Pass"] <- n_pass
-        ret[kc,"Fail"] <- nf
-        ret[kc,"PercentFail"] <- nf / top_n
+        x <- call_targets(x, K = kc)
+        emo <- x@emo[[kc]]
+        n_pass <- sum(x@droplet_data[,"Call"] == "Clean")
+        ret[kc] <- n_pass
+        #nf <- sum(emo$cluster[l2] != 1)
+        #ret[kc,"Pass"] <- n_pass
+        #ret[kc,"Fail"] <- nf
+        #ret[kc,"PercentFail"] <- nf / top_n
     }
     x@test_k <- ret
     return(x)

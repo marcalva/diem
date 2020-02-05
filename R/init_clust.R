@@ -1,6 +1,9 @@
 
 #' @export
 get_alpha <- function(x, labs, psc = 1e-16){
+    if (length(labs) != ncol(x)){
+        stop("Number of columns in x must match length of labs")
+    }
     labs <- factor(labs)
     labsu <- unclass(labs)
     clusts <- levels(labs)
@@ -17,6 +20,29 @@ get_alpha <- function(x, labs, psc = 1e-16){
     colnames(alphas) <- clusts
     return(alphas)
 }
+
+get_pi <- function(counts, Alpha=NULL, llks = NULL, sizes = NULL){
+    if (is.null(llks)){
+        llks <- get_llk(counts, Alpha, sizes)
+    }
+    llksf <- t(apply(llks, 1, fraction_log))
+    pis <- colSums(llksf)
+    pis <- pis / sum(pis)
+    return(pis)
+}
+
+init_z <- function(labs){
+    labs <- factor(labs)
+    nl <- nlevels(labs)
+    z <- matrix(0, nrow = length(labs), ncol = nl)
+    for (i in 1:nl){
+        z[unclass(labs) == i,i] <- 1
+    }
+    rownames(z) <- names(labs)
+    colnames(z) <- levels(labs)
+    return(z)
+}
+
 
 #' Get PCs
 #' @importFrom irlba prcomp_irlba
@@ -54,9 +80,10 @@ condense_labs <- function(labs){
 #' 
 #' 
 #' @export
-merge_size <- function(labs, dat, min_size = 30){
+merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
     labs <- as.character(labs)
     freq <- table(labs)
+    nm <- 0
     while(min(freq) < min_size){
         clusts <- names(freq)
         means <- sapply(clusts, function(i) colMeans(dat[labs == i,,drop=FALSE]))
@@ -67,7 +94,16 @@ merge_size <- function(labs, dat, min_size = 30){
         closest <- rownames(dists)[which.min(dists[,small_clust])]
         labs[labs == small_clust] <- closest
         freq <- table(labs)
+        nm <- nm + 1
     }
+    if (verbose){
+        if (nm > 0){
+            message("merged ", nm, 
+                    " small ", 
+                    ngettext(nm, "cluster", "clusters"))
+        }
+    }
+
     labs <- condense_labs(labs)
     return(labs)
 }
@@ -78,96 +114,64 @@ merge_size <- function(labs, dat, min_size = 30){
 #' @export
 init <- function(x, 
                  n_pcs = 30, 
-                 K = 10, 
+                 K = 15, 
                  iter.max = 30, 
                  nstart = 30, 
                  min_size = 10, 
-                 thresh = 0.05, 
+                 thresh = 0.1, 
                  seedn = 1, 
-                 top_pct = 100, 
                  psc = 1e-16, 
                  verbose = TRUE){ 
     if (verbose) message("initializing parameters")
 
-    # Subset to top percent of test droplets
-    sizes <- x@droplet_data[x@test_set, "total_counts"]
-    n_keep <- round(length(x@test_set) * (top_pct / 100))
-    o <- order(sizes, decreasing=TRUE)
-    keep <- x@test_set[o[1:n_keep]]
+    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
+
+    counts <- x@counts[genes.use,]
+    sizes <- colSums(counts)
 
     # Get PCs
-    x <- get_var_genes(x, droplets.use = keep)
-    x <- normalize_data(x, droplets.use = keep)
+    x <- get_var_genes(x)
+    x <- normalize_data(x)
     x <- get_pcs(x, n_pcs = n_pcs)
+    pcs_s <- scale(x@pcs)
 
-    labs <- rep(0, ncol(x@counts))
-    names(labs) <- colnames(x@counts)
+    labs <- rep(0, ncol(counts))
+    names(labs) <- colnames(counts)
     labs[x@bg_set] <- 1
-
-    pcs <- x@pcs[keep,,drop=FALSE]
-    pcs_s <- scale(pcs)
-    dpcs <- dist(pcs_s)
 
     params <- list()
     set.seed(seedn)
-    options(warn = -1)
-    #hc <- hclust(dist(pcs_s), method = "ward.D2")
 
     for (k in K){
+        options(warn = -1)
         km <- kmeans(x = pcs_s, 
                      centers = k, 
                      iter.max = iter.max, 
                      nstart = nstart)
+        options(warn = 0)
         kclust <- km$cluster
-        wss <- km$betweenss
 
         # Merge small clusters from k-means
-        kclust <- merge_size(kclust, pcs_s, min_size)
+        kclust <- merge_size(kclust, pcs_s, min_size, verbose = verbose)
         kclust <- as.numeric(kclust)
         names(kclust) <- rownames(pcs_s)
         
-        # kclust <- cutree(hc, k = k)
         labs_k <- labs
         labs_k[names(kclust)] <- kclust + 1
-        labs_k <- factor(labs_k)
-        alphas <- get_alpha(x@counts, labs_k, psc = psc)
+        alphas <- get_alpha(counts, labs_k, psc = psc)
+        Z <- init_z(labs_k)
 
         # Merge similar cell type clusters
-        to_merge <- c()
-        pcts <- c()
-        cts <- setdiff(colnames(alphas), "1")
-        for (ct in cts){
-            ctc <- x@counts[,labs_k == ct, drop=FALSE]
-            ctc_sizes <- colSums(ctc)
-            p1 <- LlkDirMultSparse(ctc, sizes = ctc_sizes, alpha = alphas[,"1"])
-            p2 <- LlkDirMultSparse(ctc, sizes = ctc_sizes, alpha = alphas[,ct])
-            pg <- sum(p1 > p2) / length(p2)
-            pcts[ct] <- pg
-            if (pg > thresh) to_merge <- union(to_merge, ct)
-        }
-
-        labs_k[labs_k %in% to_merge] <- "1"
-        labs_k <- condense_labs(labs_k)
-        alphas <- get_alpha(x@counts, labs_k, psc = psc)
+        # alphas <- rm_debris_clust(counts[,x@test_set], alphas, sizes = sizes[x@test_set], thresh = thresh)
+        ret <- rm_debris_clust(counts, alphas, Z, NULL, thresh)
+        alphas <- ret$Alpha
+        pis <- get_pi(counts, alphas, sizes = sizes)
 
         kc <- as.character(k)
-        params[[kc]] <- list("labels" = labs_k, 
-                             "Alpha" = alphas, 
-                             "SSE" = wss)
+        params[[kc]] <- list("Alpha" = alphas, "Pi" = pis, "Z" = Z) 
     }
-    options(warn = 0)
 
     x@init <- params
     return(x)
 }
-
-rdirm <- function(n, size, a){
-    nt <- length(a) * n
-    xi <- rgamma(n = nt, shape = a, scale = 1)
-    datf <- matrix(xi, nrow = length(a))
-    datf <- apply(datf, 2, function(i) i / sum(i))
-    ret <- sapply(1:n, function(i) rmultinom(1, size = size[i], prob = datf[,i]))
-    return(ret)
-}
-
 

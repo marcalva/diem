@@ -50,7 +50,7 @@
 #' cluster set. The number of nearest neighbors is specified by 
 #' \code{nn}. Clusters are identified from the KNN graph 
 #' using the Louvain algorithm. Finally, only clusters with at least 
-#' \code{min_size} (20 by default) droplets are considered cell types.
+#' \code{min_size} (10 by default) droplets are considered cell types.
 #'
 #' The number of clusters and their initialized multinomial means 
 #' are taken from the initial clustering assignments calculated with 
@@ -114,11 +114,11 @@ diem <- function(sce,
                  n_var=2000, 
                  lss=0.3, 
                  n_pcs = 30, 
-                 K = 10, 
-                 top_pct = 100, 
+                 K = 15, 
                  iter.max = 30, 
                  nstart = 30, 
-                 thresh = 0.05, 
+                 min_size = 10, 
+                 thresh = 0.1, 
                  seedn = 1, 
                  psc = 1e-16, 
                  eps = 1, 
@@ -143,9 +143,9 @@ diem <- function(sce,
     sce <- init(sce, 
                 n_pcs = n_pcs, 
                 K = K, 
-                top_pct = top_pct, 
                 iter.max = iter.max, 
                 nstart = nstart, 
+                min_size = min_size, 
                 thresh = thresh, 
                 seedn = seedn, 
                 psc = psc, 

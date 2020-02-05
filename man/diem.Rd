@@ -6,8 +6,8 @@
 \usage{
 diem(sce, top_n = 10000, min_counts = 100, min_genes = 100,
   fix_debris = NULL, order_by = "gene", cpm_thresh = 0,
-  n_var = 2000, lss = 0.3, n_pcs = 30, K = 10, top_pct = 100,
-  iter.max = 30, nstart = 30, thresh = 0.05, seedn = 1,
+  n_var = 2000, lss = 0.3, n_pcs = 30, K = 15, iter.max = 30,
+  nstart = 30, min_size = 10, thresh = 0.1, seedn = 1,
   psc = 1e-16, eps = 1, max_iter = 100, pp_thresh = 0.95,
   gene_thresh = 200, verbose = TRUE)
 }
@@ -107,7 +107,7 @@ After normalization, the k-nearest neighbors are identified in the
 cluster set. The number of nearest neighbors is specified by 
 \code{nn}. Clusters are identified from the KNN graph 
 using the Louvain algorithm. Finally, only clusters with at least 
-\code{min_size} (20 by default) droplets are considered cell types.
+\code{min_size} (10 by default) droplets are considered cell types.
 
 The number of clusters and their initialized multinomial means 
 are taken from the initial clustering assignments calculated with 
