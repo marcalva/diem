@@ -108,3 +108,41 @@ plot_umi_gene_call <- function(x,
 	else print(p)
 }
 
+#' plot dist values against counts
+#'
+#' @export
+plot_dist <- function(x, k_init = NULL, i=1, palette="PuBuGn", ret=FALSE){
+
+    if (is.null(k_init)){ 
+        if (length(x@init) > 1){
+            stop("Specify k_init as more than one is available")
+        } else {
+            k_init <- names(x@init)[1]
+        }
+    }
+
+    kc <- as.character(k_init)
+    if (is.null(i)){
+        i <- length(x@init[[kc]])
+    }
+    ic <- x@init[[kc]][[i]]
+    zinit <- apply(ic$Z, 1, which.max)
+    Size <- colSums(ic$Z)
+    Size[1] <- min(Size)
+
+    dd <- x@droplet_data
+    cm <- tapply(dd[,"total_counts"], zinit, mean)
+    datf <- data.frame("Counts" = cm, "Dist" <- ic$Dist, "zsize" = Size)
+    
+    p <- ggplot(datf, aes_string(x = "Counts", y = "Dist")) + 
+    geom_point(shape=16, aes_string(size = "Size"), alpha = 0.2) + 
+    xlab("Average UMI counts") +
+    ylab("Dist") + 
+    ggtitle(paste0("Initialized clusters (K = ", kc, ")")) + 
+    theme_minimal() + theme(text=element_text(size=22)) 
+    
+    if (ret) return(p)
+    else print(p)
+
+}
+

@@ -29,6 +29,7 @@ SCE <- setClass(Class = "SCE",
                           pp_thresh = "numeric", 
                           gene_data = "data.frame", 
                           droplet_data = "data.frame", 
+                          kruns = "list", 
                           init = "list", 
                           assignments = "factor", 
                           emo = "list", 
@@ -193,7 +194,7 @@ raw_counts <- function(x){
 #'                              min.features = 500, 
 #'                              min.cells = 3, 
 #'                              project = mb_small@name)
-convert_to_seurat <- function(x, filt = FALSE, targets = TRUE, meta = TRUE, ...){
+convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
     if (!requireNamespace("Seurat", quietly = TRUE)) {
         stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
              call. = FALSE)
@@ -204,9 +205,6 @@ convert_to_seurat <- function(x, filt = FALSE, targets = TRUE, meta = TRUE, ...)
 
     if (meta) meta.data <- x@droplet_data[drops,,drop=FALSE]
     else meta.data <- NULL
-
-    if (filt) counts <- x@counts_filt
-    else counts <- x@counts
 
     counts <- counts[,drops,drop=FALSE]
     seur <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta.data, ...)

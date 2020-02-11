@@ -22,20 +22,111 @@ sum_log <- function(x){
 }
 
 #' Get total log likelihood
+#' @importFrom future.apply future_sapply
+#' @importFrom future nbrOfWorkers
+#
+# @export
 get_llk <- function(counts, Alpha, sizes = NULL){
     sapply_f <- ifelse(nbrOfWorkers() == 1, sapply, future_sapply)
 
     if (is.null(sizes)){
         sizes <- colSums(counts)
     }
-    
+
     llks <- sapply_f(1:ncol(Alpha), function(j) LlkDirMultSparse(counts, sizes, alpha = Alpha[,j,drop=FALSE]) )
     llks <- matrix(llks, ncol = ncol(Alpha))
     rownames(llks) <- colnames(counts)
     return(llks)
 }
 
-get_z <- function(llks, Pi, labs){
+#' LOO optimization
+#' 
+#' counts is a droplet by gene matrix
+#' sizes is total droplet size
+#' a is current value of alpha parameter, gene by k matrix
+#' z is current membership
+#' @importFrom future.apply future_sapply
+#' @importFrom future nbrOfWorkers
+#
+# @export
+get_alpha <- function(counts, 
+                      Z, 
+                      eps = 1e-4, 
+                      max_loo = 500, 
+                      psc = 1e-10, 
+                      debug = FALSE){
+    sapply_f <- ifelse(nbrOfWorkers() == 1, sapply, future_sapply)
+    countst <- t(counts)
+    K <- ncol(Z)
+    ks <- 1:K
+    sizes <- rowSums(counts)
+
+    clusts <- 1:ncol(Z)
+
+    # Loop over droplets with high enough p(z)
+    clust_mem <- apply(Z, 2, function(i) i > 0.01)
+    p_bar <- sapply_f(clusts, function(k){
+                      p <- countst[,clust_mem[,k],drop=FALSE] %*% Z[clust_mem[,k],k]
+                      p <- as.matrix(p) + psc
+                      p / sum(p) })
+
+    a_range <- c(10, 1e6)
+    a0 <- c()
+    a0 <- sapply_f(clusts, function(k){
+                   ct <- countst[,clust_mem[,k],drop=FALSE]
+                   si <- sizes[clust_mem[,k]]
+                   Zk <- Z[clust_mem[,k],k]
+                   f <- function(x){
+                       r <- get_llk(ct, 
+                                    x * p_bar[,k,drop=FALSE], 
+                                    sizes = si)
+                       r <- as.numeric(t(r) %*% Zk)
+                       return(r)
+                   }
+                   a_max <- optimize(f, interval = a_range, tol = 100, maximum = TRUE)
+                   a_max$maximum
+                      })
+
+    Alpha <- sapply_f(ks, function(k){
+                      ct <- counts[clust_mem[,k],,drop=FALSE]
+                      si <- sizes[clust_mem[,k]]
+                      Zk <- Z[clust_mem[,k],k]
+                      Ak <- p_bar[,k] * a0[k]
+                      Ak_old <- Ak
+                      delt <- Inf
+                      iter <- 1
+                      while (delt > eps && iter <= max_loo){
+                          Ak <- compute_LOO_step(ct, si, Zk, Ak)
+                          Ak[Ak < 0] <- 0
+                          Ak <- Ak + psc
+                          delt <- sum(abs(Ak - Ak_old)) / sum(Ak_old)
+                          if (debug){
+                              message("iteration ", iter, "; sum AK = ", sum(Ak), "; delta = ", delt)
+                          }
+                          Ak_old <- Ak
+                          iter <- iter + 1
+                      }
+                      return(Ak)
+                      })
+
+    rownames(Alpha) <- colnames(counts)
+
+    return(Alpha)
+}
+
+get_pi <- function(Z){
+    Pi <- colSums(Z)
+    Pi <- Pi / sum(Pi)
+    return(Pi)
+}
+
+#' Get Z
+#'
+#' @importFrom future.apply future_apply
+#' @importFrom future nbrOfWorkers
+#
+# @export
+get_z <- function(llks, Pi){
     if (length(Pi) != ncol(llks)){
         stop("Length of Pi must match the number of columns in llks")
     }
@@ -52,8 +143,25 @@ get_z <- function(llks, Pi, labs){
     llks_pi <- t(apply_f(llks, 1, function(j) j + log(Pi)))
     Z <- t(apply_f(llks_pi, 1, fraction_log))
     rownames(Z) <- rownames(llks)
-    Z[labs == 1,1] <- 1
-    Z[labs == 1,2:K] <- 0
+    return(Z)
+}
+
+fix_z <- function(Z, labs = NULL){
+    if (is.null(labs)) return(Z)
+    if (sum(labs) == 0) return(Z)
+    if (length(labs) != nrow(Z)){
+        stop("length of labs must equal to number of rows in Z")
+    }
+
+    if (max(labs) > ncol(Z)){
+        stop("Max label in labs must be less than or equal to column in Z")
+    }
+
+    f <- setdiff(sort(unique(labs)), 0)
+    for (i in f){
+        Z[labs == i,] <- 0
+        Z[labs == i, i] <- 1
+    }
     return(Z)
 }
 
@@ -68,75 +176,111 @@ rdirm <- function(n, size, a){
     return(ret)
 }
 
-rm_debris_clust <- function(counts, Alpha, Z, labs, Pi=NULL, thresh = 0.10, verbose = TRUE){
-    if (verbose) message("checking to remove clusters similar to debris...")
-    llks <- get_llk(counts, Alpha)
-    if (is.null(Pi)) {
-        llksf <- t(apply(llks, 1, fraction_log))
-        pis <- colSums(llksf)
-        Pi <- pis / sum(pis)
-    }
-    Z <- get_z(llks, Pi, labs)
-    s = c()
-    for (k in 2:ncol(Alpha)){
-        diffs = llks[,k] - llks[,1]
-        diffs = diffs * Z[,k]
-        diffs = sum(diffs) / sum(Z[,k])
-        s[k-1] = diffs
-    }
-    s_p <- s / max(s)
-    ckeep <- s_p >= thresh
-    ckeep <- c(TRUE, ckeep)
+#' Get cluster distances to background disrtibution
+#' 
+#' Get the likelihood-based distance of the clusters to the background.
+#'
+#' @params x An SCE object.
+#' @params llks An optional droplet by cluster matrix containing the 
+#'  log likelihoods of the droplet given the cluster's parameters. If 
+#'  give, avoids re-calcluating the log likelihoods.
+#' @params verbose Verbosity.
+#'
+#' @return An SCE object
+get_dist <- function(x, llks = NULL, verbose = TRUE){
+    if (verbose) message("checking distances to background distribution...")
 
-    if (verbose){
-        torm <- length(ckeep) - sum(ckeep)
-        if (torm > 0){
-            message("removed ", torm, 
-                    ngettext(torm, " cluster", " clusters"),
-                    " similar to debris")
+    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
+    counts <- x@counts[genes.use,]
+
+    k_init <- names(x@init)
+
+    for (k in k_init){
+        kc <- as.character(k)
+
+        i <- length(x@init[[kc]])
+        ic <- x@init[[kc]][[i]]
+        params <- ic$params
+        Alpha <- params$Alpha
+        Pi <- params$Pi
+        Z <- ic$Z
+
+        if (ncol(Alpha) == 1){
+            if (verbose){
+                message("only the debris distribution is present, no clusters to remove")
+            }
+            return(params)
         }
+
+        if (is.null(llks)){
+            llks <- get_llk(counts, Alpha)
+        }
+
+        d <- c(0)
+        for (k in 2:ncol(Alpha)){
+            diffs <- llks[,k] - llks[,1]
+            diffs <- diffs * Z[,k]
+            wsum <- sum(Z[,k])
+            if (wsum == 0){
+                d[k] <- 0
+            } else {
+                diffs <- sum(diffs) / wsum
+                d[k] <- diffs
+            }
+        }
+        d[d < 0] <- 0
+        d[is.na(d)] <- 0
+        if (max(d) == 0){
+            warnings("Warning: all distances are 0")
+            return(params)
+        }
+        ds <- d / max(d)
+        x@init[[kc]][[i]]$Dist <- ds
     }
-    Alpha <- Alpha[,ckeep,drop=FALSE]
-    Pi <- Pi[ckeep] / sum(Pi[ckeep])
-    Z <- t(apply(Z[,ckeep], 1, function(i) i / sum(i)))
-    return(list("Alpha" = Alpha, "Pi" = Pi, "s" = s_p, "Z" = Z))
+    return(x)
+
 }
 
 #' @importFrom future.apply future_sapply
 #' @importFrom future nbrOfWorkers
 #' @export
 em <- function(counts, 
-               Alpha, 
-               Pi,
+               params, 
                labs, 
-               eps = 1, 
+               eps = 1e-4, 
                max_iter = 1e2, 
                verbose = TRUE){
 
     countst <- t(counts)
     sizes <- colSums(countst)
+
+    Alpha <- params$Alpha
+    Pi <- params$Pi
+    unl <- labs == 0
+
     K <- ncol(Alpha)
 
     delta <- Inf
-    Z_old <- -Inf
     iter <- 1
     while (iter <= max_iter & delta > eps){
 
         # Estimate prob of Z
         llks <- get_llk(countst, Alpha, sizes)
         rownames(llks) <- colnames(countst)
-        Z <- get_z(llks, Pi, labs)
+        Z <- get_z(llks, Pi)
+        Z <- fix_z(Z, labs)
 
         # Estimate pi
-        Pi <- colSums(Z)
-        Pi <- Pi / sum(Pi)
+        Pi <- get_pi(Z)
 
         # Estimate alpha
-        Alpha <- dm_loo(counts, Alpha, Z, eps = 1e-10)
+        Alpha <- get_alpha(counts, Z)
 
-        # Evaluate change in Z
-        delta <- sum(abs(Z - Z_old))
-        if (verbose) message("iteration ", iter, "; delta = ", round(delta, 3))
+        # Evaluate delta
+        if (iter > 1) {
+            delta <- sum(abs(Z[unl,] - Z_old[unl,])) / sum(Z_old[unl,])
+        }
+        if (verbose) message("iteration ", iter, "; delta = ", round(delta, 10))
         iter <- iter + 1
         Alpha_old <- Alpha
         Z_old <- Z
@@ -154,24 +298,24 @@ em <- function(counts,
     clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
     ellk <- sum(sapply(1:nrow(Z), function(i) llks[i, clust_max[i]]))
     params <- list("Alpha" = Alpha, 
-                   "Pi" = Pi, 
-                   "llk" = llks, 
-                   "Z" = Z,  
-                   "Cluster" = clust_max, 
-                   "ClusterProb" = clust_prob, 
-                   "ellk" = ellk)
-    return(params)
+                   "Pi" = Pi)
+    ret <- list("params" = params, 
+                "llk" = llks, 
+                "Z" = Z,  
+                "Cluster" = clust_max, 
+                "ClusterProb" = clust_prob, 
+                "ellk" = ellk)
+    return(ret)
 }
 
 #' Run EM
 #' Run EM for each initialized K, storing output in SCE object.
 #' @export
 run_em <- function(x, 
-                   K = NULL, 
-                   eps = 1, 
-                   thresh = 0.1, 
+                   k_init = NULL, 
+                   eps = 1e-4, 
+                   fltr = 0.1, 
                    max_iter = 1e2, 
-                   seedn = 1, 
                    verbose = TRUE){
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
@@ -193,56 +337,52 @@ run_em <- function(x,
     labs[x@bg_set] <- 1
 
     # Run EM for each K start value
-    if (is.null(K))
-        K <- names(x@init)
+    if (is.null(k_init))
+        k_init <- names(x@init)
     else {
-        K <- as.character(K)
-        if ( any(!K %in% names(x@init)) ){
-            stop("Value for K ", K, " is not found in ",
-                 "initialized K values: ", 
-                 paste(K, collapse = " "))
+        k_init <- as.character(k_init)
+        if ( any(!k_init %in% names(x@init)) ){
+            stop("Value for k_init ", k_init, " is not found in ",
+                 "initialized k_init values: ", 
+                 paste(k_init, collapse = " "))
         }
     }
 
-    set.seed(seedn)
     emo <- list()
-    for (k in K){
+    for (k in k_init){
         k <- as.character(k)
-        if (verbose) message("running EM for k = ", k)
-        Alpha <- x@init[[k]]$Alpha[genes.use,]
-        Pi <- x@init[[k]]$Pi
+        if (verbose) message("running EM for k_init = ", k)
+        initr <- x@init[[k]][[length(x@init[[k]])]]
+        params <- initr$params
         while (TRUE){
             emo[[k]] <- em(counts, 
-                           Alpha, 
-                           Pi, 
+                           params, 
                            labs = labs, 
                            eps = eps, 
                            max_iter = max_iter, 
                            verbose = verbose)
             # Remove distributions close to debris
-            Alpha <- emo[[k]]$Alpha
-            Pi <- emo[[k]]$Pi
-            Z <- emo[[k]]$Z
-            prev_k <- ncol(Alpha)
-            ret <- rm_debris_clust(counts, 
-                                   Alpha, 
-                                   Z, 
-                                   Pi, 
-                                   thresh = thresh, 
-                                   verbose = verbose)
-            Alpha <- ret$Alpha
-            Pi <- ret$Pi
-            merged_k <- ncol(Alpha)
+            prev_k <- ncol(emo[[k]]$params$Alpha)
+            x <- get_dist(x, llks = emo[[k]]$llk, verbose = verbose)
+            x <- rm_close(x, fltr = fltr, verbose = verbose)
+            initr <- x@init[[k]][[length(x@init[[k]])]]
+            params <- initr$params
+            emo[[k]][["Dist"]] <- params$Z
+            emo[[k]]$params <- params
+            merged_k <- ncol(emo[[k]]$params$Alpha)
             if (merged_k == prev_k){
                 break
             } else {
                 if (verbose){
                     message("restarting EM")
+                    nclusters <- merged_k - 1
+                    message("using a final k of 1 background and ", 
+                            nclusters, " cell type clusters")
                 }
             }
         }
     }
-    
+
     x@emo <- emo
 
     if (verbose){
@@ -252,31 +392,25 @@ run_em <- function(x,
     return(x)
 }
 
-    # Fill in droplet data
-    #x@droplet_data[,"CleanProb"] <- 1 - Z[,1]
-    #x@droplet_data$Cluster <- NULL
-    #x@droplet_data$Cluster <- clust_max
-    #x@droplet_data$ClusterProb <- clust_prob
-
 #' Select k
 #' @export
-test_k <- function(x, K = 1:15, thresh = 0.1, pct_debris = 5, eps = 5){
+test_k <- function(x, k_init = 1:30, fltr = 0.1, pct_debris = 5){
     #xk <- x
     #top_n <- round(length(xk@test_set) * (pct_debris/100))
     #tc <- order(xk@droplet_data[xk@bg_set,"total_counts"], decreasing=T)[1:top_n]
     #l2 <- xk@bg_set[tc]
     #xk@bg_set <- setdiff(xk@bg_set, l2)
 
-    x <- init(x, K = K, thresh = thresh)
-    x <- run_em(x, eps = eps, thresh = thresh)
+    x <- init(x, k_init = k_init)
+    x <- run_em(x)
 
     ret <- c()
     #ret <- matrix(nrow = length(K), ncol = 3)
     #rownames(ret) <- as.character(K)
     #colnames(ret) <- c("Pass", "Fail", "PercentFail")
-    for (k in K){
+    for (k in k_init){
         kc <- as.character(k)
-        x <- call_targets(x, K = kc)
+        x <- call_targets(x, k_init = kc)
         emo <- x@emo[[kc]]
         n_pass <- sum(x@droplet_data[,"Call"] == "Clean")
         ret[kc] <- n_pass
@@ -287,37 +421,5 @@ test_k <- function(x, K = 1:15, thresh = 0.1, pct_debris = 5, eps = 5){
     }
     x@test_k <- ret
     return(x)
-}
-
-#' LOO optimization
-#' 
-#' counts is a droplet by gene matrix
-#' sizes is total droplet size
-#' a is current value of alpha parameter, gene by k matrix
-#' z is current membership
-dm_loo <- function(counts, A, Z, eps = 1e-4, max_loo = 3, add_to = 1e-16, verbose = FALSE){
-    N <- nrow(counts)
-    G <- ncol(counts)
-    A_new <- A
-    A_old <- A_new
-    K <- ncol(Z)
-    ks <- 1:K
-    sizes <- rowSums(counts)
-    for (k in ks){
-        delt <- Inf
-        iter <- 1
-        while (delt > eps && iter <= max_loo){
-            A_old[,k] <- A_new[,k]
-            A_new[,k] <- compute_LOO_step(counts, sizes, Z[,k], A_old[,k])
-            A_new[A_new[,k] < 0,k] <- 0
-            A_new[, k] <- A_new[, k] + add_to
-            delt <- sum((A_new[,k] - A_old[,k])^2) / sum((A_old[,k])^2)
-            if (verbose){
-                message("iteration ", iter, "; delta; ", delt)
-            }
-            iter <- iter + 1
-        }
-    }
-    return(A_new)
 }
 

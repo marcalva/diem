@@ -4,12 +4,12 @@
 \alias{diem}
 \title{Run DIEM pipeline}
 \usage{
-diem(sce, top_n = 10000, min_counts = 100, min_genes = 100,
+diem(sce, top_n = NULL, min_counts = 100, min_genes = 0,
   fix_debris = NULL, order_by = "gene", cpm_thresh = 0,
-  n_var = 2000, lss = 0.3, n_pcs = 30, K = 15, iter.max = 30,
-  nstart = 30, min_size = 10, thresh = 0.1, seedn = 1,
-  psc = 1e-16, eps = 1, max_iter = 100, pp_thresh = 0.95,
-  gene_thresh = 200, verbose = TRUE)
+  n_var = 2000, lss = 0.3, n_pcs = 30, k_init = 30,
+  iter.max = 15, nstart = 30, min_size = 10, fltr = 0.1,
+  seedn = 1, psc = 1e-10, eps = 1e-04, max_iter = 100,
+  pp_thresh = 0.95, gene_thresh = 200, verbose = TRUE)
 }
 \arguments{
 \item{sce}{An SCE object.}

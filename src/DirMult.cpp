@@ -5,8 +5,6 @@
 #include <RcppEigen.h>
 #include <math.h>
 #include <stdio.h>
-#include "digamma.h"
-#include "trigamma.h"
 using namespace Rcpp;
 
 // Compute log density of Dirichlet-Multinomial PMF with sparse matrix

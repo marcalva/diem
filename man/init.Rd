@@ -5,8 +5,8 @@
 \title{Initialize clusters using hierarchical clustering
 k is a positive integer or vector of positive integers}
 \usage{
-init(x, n_pcs = 30, K = 15, iter.max = 30, nstart = 30,
-  min_size = 10, thresh = 0.1, seedn = 1, psc = 1e-16,
+init(x, n_pcs = 30, k_init = 30, iter.max = 15, nstart = 30,
+  min_size = 10, fltr = 0.1, seedn = 1, psc = 1e-10,
   verbose = TRUE)
 }
 \description{

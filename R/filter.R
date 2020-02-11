@@ -39,7 +39,7 @@
 #' @importFrom Matrix colSums
 #' @export
 set_debris_test_set <- function(x, 
-                                top_n = 1e4, 
+                                top_n = NULL, 
                                 min_counts = 100, 
                                 min_genes = 100, 
                                 fix_debris = NULL, 

@@ -1,78 +1,8 @@
 
-#' Get betas from OLS
-#' @importFrom stats lm
-get_betas_lm <- function(y, X){
-    ret <- lm(y ~ 0 + X)
-    return(ret$coefficients)
-}
-
-#' Get betas from NNLS
-#' @importFrom nnls nnls
-get_betas_nnls <- function(y, X){
-    ret <- nnls(X, y)
-    return(ret$x)
-}
-
-# Experimental
-#' Remove debris reads from droplets
-#'
-#' This function takes the raw counts matrix and removes the counts that 
-#' are estimated to originate from debris. For each droplet, the percent 
-#' of debris and cell type are estimated by non-negative least squares. 
-#' Then, a debris droplet is calculated with same total read count as 
-#' the droplet and multiplied by the debris proportion. The non-integer 
-#' numbers are rounded down. Finally, this debris vector is subtracted 
-#' from the droplet counts, keeping reads counts to non-negative.
-#' 
-#' @return An SCE object
-#'
-#' @importFrom Matrix sparseMatrix
-#' @importFrom methods as
-#' @export
-remove_debris <- function(x, verbose = FALSE){   
-    if (verbose) message("Filtering reads")
-    dg <- x@assignments == "Debris"
-    counts <- x@counts
-    total_counts <- colSums(counts)
-    drops <- x@test_set
-    genes <- rownames(subset(x@gene_data, exprsd == TRUE))
-    genes_all <- seq_along(rownames(x@counts)); names(genes_all) <- rownames(x@counts); 
-    gene_probs <- x@vemo$params$Beta
-    gene_probs <- sweep(gene_probs, 2, colSums(gene_probs), "/")
-    coefs <- matrix(nrow = length(drops), ncol = ncol(gene_probs))
-    colnames(coefs) <- colnames(gene_probs); rownames(coefs) <- drops
-    counts <- counts[genes,drops]
-    total_counts <- total_counts[drops]
-    gene_probs <- gene_probs[genes,,drop=FALSE]
-    countsp <- divide_by_colsum(counts)
-
-    coefs <- sapply(drops, function(i) get_betas_nnls(countsp[,i], gene_probs))
-    coefs <- t(coefs)
-    dc <- lapply(1:length(drops), function(j){
-                  to_rm <- (gene_probs[,dg,drop=FALSE] * total_counts[j]) %*% t(coefs[j,dg,drop=FALSE])
-                  to_rm <- floor(to_rm)
-                  genes_gt0 <- rownames(to_rm)[to_rm[,1] > 0]
-                  i <- genes_all[genes_gt0]
-                  if (length(i) == 0) return(NULL)
-                  datf <- data.frame("i" = i, "j" = j, "x" = to_rm[genes_gt0, 1])
-                  return(datf)})
-    dc <- do.call(rbind, dc)
-    dc <- Matrix::sparseMatrix(i = dc[,"i"], 
-                               j = dc[,"j"], 
-                               x = dc[,"x"], 
-                               dims = c(nrow(x@counts), length(drops)) )
-    colnames(dc) <- drops
-    cf <- x@counts[,drops,drop=FALSE] - dc
-    cf[cf < 0] <- 0
-    x@counts_filt <- as(cf, "CsparseMatrix")
-    x@coefs <- coefs
-    if (verbose) message("Done")
-    return(x)
-}
-
 #' Call clean droplets after running EM
 #'
-#' Call cells or nuclei from an SCE object. EM must be run beforehand.
+#' Call cells or nuclei from an SCE object. Adds meta data to 
+#' droplet data.
 #' The posterior probability is defined as 1 - Prob(Debris), where 
 #' Prob(Debris) is the posterior probability that a droplet is 
 #' debris.
@@ -82,45 +12,56 @@ remove_debris <- function(x, verbose = FALSE){
 #'  classified as a cell/nucleus.
 #' @param min_genes The minimum number of genes a droplet must have 
 #'  to be classified as a cell/nucleus.
+#' @verbose verbosity
 #'
 #' @return An SCE object.
 #' @export
 call_targets <- function(x, 
                          pp_thresh = 0.95, 
                          min_genes = 200, 
-                         K = NULL, 
+                         k_init = NULL, 
                          verbose = TRUE){
 
     if (length(x@emo) == 0) stop("Run ", sQuote("run_em"), " before calling targets")
 
-    if (is.null(K)){
+    if (is.null(k_init)){
         if (length(x@emo) > 1){
-            stop(sQuote("K"), " must be specified to a value from: ", 
+            stop(sQuote("k_init"), " must be specified to a value from: ", 
                  paste(names(x@emo), collapse = " "))
         } else {
-            K <- names(x@emo)[1]
+            k_init <- names(x@emo)[1]
         }
     } else {
-        if (length(K) != 1){
-            stop(sQuote("K"), " must be a single value")
+        if (length(k_init) != 1){
+            stop(sQuote("k_init"), " must be a single value")
         }
-        if ( ! K %in% names(x@emo) ){
-            stop(sQuote("K"), " must an initialized k value taken from: ", 
+        if ( ! k_init %in% names(x@emo) ){
+            stop(sQuote("k_init"), " must an initialized k value taken from: ", 
                  paste(names(x@emo), collapse = " "))
         }
     }
     if (verbose){
-        message("calling targets from ", sQuote("K"), "=", K)
+        message("calling targets from ", sQuote("k_init"), "=", k_init)
     }
 
-    K <- as.character(K)
+    k_init <- as.character(k_init)
 
-    emo <- x@emo[[K]]
+    emo <- x@emo[[k_init]]
     probs <- 1 - emo$Z[,1]
     calls <- rep("Debris", nrow(x@droplet_data))
     calls[probs >= pp_thresh & x@droplet_data$n_genes >= min_genes] <- "Clean"
     calls <- as.factor(calls)
     x@droplet_data[,"Call"] <- calls
+
+    # Add debris log odds
+    llk <- emo$llk[x@test_set,,drop=FALSE]
+    x@droplet_data[x@test_set, "DebrisLlk"] <- llk[,1]
+    Pi <- emo$params$Pi
+
+    llks_pi <- t(apply(llk, 1, function(j) j + log(Pi)))
+    debris_prob <- llks_pi[,1]
+    clean_prob <- apply(llks_pi[,2:ncol(llks_pi),drop=FALSE], 1, sum_log)
+    x@droplet_data[x@test_set, "DebrisLogOdds"] <- debris_prob - clean_prob
 
     x@droplet_data[,"Cluster"] <- emo$Cluster
     x@droplet_data[,"ClusterProb"] <- emo$ClusterProb

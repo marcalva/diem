@@ -4,7 +4,7 @@
 \alias{call_targets}
 \title{Call clean droplets after running EM}
 \usage{
-call_targets(x, pp_thresh = 0.95, min_genes = 200, K = NULL,
+call_targets(x, pp_thresh = 0.95, min_genes = 200, k_init = NULL,
   verbose = TRUE)
 }
 \arguments{

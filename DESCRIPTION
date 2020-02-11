@@ -31,7 +31,9 @@ Imports:
     scales,
     utils,
     nnls,
-    stats
+    stats,
+    future,
+    future.apply
 Suggests:
     Seurat (>= 3.0.0),
     testthat,

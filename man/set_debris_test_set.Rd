@@ -4,7 +4,7 @@
 \alias{set_debris_test_set}
 \title{Set debris and test droplets}
 \usage{
-set_debris_test_set(x, top_n = 10000, min_counts = 100,
+set_debris_test_set(x, top_n = NULL, min_counts = 100,
   min_genes = 100, fix_debris = NULL, verbose = FALSE)
 }
 \arguments{
