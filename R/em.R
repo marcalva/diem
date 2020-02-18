@@ -180,11 +180,11 @@ rdirm <- function(n, size, a){
 #' 
 #' Get the likelihood-based distance of the clusters to the background.
 #'
-#' @params x An SCE object.
-#' @params llks An optional droplet by cluster matrix containing the 
+#' @param x An SCE object.
+#' @param llks An optional droplet by cluster matrix containing the 
 #'  log likelihoods of the droplet given the cluster's parameters. If 
 #'  give, avoids re-calcluating the log likelihoods.
-#' @params verbose Verbosity.
+#' @param verbose Verbosity.
 #'
 #' @return An SCE object
 get_dist <- function(x, llks = NULL, verbose = TRUE){

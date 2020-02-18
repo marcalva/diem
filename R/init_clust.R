@@ -73,10 +73,10 @@ condense_labs <- function(labs){
 #' to generate the cluster means.
 #' Data points are assigned to the next closest cluster.
 #'
-#' @params labs A vector of labels.
+#' @param labs A vector of labels.
 #' @param dat A matrix containing the center means of the groups in each column.
-#' @params min_size The minimum number of members that belong to a cluster.
-#' @params verbose Verbosity.
+#' @param min_size The minimum number of members that belong to a cluster.
+#' @param verbose Verbosity.
 #'
 #' @return A vector containing new labels
 merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
@@ -111,20 +111,20 @@ merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
 
 #' Initialize clusters
 #' 
-#' @params x An SCE object.
-#' @params n_pcs The number of PCs to use for the k-means.
-#' @params k_init The number of clusters to initialize k-means.
-#' @params iter.max The maximum number of k-means interations.
-#' @params nstart The number of starts to use in k-means.
-#' @params min_size The minimum number of members that belong to a cluster.
-#' @params fltr The filter threshold that controls the minimum distance to 
+#' @param x An SCE object.
+#' @param n_pcs The number of PCs to use for the k-means.
+#' @param k_init The number of clusters to initialize k-means.
+#' @param iter.max The maximum number of k-means interations.
+#' @param nstart The number of starts to use in k-means.
+#' @param min_size The minimum number of members that belong to a cluster.
+#' @param fltr The filter threshold that controls the minimum distance to 
 #'  the background distribution that a cluster must have. Remove those 
 #'  centers with a distance less than this value.
-#' @params seedn The seed for random k-means initialization. 
+#' @param seedn The seed for random k-means initialization. 
 #'  It is set to 1 by default. If you desire random initializations, 
 #'  set to NULL, or different values across runs.
-#' @params psc Pseudocount to add to all alpha parameter values to avoid 0.
-#' @params verbose Verbosity.
+#' @param psc Pseudocount to add to all alpha parameter values to avoid 0.
+#' @param verbose Verbosity.
 #'
 #' @return An SCE object
 #' @importFrom Matrix Diagonal colSums rowMeans rowSums t

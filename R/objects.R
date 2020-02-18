@@ -189,26 +189,29 @@ raw_counts <- function(x){
 #' @return A Seurat object
 #' @export
 #' @examples
+#' \dontrun{
 #' mm_seur <- convert_to_seurat(x = mb_small, 
 #'                              targets = FALSE, 
 #'                              min.features = 500, 
 #'                              min.cells = 3, 
 #'                              project = mb_small@name)
+#' }
 convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
     if (!requireNamespace("Seurat", quietly = TRUE)) {
         stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
              call. = FALSE)
+    } else {
+
+        if (targets) drops <- get_clean_ids(x)
+        else drops <- rownames(x@droplet_data)
+
+        if (meta) meta.data <- x@droplet_data[drops,,drop=FALSE]
+        else meta.data <- NULL
+
+        counts <- counts[,drops,drop=FALSE]
+        seur <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta.data, ...)
+        return(seur)
     }
-
-    if (targets) drops <- get_clean_ids(x)
-    else drops <- rownames(x@droplet_data)
-
-    if (meta) meta.data <- x@droplet_data[drops,,drop=FALSE]
-    else meta.data <- NULL
-
-    counts <- counts[,drops,drop=FALSE]
-    seur <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta.data, ...)
-    return(seur)
 }
 
 #' Read 10X counts data

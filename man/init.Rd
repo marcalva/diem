@@ -2,14 +2,40 @@
 % Please edit documentation in R/init_clust.R
 \name{init}
 \alias{init}
-\title{Initialize clusters using hierarchical clustering
-k is a positive integer or vector of positive integers}
+\title{Initialize clusters}
 \usage{
 init(x, n_pcs = 30, k_init = 30, iter.max = 15, nstart = 30,
   min_size = 10, fltr = 0.1, seedn = 1, psc = 1e-10,
   verbose = TRUE)
 }
+\arguments{
+\item{x}{An SCE object.}
+
+\item{n_pcs}{The number of PCs to use for the k-means.}
+
+\item{k_init}{The number of clusters to initialize k-means.}
+
+\item{iter.max}{The maximum number of k-means interations.}
+
+\item{nstart}{The number of starts to use in k-means.}
+
+\item{min_size}{The minimum number of members that belong to a cluster.}
+
+\item{fltr}{The filter threshold that controls the minimum distance to 
+the background distribution that a cluster must have. Remove those 
+centers with a distance less than this value.}
+
+\item{seedn}{The seed for random k-means initialization. 
+It is set to 1 by default. If you desire random initializations, 
+set to NULL, or different values across runs.}
+
+\item{psc}{Pseudocount to add to all alpha parameter values to avoid 0.}
+
+\item{verbose}{Verbosity.}
+}
+\value{
+An SCE object
+}
 \description{
-Initialize clusters using hierarchical clustering
-k is a positive integer or vector of positive integers
+Initialize clusters
 }

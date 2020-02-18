@@ -12,7 +12,7 @@
 #'  classified as a cell/nucleus.
 #' @param min_genes The minimum number of genes a droplet must have 
 #'  to be classified as a cell/nucleus.
-#' @verbose verbosity
+#' @param verbose verbosity
 #'
 #' @return An SCE object.
 #' @export

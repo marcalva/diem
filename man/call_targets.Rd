@@ -15,12 +15,15 @@ classified as a cell/nucleus.}
 
 \item{min_genes}{The minimum number of genes a droplet must have 
 to be classified as a cell/nucleus.}
+
+\item{verbose}{verbosity}
 }
 \value{
 An SCE object.
 }
 \description{
-Call cells or nuclei from an SCE object. EM must be run beforehand.
+Call cells or nuclei from an SCE object. Adds meta data to 
+droplet data.
 The posterior probability is defined as 1 - Prob(Debris), where 
 Prob(Debris) is the posterior probability that a droplet is 
 debris.

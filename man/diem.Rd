@@ -64,66 +64,6 @@ data is an sce object, returned by the function \code{\link{create_SCE}}.
 The function outputs the SCE object with meta data specifying the 
 filtered and clean droplets.
 }
-\details{
-The diem function takes the sce object \code{sce} and first 
-partitions the droplets into the debris, test, and cluster sets. 
-\code{min_counts} and \code{min_genes} specify the lower limit 
-that droplets in the test set must have. In addition, 
-the parameter \code{top_n} specifies that at most the top \code{top_n} 
-should be included in the test set. The default is 10,000 
-in accordance with the typical maximum number of droplets 
-generated during a single-cell experiment, but should be changed 
-accordingly.
-
-If the read/UMI count of the \code{top_n} count-ranked droplet is greater 
-than \code{min_counts}, then the \code{min_counts} is 
-increased to this limit. The \code{fix_debris} parameter allows 
-additional flexibility in specifying those droplets that are 
-included in the debris set. For example, it may be useful to 
-set droplets above a pre-determined MT% threshold as debris, 
-regardless of the total number of read/UMI counts present.
-In order to remove lowly expressed genes, the Counts 
-Per Million mapped reads (CPM) are calculated for the 
-both the test set and debris set. Then, only genes 
-that have a CPM of at least \code{cpm_thresh} in both the test set and 
-debris set are kept.
-
-Instead of randomly initializing the EM, cell types are estimated from 
-droplets that are expected to contain cells/nuclei. The top 
-\code{cluster_n} droplets are ranked by "gene" or "count", given by the 
-parameter \code{order_by}. Then, droplets with at least those ranked 
-counts/genes are included in the cluster set. The data is then normalized 
-by first calculating the variable genes. A loess regression line 
-is fit between the log counts and log variance, and the only top genes 
-ranked by residual are used to initialize the clusters. The number of 
-genes is specified with \code{n_var}. Optionally, one can use all genes 
-by setting \code{use_var} to FALSE. The span of the loess regression line 
-is given by \code{lss} (default is 0.3).
-The data is normalized by dividing counts by the total counts per droplet. 
-Then, the counts are multiplied by a scaling factor, given by 
-\code{sf} (the median of total counts by default). Finally, the data is 
-log transformed after adding a constant value of 1.
-After normalization, the k-nearest neighbors are identified in the 
-cluster set. The number of nearest neighbors is specified by 
-\code{nn}. Clusters are identified from the KNN graph 
-using the Louvain algorithm. Finally, only clusters with at least 
-\code{min_size} (10 by default) droplets are considered cell types.
-
-The number of clusters and their initialized multinomial means 
-are taken from the initial clustering assignments calculated with 
-\code{\link{initialize_clusters}}. The EM algorithm is run  
-by repeatedly updating the membership probabilities and then 
-estimating the MLE parameters of the multinomial mixture model.
-The algorithm converges when the percent change in 
-the log likihood is less than \code{eps}. If the 
-algorithm doesn't converge by \code{max_iter}, it breaks off.
-The posterior probability is the calculated by taking the 
-sum of the likelihood fractions across the cell types.
-
-Given the posterior probabilities, the droplets with those 
-less than \code{pp_thresh} and with less than 
-\code{n_genes} genes detected are marked as debris.
-}
 \examples{
 \donttest{
 counts <- read_10x("mouse_nuclei_2k/raw_gene_bc_matrices/mm10/")

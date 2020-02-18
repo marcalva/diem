@@ -2,10 +2,22 @@
 % Please edit documentation in R/em.R
 \name{get_dist}
 \alias{get_dist}
-\title{Get distance tobg disrtibution}
+\title{Get cluster distances to background disrtibution}
 \usage{
 get_dist(x, llks = NULL, verbose = TRUE)
 }
+\arguments{
+\item{x}{An SCE object.}
+
+\item{llks}{An optional droplet by cluster matrix containing the 
+log likelihoods of the droplet given the cluster's parameters. If 
+give, avoids re-calcluating the log likelihoods.}
+
+\item{verbose}{Verbosity.}
+}
+\value{
+An SCE object
+}
 \description{
-Get distance tobg disrtibution
+Get the likelihood-based distance of the clusters to the background.
 }
