@@ -15,13 +15,27 @@ classified as a cell/nucleus.}
 
 \item{min_genes}{The minimum number of genes a droplet must have 
 to be classified as a cell/nucleus.}
+
+\item{k_init}{The k_init run to call droplets from. This must 
+specify a single value. If left unspecified, will call droplets only if 
+there is one k_init run.}
+
+\item{verbose}{verbosity}
 }
 \value{
 An SCE object.
 }
 \description{
-Call cells or nuclei from an SCE object. EM must be run beforehand.
-The posterior probability is defined as 1 - Prob(Debris), where 
-Prob(Debris) is the posterior probability that a droplet is 
-debris.
+Call cells or nuclei from an SCE object. Adds meta data to 
+the droplet data slot. This data frame can be retreived
+using the function \code{\link{droplet_data}}. This adds 
+column "Call" which takes either "Debris" or "Clean", "DebrisLlk" 
+which is the log likelihood of the debris distribution, 
+"DebrisLogOdds" which is the log odds of the debris, "DebrisProb" 
+which is the probability of the debris, "ClusterPob" which is 
+the probability of the cell type assignment, and "Cluster" which 
+is an integer that specifies debris (1) or cell type (>1). The 
+function calls droplets that have a probability of being a cell 
+type greater of at least \code{pp_thresh} and at least 
+\code{min_genes} detected as "Clean."
 }

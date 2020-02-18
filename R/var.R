@@ -14,6 +14,8 @@
 #' @param x An SCE object.
 #' @param n_genes Number of variable genes to return.
 #' @param lss Numeric value of the span parameter of the loess regression.
+#' @param droplets.use Vector of droplet IDs to use for getting variable 
+#'  genes. Default is to use the test set.
 #' @param verbose Verbosity.
 #'
 #' @return An SCE object

@@ -34,15 +34,11 @@ norm_counts <- function(counts, scale_factor = 1e4, logt = TRUE){
 #'
 #' Normalization of raw counts in an SCE object. Normalization is performed 
 #' for the initialiation of the EM. The initialization involves 
-#' clustering the high-count high-confidence droplets to approximately 
-#' identify the cell types present in the data. To best identify 
-#' cell types, clustering is done on the normalized counts.
+#' clustering the PCs of the test set using k-means. The PCs are calculatd 
+#' from the normalized counts.
 #' 
-#' By default this only normalizes droplets in the cluster set, as 
-#' only these droplets that are used for the intialization and are 
-#' the only droplets that require count normalization. Unless specified 
-#' with \code{genes.use}, only variable genes are included in the 
-#' normalization. 
+#' Unless specified with \code{genes.use}, only variable genes are 
+#' included in the normalization. 
 #' The data is normalized by dividing counts by the total counts per droplet. 
 #' Then, the counts are multiplied by a scaling factor, given by 
 #' \code{sf} (the median of total counts by default). Finally, the data is 
@@ -89,7 +85,7 @@ normalize_data <- function(x,
 
     expr <- x@counts[genes.use, droplets.use]
     if (sf == "median") sf <- median(colSums(expr))
-    x@norm <- norm_counts(expr, scale_factor=sf, logt=logt)
+    x@norm <- norm_counts(expr, scale_factor = sf, logt = logt)
 
     return(x)
 }

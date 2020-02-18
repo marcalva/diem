@@ -2,10 +2,23 @@
 % Please edit documentation in R/em.R
 \name{get_llk}
 \alias{get_llk}
-\title{Get total log likelihood}
+\title{Get log likelihood under Dirichlet-multinomial}
 \usage{
-get_llk(counts, Alpha, sizes = NULL)
+get_llk(counts, Alpha, labs = NULL, sizes = NULL)
+}
+\arguments{
+\item{counts}{A gene by droplet data matrix of read counts.}
+
+\item{Alpha}{A gene by cluster matrix of parameter values for the 
+Dirichlet-multinomial. Each entry must be greater than 0.}
+
+\item{labs}{Optional vector of fixed labels. Must be the same 
+length as number of columns in counts. Set llk of labeled to 
+infinity.}
+
+\item{sizes}{Optional vector of droplet (column) sizes.}
 }
 \description{
-Get total log likelihood
+Get log likelihood from \code{counts} under a Dirichlet-multinomial 
+with parameter \code{Alpha}.
 }

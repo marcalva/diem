@@ -9,7 +9,8 @@ filter_genes(x, cpm_thresh = 0, verbose = FALSE)
 \arguments{
 \item{x}{An SCE object.}
 
-\item{cpm_thresh}{The minimum CPM threshold for removing genes.}
+\item{cpm_thresh}{CPMs must be greater than this value. This is 0 by 
+default to include all expressed genes.}
 
 \item{verbose}{verbosity}
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/debris_id.R
 \name{get_gene_pct}
 \alias{get_gene_pct}
-\title{Get percent of reads align to given gene(s)}
+\title{Get percent of reads aligned to given gene(s)}
 \usage{
 get_gene_pct(x, genes, name)
 }

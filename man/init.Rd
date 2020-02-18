@@ -2,14 +2,44 @@
 % Please edit documentation in R/init_clust.R
 \name{init}
 \alias{init}
-\title{Initialize clusters using hierarchical clustering
-k is a positive integer or vector of positive integers}
+\title{Initialize clusters}
 \usage{
-init(x, n_pcs = 30, k_init = 30, iter.max = 15, nstart = 30,
-  min_size = 10, fltr = 0.1, seedn = 1, psc = 1e-10,
-  verbose = TRUE)
+init(x, k_init = 30, iter.max_init = 15, nstart_init = 30,
+  min_size_init = 10, seedn = 1, psc = 1e-10, verbose = TRUE)
+}
+\arguments{
+\item{x}{An SCE object.}
+
+\item{k_init}{The number of clusters to initialize k-means.}
+
+\item{iter.max_init}{The maximum number of k-means interations 
+for the initialization.}
+
+\item{nstart_init}{The number of starts to use in k-means for 
+for the initialization.}
+
+\item{min_size_init}{The minimum number of droplets that must belong 
+to an initialized cluster.}
+
+\item{seedn}{The seed for random k-means initialization. 
+It is set to 1 by default. If you desire truly random initializations
+across runs, set to NULL or different values for each run.}
+
+\item{psc}{Pseudocount to add to all alpha parameter values to avoid 0.}
+
+\item{verbose}{Verbosity.}
+}
+\value{
+An SCE object
 }
 \description{
-Initialize clusters using hierarchical clustering
-k is a positive integer or vector of positive integers
+Initialize the parameters of the Dirichlet-mulitnomial 
+mixture model. First 
+run k-means on the principal components of the test set to 
+initialize the cluster memberships. Then use these memberships 
+to estimate alpha and pi, the parameters of the mixture model. 
+These clusters are pruned by removing those that are close in 
+to the background distribution using a likelihood-based 
+distance metric. The parameter \code{k_init} specifies 
+initial number of clusters k to set for k-means.
 }

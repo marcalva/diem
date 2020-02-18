@@ -6,6 +6,22 @@
 \usage{
 merge_size(labs, dat, min_size = 10, verbose = TRUE)
 }
+\arguments{
+\item{labs}{A vector of labels, with numeric values corresponsing 
+to clusters}
+
+\item{dat}{A feature by observation data matrix used to get cluster means.}
+
+\item{min_size}{The minimum number of members that belong to a cluster.}
+
+\item{verbose}{Verbosity.}
+}
+\value{
+A vector containing new labels
+}
 \description{
-Merge small clusters
+Merge clusters given in labels until all clusters have a size of at 
+least \code{min_size}. The \code{dat} matrix contains the data used 
+to generate the cluster means.
+Data points are assigned to the next closest cluster.
 }

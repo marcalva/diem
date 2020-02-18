@@ -4,10 +4,15 @@
 \alias{get_removed_ids}
 \title{Return IDs of removed droplets}
 \usage{
-get_removed_ids(x)
+get_removed_ids(x, min_genes = 200)
 }
 \arguments{
 \item{x}{An SCE object.}
+
+\item{min_genes}{The minimum number of genes detected for a 
+droplet to be output. Useful if a threshold was used to call 
+targets, as droplets below would never be considered. By 
+default is set at 200.}
 }
 \value{
 A character vector with the called droplet IDs.

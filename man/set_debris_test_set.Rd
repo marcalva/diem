@@ -4,24 +4,23 @@
 \alias{set_debris_test_set}
 \title{Set debris and test droplets}
 \usage{
-set_debris_test_set(x, top_n = NULL, min_counts = 100,
-  min_genes = 100, fix_debris = NULL, verbose = FALSE)
+set_debris_test_set(x, min_counts = 100, min_genes = 0, top_n = NULL,
+  debris_ids = NULL, verbose = FALSE)
 }
 \arguments{
 \item{x}{An SCE object.}
-
-\item{top_n}{A numeric value giving the total number of test droplets 
-and take the counts of the \code{top_n} ranked droplet. Set to \code{NULL} 
-to disable and set all droplets above \code{min_counts} and 
-\code{min_genes} to the test set.}
 
 \item{min_counts}{A numeric value that specifies the minimum 
 total read/UMI counts a test droplet can have.}
 
 \item{min_genes}{A numeric value that specifies the minimum 
-total genes detected a test droplet can have.}
+total genes detected a test droplet can have. Set to 0 by default.}
 
-\item{fix_debris}{A character vector of droplet IDs that will be assigned 
+\item{top_n}{A numeric value giving the total number of test droplets 
+and take the counts of the \code{top_n} ranked droplet. Turned off
+by default.}
+
+\item{debris_ids}{A character vector of droplet IDs that will be assigned 
 to the debris set, regardless of its total counts or genes detected.}
 
 \item{verbose}{verbosity}
@@ -38,17 +37,15 @@ debris group during the EM.
 }
 \details{
 \code{min_counts} and \code{min_genes} specify the lower limit 
-that droplets in the test set must have. In addition, 
-the parameter \code{top_n} specifies that at most the top \code{top_n} 
-should be included in the test set. The default is 10,000 
-in accordance with the typical maximum number of droplets 
-generated during a single-cell experiment, but should be changed 
-accordingly.
+that droplets in the test set must have. The default it to 
+set all droplets with at least 100 read counts. Optionally, the 
+\code{top_n} parameter can specify that the top 
+\code{top_n} are set the test set, and all others are set to the 
+debris set.
 If the read/UMI count of the \code{top_n} count-ranked droplet is greater 
 than \code{min_counts}, then the \code{min_counts} is 
-increased to this limit. The \code{fix_debris} parameter allows 
+increased to this limit. The \code{debris_ids} parameter allows 
 additional flexibility in specifying those droplets that are 
 included in the debris set. For example, it may be useful to 
-set droplets above a pre-determined MT% threshold as debris, 
-regardless of the total number of read/UMI counts present.
+set droplets above a pre-determined MT% threshold as debris.
 }

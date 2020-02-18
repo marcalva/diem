@@ -110,36 +110,47 @@ plot_umi_gene_call <- function(x,
 
 #' plot dist values against counts
 #'
+#' @param x An SCE object.
+#' @param k_init The k_init run to use.
+#' @param alpha A numeric value controlling the transparency of the points. 
+#'  From 0 (transparent) to 1 (no transparency).
+#' @param palette Name of the palette to use from RColorBrewer;
+#'  see \code{\link[ggplot2]{scale_color_distiller}}.
+#' @param ret A logical specifying whether to return the ggplot object 
+#'  or just print it out.
+#'
+#' @return Nothing, unless return=TRUE then a ggplot
+#' @import ggplot2
 #' @export
-plot_dist <- function(x, k_init = NULL, i=1, palette="PuBuGn", ret=FALSE){
+plot_dist <- function(x, 
+                      k_init = NULL, 
+                      alpha = 0.4, 
+                      palette = "PuBuGn", 
+                      ret = FALSE){
 
-    if (is.null(k_init)){ 
-        if (length(x@init) > 1){
-            stop("Specify k_init as more than one is available")
-        } else {
-            k_init <- names(x@init)[1]
-        }
-    }
+    k_init <- check_k_init(x, k_init)
 
-    kc <- as.character(k_init)
-    if (is.null(i)){
-        i <- length(x@init[[kc]])
-    }
-    ic <- x@init[[kc]][[i]]
+    ic <- x@kruns[[k_init]]
     zinit <- apply(ic$Z, 1, which.max)
     Size <- colSums(ic$Z)
-    Size[1] <- min(Size)
+    d <- ic$Dist
+    keep <- !is.na(d)
 
     dd <- x@droplet_data
     cm <- tapply(dd[,"total_counts"], zinit, mean)
-    datf <- data.frame("Counts" = cm, "Dist" <- ic$Dist, "zsize" = Size)
+    datf <- data.frame("Counts" = cm[keep], 
+                       "Dist" = d[keep], 
+                       "Size" = Size[keep])
+    print(datf)
     
     p <- ggplot(datf, aes_string(x = "Counts", y = "Dist")) + 
-    geom_point(shape=16, aes_string(size = "Size"), alpha = 0.2) + 
+    geom_point(shape=16, aes_string(size = "Size"), alpha = alpha) + 
     xlab("Average UMI counts") +
     ylab("Dist") + 
-    ggtitle(paste0("Initialized clusters (K = ", kc, ")")) + 
-    theme_minimal() + theme(text=element_text(size=22)) 
+    ggtitle(paste0("Initialized clusters (K = ", k_init, ")")) + 
+    theme_minimal() + 
+    theme(text=element_text(size=22)) + 
+    lims(y = c(0,1))
     
     if (ret) return(p)
     else print(p)

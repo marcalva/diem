@@ -4,8 +4,28 @@
 \alias{get_pcs}
 \title{Get PCs}
 \usage{
-get_pcs(x, n_pcs = 30)
+get_pcs(x, n_var_genes = 2000, lss = 0.3, n_pcs = 30)
+}
+\arguments{
+\item{x}{An SCE object.}
+
+\item{n_var_genes}{Number of top variable genes to use for PCA.}
+
+\item{lss}{The span parameter of the loess regression, the parameter 
+for the function \code{\link[stats]{loess}}. The loess regression is
+used to regress out the effect of mean expression on variance.}
+
+\item{n_pcs}{Number of PCs to return.}
+}
+\value{
+An SCE object with PCs
 }
 \description{
-Get PCs
+Run PCA and get top \code{n_pcs} PCs for the test set. 
+The PCs are used as the features for the initial k-means clustering. 
+The counts data for the test set are count-normalized to the median 
+and log transformed. Then the top \code{n_var_genes} 
+variable genes are calculated using the function 
+\code{\link{get_var_genes}}. PCA is run on the normalized count data 
+for these variable genes only.
 }

@@ -26,14 +26,18 @@ NumericVector LlkDirMultSparse(Eigen::SparseMatrix<double> x,
     int K = alpha.ncol();
     NumericMatrix llks(n_c, K);
 
+    double s;
+    double l;
     for (int k = 0; k < K; k++){
         NumericVector alpha_k = alpha(_,k);
         double as = sum(alpha_k);
-
-        double l = 0;
-        // NumericVector llks(n_c);
         for (int i = 0; i < n_c; ++i){
-            double s = sizes(i);
+            s = sizes(i);
+            if (isnan(s) || s < 0){
+                Rcout << "sizes[" << i << "] is " << sizes(i) << "\n";
+                stop("Exiting");
+            }
+            l = 0;
             l = lgamma(sizes(i) + 1) + 
                 lgamma(as) - 
                 lgamma(sizes(i) + as);
