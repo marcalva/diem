@@ -36,13 +36,6 @@ SCE <- setClass(Class = "SCE",
                           vg = "character", 
                           name = "character"))
 
-# vemo contains the EM output of each iteration.
-# Each element of this list contains
-#    params  list with the R, Alpha, and Beta values
-#    lb  value of the lower bound
-#    converged  whether the EM convrged
-#    n_iter  the number of iterations
-
 #' @method dim SCE
 #' @export
 dim.SCE <- function(x){

@@ -19,11 +19,14 @@ rownames(counts) <- paste0("G", as.character(1:nr))
 colnames(counts) <- paste0("C", as.character(1:nc))
 
 sce <- create_SCE(counts)
-sce <- set_debris_test_set(sce, min_counts=0, min_genes = test_thresh)
+sce <- set_debris_test_set(sce, min_counts = 0, min_genes = test_thresh)
 sce@droplet_data$CleanProb <- 0
 clean <- rownames(sce@droplet_data)[sce@droplet_data$n_genes >= min_genes]
 sce@droplet_data[clean, "CleanProb"] <- 1
 
+sce <- filter_genes(sce, cpm_thresh = 0)
+sce <- init(sce, k_init = 10)
+sce <- run_em(sce)
 
 ids <- rownames(sce@droplet_data)
 names_pass <- ids[sce@droplet_data$CleanProb >= pp_thresh & sce@droplet_data$n_genes >= min_genes]

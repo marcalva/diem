@@ -11,29 +11,20 @@ eps <- 1e-8
 
 test_that("EM flags errors when initialized", {
           expect_error(run_em(mb_small))
-          mb_small <- set_debris_test_set(mb_small)
-          expect_error(run_em(mb_small))
-          mb_small <- filter_genes(mb_small)
-          expect_error(run_em(mb_small))
 })
 
-mb_small <- set_debris_test_set(mb_small)
-mb_small <- filter_genes(mb_small)
-mb_small <- set_cluster_set(mb_small, cluster_n = 500)
-mb_small <- initialize_clusters(mb_small, 
-                                nn = 30, n_var = 2000, 
-                                min_size = 10, verbose = FALSE)
+mb_small <- set_debris_test_set(mb_small, min_counts = 100)
+mb_small <- filter_genes(mb_small, cpm_thresh = 0)
+mb_small <- init(mb_small, k_init = 15)
+
 
 test_that("EM works when initialized", {
-          mb_small <- run_em(mb_small)
-          expect_equal(length(mb_small@emo), 6)
-          expect_equal(ncol(mb_small@emo$Mu), length(mb_small@ic$assignments))
-          expect_equal(ncol(mb_small@emo$Z), length(mb_small@ic$assignments))
-          expect_equal(length(mb_small@emo$Mc), length(mb_small@ic$assignments))
-          expect_equal(ncol(mb_small@emo$PP), length(mb_small@ic$assignments))
-          expect_true(mb_small@emo$converged)
-          expect_true(all(rowSums(mb_small@emo$PP) >= (1 - eps) & rowSums(mb_small@emo$PP) <= (1 + eps)))
-          expect_true(all(mb_small@droplet_data$CleanProb >= 0 & mb_small@droplet_data$CleanProb <= (1 + eps)))
-          expect_true(all(mb_small@droplet_data$ClusterProb >= 0 & mb_small@droplet_data$ClusterProb <= (1 + eps)))
+          mb_small <- run_em(mb_small, fltr = 0.5)
+          emo <- mb_small@emo[[1]]
+          expect_equal(length(emo), 6)
+          expect_equal(ncol(emo$params$Alpha), length(emo$params$Pi))
+          expect_equal(ncol(emo$Z), length(emo$params$Pi))
+          expect_equal(ncol(emo$llk), ncol(emo$Z))
+          expect_true(all(rowSums(emo$Z) >= (1 - eps) & rowSums(emo$Z) <= (1 + eps)))
                                 })
 
