@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdio.h>
 using namespace Rcpp;
+using namespace std;
 
 // Compute log density of Dirichlet-Multinomial PMF with sparse matrix
 // x is a gene by droplet sparse matrix

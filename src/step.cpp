@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdio.h>
 using namespace Rcpp;
+using namespace std;
 
 // Compute LOO step for Dirichlet-Multinomial
 // [[Rcpp::export]]

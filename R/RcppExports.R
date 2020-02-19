@@ -5,16 +5,8 @@ LlkDirMultSparse <- function(x, sizes, alpha, debug = FALSE) {
     .Call('_diem_LlkDirMultSparse', PACKAGE = 'diem', x, sizes, alpha, debug)
 }
 
-compute_step <- function(x, sizes, weights, alpha, tol = 100L, debug = FALSE) {
-    .Call('_diem_compute_step', PACKAGE = 'diem', x, sizes, weights, alpha, tol, debug)
-}
-
 compute_LOO_step <- function(x, sizes, weights, alpha, tol = 100L, debug = FALSE) {
     .Call('_diem_compute_LOO_step', PACKAGE = 'diem', x, sizes, weights, alpha, tol, debug)
-}
-
-compute_fp_step <- function(x, sizes, weights, alpha, tol = 100L, debug = FALSE) {
-    .Call('_diem_compute_fp_step', PACKAGE = 'diem', x, sizes, weights, alpha, tol, debug)
 }
 
 fast_varCPP <- function(x, mu) {
