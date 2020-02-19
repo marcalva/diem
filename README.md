@@ -7,15 +7,6 @@ Remove debris-contaminated droplets from single-cell based data.
 
 ## Installation
 
-`diem` requires the following packages to be installed:
-
-* [Matrix](https://cran.r-project.org/package=Matrix)
-* [dbscan](https://cran.r-project.org/package=dbscan)
-* [igraph](https://cran.r-project.org/package=igraph)
-
-The `diem` package also makes use of the ggplot2 and scales packages 
-for plotting.
-
 Currently, we only support installation of the `diem` R package 
 through devtools
 

@@ -3,8 +3,6 @@
 #' @importFrom methods setClassUnion setOldClass
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 
-setOldClass("igraph", igraph::make_empty_graph())
-
 #' SCE
 #'
 #' The SCE class
