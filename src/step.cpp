@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <algorithm>
 using namespace Rcpp;
+using namespace std;
 
 // Compute LOO step for Dirichlet-Multinomial
 // [[Rcpp::export]]
