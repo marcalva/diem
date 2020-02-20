@@ -27,7 +27,7 @@ get_dist <- function(x, k_init = NULL, verbose = TRUE){
 
     counts <- x@counts[genes.use,]
 
-    N <- ncol(counts)
+    N <- ncol(x@counts[genes.use,])
     labs <- rep(0, N)
     names(labs) <- droplets.use
     labs[x@bg_set] <- 1
@@ -45,7 +45,7 @@ get_dist <- function(x, k_init = NULL, verbose = TRUE){
         if ("llk" %in% names(ic)){
             llks <- ic$llk
         } else {
-            llks <- get_llk(counts, labs = labs, Alpha)
+            llks <- get_llk(x@counts[genes.use,], labs = labs, Alpha)
         }
         # Z <- ic$Z
 
@@ -115,9 +115,6 @@ rm_close <- function(x,
                      fltr = 0.1, 
                      k_init = NULL, 
                      verbose = TRUE){ 
-
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    counts <- x@counts[genes.use,]
 
     if (is.na(fltr)){
         stop("fltr value is set to NA, change to a value between 0 and 1")

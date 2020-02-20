@@ -56,8 +56,8 @@ barcode_rank_plot <- function(x, title="", ret=FALSE){
 #' @import ggplot2
 #' @export
 plot_umi_gene <- function(x, 
-                          color="CleanProb", 
-                          color_name="Probability\nClean", 
+                          color="ClusterProb", 
+                          color_name="Probability\nCluster", 
                           palette="PuBuGn", 
                           alpha=0.1, 
                           ret=FALSE){
@@ -141,7 +141,6 @@ plot_dist <- function(x,
     datf <- data.frame("Counts" = cm[keep], 
                        "Dist" = d[keep], 
                        "Size" = Size[keep])
-    print(datf)
     
     p <- ggplot(datf, aes_string(x = "Counts", y = "Dist")) + 
     geom_point(shape=16, aes_string(size = "Size"), alpha = alpha) + 

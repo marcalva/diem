@@ -157,11 +157,11 @@ get_removed_ids <- function(x, min_genes = 200){
 #' genes <- grep(pattern="^malat1$", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
 #' mb_small <- get_gene_pct(x = mb_small, genes=genes, name="MALAT1")
 get_gene_pct <- function(x, genes, name){
-    expr <- x@counts[genes,,drop=FALSE]
-    if (length(expr) == 0){
-        stop("None of the given genes found.")
+    gi <- intersect(genes, rownames(x@counts))
+    if (length(gi) != length(genes)){
+        stop("At least one of given genes not found.")
     }
-    gene_pct <- 100 * colSums(expr) / colSums(x@counts)
+    gene_pct <- 100 * colSums(x@counts[genes,,drop=FALSE]) / colSums(x@counts[genes,,drop=FALSE])
     x@droplet_data[names(gene_pct),name] <- gene_pct
     return(x)
 }

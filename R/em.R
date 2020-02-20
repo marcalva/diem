@@ -117,7 +117,8 @@ get_alpha <- function(counts,
                        return(r)
                    }
                    a_max <- optimize(f, interval = a_range, tol = tol, maximum = TRUE)
-                   a_max$maximum
+                   rm(Zk)
+                   return(a_max$maximum)
                       })
 
     # LOO optimize
@@ -127,6 +128,7 @@ get_alpha <- function(counts,
                       Zk <- Z[clust_mem[,k],k]
                       Ak <- p_bar[,k] * a0[k]
                       Ak <- compute_LOO_step_all(ct, si, Zk, Ak, eps = eps, psc = psc, max_loo = max_loo)
+                      rm(Zk)
                       return(Ak)})
 
     rownames(Alpha) <- rownames(counts)
@@ -232,8 +234,6 @@ em <- function(counts,
                eps = 1e-4, 
                max_iter = 1e2, 
                verbose = TRUE){
-
-    countst <- t(counts)
     sizes <- colSums(counts)
 
     Alpha <- params$Alpha
@@ -328,12 +328,10 @@ run_em <- function(x,
     if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
 
     # counts is a droplet by gene matrix
-    counts <- x@counts[genes.use,droplets.use]
-    countst <- t(counts)
-    sizes <- colSums(counts)
+    sizes <- colSums(x@counts[genes.use,droplets.use])
 
-    N <- ncol(counts)
-    G <- nrow(counts)
+    N <- length(droplets.use)
+    G <- length(genes.use)
 
     # Fix labels of debris
     labs <- rep(0, N)
@@ -348,7 +346,7 @@ run_em <- function(x,
         k <- as.character(k)
         if (verbose) message("running EM for k_init = ", k)
         while (TRUE){
-            x@kruns[[k]] <- em(counts,
+            x@kruns[[k]] <- em(x@counts[genes.use,droplets.use],
                                x@kruns[[k]]$params, 
                                labs = labs, 
                                eps = eps, 

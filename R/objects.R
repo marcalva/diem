@@ -238,8 +238,8 @@ convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
         if (meta) meta.data <- x@droplet_data[drops,,drop=FALSE]
         else meta.data <- NULL
 
-        counts <- x@counts[,drops,drop=FALSE]
-        seur <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta.data, ...)
+        seur <- Seurat::CreateSeuratObject(counts = x@counts[,drops,drop=FALSE], 
+                                           meta.data = meta.data, ...)
         return(seur)
     }
 }

@@ -4,8 +4,8 @@
 \alias{plot_umi_gene}
 \title{Scatterplot of genes vs. UMI counts, colored by posterior probability}
 \usage{
-plot_umi_gene(x, color = "CleanProb",
-  color_name = "Probability\\nClean", palette = "PuBuGn",
+plot_umi_gene(x, color = "ClusterProb",
+  color_name = "Probability\\nCluster", palette = "PuBuGn",
   alpha = 0.1, ret = FALSE)
 }
 \arguments{

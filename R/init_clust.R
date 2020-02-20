@@ -30,16 +30,15 @@ z_table <- function(labs){
 #' @importFrom stats prcomp
 #' @importFrom Matrix t
 run_pca <- function(x, n_pcs = 30){
-    counts <- x@norm[x@vg,]
-    m <- nrow(counts)
-    n <- ncol(counts)
+    m <- nrow(x@norm[x@vg,])
+    n <- ncol(x@norm[x@vg,])
     if (n_pcs >= 0.5 * min(m, n)){
-        pcs <- prcomp(t(counts), center = TRUE, scale. = TRUE)
+        pcs <- prcomp(t(x@norm[x@vg,]), center = TRUE, scale. = TRUE)
     } else {
-        pcs <- prcomp_irlba(t(counts), n = n_pcs, center = TRUE, scale. = TRUE)
+        pcs <- prcomp_irlba(t(x@norm[x@vg,]), n = n_pcs, center = TRUE, scale. = TRUE)
     }
     pcs <- pcs$x
-    rownames(pcs) <- colnames(counts)
+    rownames(pcs) <- colnames(x@norm[x@vg,])
     x@pcs <- pcs[,1:n_pcs,drop=FALSE]
     return(x)
 }
@@ -178,9 +177,7 @@ init <- function(x,
                  verbose = TRUE){ 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
 
-    counts <- x@counts[genes.use,]
-    countst <- t(counts)
-    sizes <- colSums(counts)
+    sizes <- colSums(x@counts[genes.use,])
 
     if (length(x@pcs) == 0){
         stop("Calculate PCs before k-means initialization")
@@ -188,8 +185,8 @@ init <- function(x,
 
     pcs_s <- scale(x@pcs)
 
-    labs <- rep(0, ncol(counts))
-    names(labs) <- colnames(counts)
+    labs <- rep(0, ncol(x@counts[genes.use,]))
+    names(labs) <- colnames(x@counts[genes.use,])
     labs[x@bg_set] <- 1
 
     all_ret <- list()
@@ -218,7 +215,7 @@ init <- function(x,
         labs_k[names(kclust)] <- kclust + 1
 
         Z <- z_table(labs_k)
-        Alpha <- get_alpha(counts, Z)
+        Alpha <- get_alpha(x@counts[genes.use,], Z)
         Pi <- get_pi(Z)
         params <- list("Alpha" = Alpha, "Pi" = Pi)
         x@kruns[[kc]] <- list()
