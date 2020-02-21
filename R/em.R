@@ -86,6 +86,10 @@ get_alpha <- function(counts,
 
     clusts <- 1:ncol(Z)
 
+    if (nrow(Z) != length(test_set)){
+        stop("Length of test set is not equal to number of rows in Z")
+    }
+
     # Get droplet membership
     clust_mem <- matrix(FALSE, nrow = ncol(counts), ncol = length(clusts))
     rownames(clust_mem) <- colnames(counts)

@@ -4,13 +4,11 @@
 #include <Rcpp.h>
 #include <RcppEigen.h>
 #include <math.h>
-#include <vector>
 #include <stdio.h>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 #include <progress.hpp>
-// #include <progress_bar.hpp>
 using namespace Rcpp;
 using namespace std;
 
