@@ -202,6 +202,39 @@ Alpha <- function(x, k_init = NULL){
     }
 }
 
+#' Get percent of reads aligned to given gene(s)
+#'
+#' Add a data column for each droplet giving the percentage of raw reads/UMIs 
+#' that align to genes given in \code{genes}. The column name is specified by 
+#' \code{name}.
+#'
+#' @param x An SCE object.
+#' @param genes Genes to calculate percentage of in counts.
+#' @param name Column name to place in dropl_info.
+#'
+#' @return An SCE object.
+#' 
+#' @importFrom Matrix colSums
+#' 
+#' @export
+#' 
+#' @examples
+#' # Add MT%
+#' mt_genes <- grep(pattern="^mt-", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
+#' mb_small <- get_gene_pct(x = mb_small, genes=mt_genes, name="pct.mt")
+#' # Add MALAT1
+#' genes <- grep(pattern="^malat1$", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
+#' mb_small <- get_gene_pct(x = mb_small, genes=genes, name="MALAT1")
+get_gene_pct <- function(x, genes, name){
+    gi <- intersect(genes, rownames(x@counts))
+    if (length(gi) != length(genes)){
+        stop("at least one of given genes not found.")
+    }
+    gene_pct <- 100 * colSums(x@counts[genes,,drop=FALSE]) / colSums(x@counts)
+    x@droplet_data[names(gene_pct),name] <- gene_pct
+    return(x)
+}
+
 #' Convert an SCE object to Seurat
 #'
 #' Convert an SCE object to a Seurat object. if \code{targets} is true (default), output only droplets that are 

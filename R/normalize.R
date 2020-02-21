@@ -6,7 +6,7 @@
 #' @return The Sparse Matrix x with columns summing to 1.
 #' @importFrom Matrix Diagonal colSums
 divide_by_colsum <- function(x){
-    if (!inherits(x, what="Matrix")) stop("Argument must be of class Matrix.")
+    if (!inherits(x, what="Matrix")) stop("argument must be of class Matrix.")
     cs <- colSums(x = x)
     d <- Diagonal(x = 1/cs)
     x <- x %*% d
@@ -23,7 +23,7 @@ divide_by_colsum <- function(x){
 #'
 #' @return Sparse Matrix
 norm_counts <- function(counts, scale_factor = 1e4, logt = TRUE){
-    if (!inherits(counts, what="Matrix")) stop("Argument must be of class Matrix.")
+    if (!inherits(counts, what="Matrix")) stop("argument must be of class Matrix.")
     counts <- divide_by_colsum(counts)
     counts <- counts * scale_factor
     if (logt) counts <- log1p(counts)

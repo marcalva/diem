@@ -5,8 +5,12 @@ LlkDirMultSparse <- function(x, sizes, alpha, debug = FALSE) {
     .Call('_diem_LlkDirMultSparse', PACKAGE = 'diem', x, sizes, alpha, debug)
 }
 
-compute_LOO_step_all <- function(x, sizes, weights, alpha, eps = 1e-4, max_loo = 500L, psc = 1e-10, debug = FALSE) {
-    .Call('_diem_compute_LOO_step_all', PACKAGE = 'diem', x, sizes, weights, alpha, eps, max_loo, psc, debug)
+LlkDirMultSparsePar <- function(x, sizes, alpha, threads = 1L, display_progress = TRUE, debug = FALSE) {
+    .Call('_diem_LlkDirMultSparsePar', PACKAGE = 'diem', x, sizes, alpha, threads, display_progress, debug)
+}
+
+compute_LOO_step_all <- function(x, sizes, weights, alpha, eps = 1e-4, max_loo = 500L, psc = 1e-10, threads = 1L, debug = FALSE) {
+    .Call('_diem_compute_LOO_step_all', PACKAGE = 'diem', x, sizes, weights, alpha, eps, max_loo, psc, threads, debug)
 }
 
 compute_LOO_step <- function(x, sizes, weights, alpha, psc = 1e-10, debug = FALSE) {

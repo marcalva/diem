@@ -5,7 +5,7 @@
 \title{Set debris and test droplets}
 \usage{
 set_debris_test_set(x, min_counts = 100, min_genes = 0, top_n = NULL,
-  debris_ids = NULL, verbose = FALSE)
+  debris_ids = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}

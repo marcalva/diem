@@ -4,10 +4,10 @@
 \alias{get_z}
 \title{Get posterior probabilities from log likelihoods and mixing coefficients}
 \usage{
-get_z(llks, Pi)
+get_z(llk, Pi)
 }
 \arguments{
-\item{llks}{A droplet by cluster matrix that gives the log liklihood of 
+\item{llk}{A droplet by cluster matrix that gives the log liklihood of 
 each droplet against each cluster.}
 
 \item{Pi}{A cluster-length numeric vector of mixing coefficients.}

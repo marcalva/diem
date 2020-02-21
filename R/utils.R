@@ -11,7 +11,7 @@
 check_k_init <- function(x, k_init, return_all = TRUE){
 
     if (length(x@kruns) == 0){
-        stop("No runs have been started")
+        stop("no runs have been initialized")
     }
 
     if (is.null(k_init)){

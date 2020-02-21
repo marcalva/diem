@@ -7,8 +7,8 @@
 diem(sce, min_counts = 100, cpm_thresh = 0, n_var_genes = 2000,
   lss = 0.3, n_pcs = 30, k_init = 30, iter.max_init = 15,
   nstart_init = 30, min_size_init = 10, fltr = 0.1, seedn = 1,
-  psc = 1e-10, eps = 1e-04, max_iter_dm = 100, min_genes = 0,
-  top_n = NULL, debris_ids = NULL, verbose = TRUE)
+  eps = 1e-04, max_iter_dm = 100, min_genes = 0, top_n = NULL,
+  debris_ids = NULL, threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{sce}{An SCE object.}
@@ -48,8 +48,6 @@ centers with a distance less than this value.}
 It is set to 1 by default. If you desire truly random initializations
 across runs, set to NULL or different values for each run.}
 
-\item{psc}{Pseudocount to add to all alpha parameter values to avoid 0.}
-
 \item{eps}{The delta threshold for when to call convergence for 
 the EM estimation of the Dirichlet-multinomial mixture model. The EM 
 stops when delta falls below this value. We define delta as the 
@@ -68,6 +66,8 @@ This is turned off by default.}
 
 \item{debris_ids}{A character vector of droplet IDs that will be assigned 
 to the debris set, regardless of its total counts or genes detected.}
+
+\item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Logical indicating verbosity.}
 }

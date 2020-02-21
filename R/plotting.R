@@ -131,13 +131,14 @@ plot_dist <- function(x,
     k_init <- check_k_init(x, k_init)
 
     ic <- x@kruns[[k_init]]
-    zinit <- apply(ic$Z, 1, which.max)
-    Size <- colSums(ic$Z)
+    zinit <- get_z(ic$llk, ic$params$Pi)
+    zmax <- apply(zinit, 1, which.max)
+    Size <- colSums(zinit)
     d <- ic$Dist
     keep <- !is.na(d)
 
-    dd <- x@droplet_data
-    cm <- tapply(dd[,"total_counts"], zinit, mean)
+    dd <- x@droplet_data[x@test_set,]
+    cm <- tapply(dd[,"total_counts"], zmax, mean)
     datf <- data.frame("Counts" = cm[keep], 
                        "Dist" = d[keep], 
                        "Size" = Size[keep])

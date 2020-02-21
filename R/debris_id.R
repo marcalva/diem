@@ -42,20 +42,23 @@ call_targets <- function(x,
     k_init <- as.character(k_init)
 
     emo <- x@kruns[[k_init]]
-    Z <- emo$Z
     if (length(emo$llk) <= 1){
         stop("run EM to estimate parameters and likelihoods before calling targets")
     }
+
+    Z <- get_z(emo$llk, emo$params$Pi)
 
     clust_max <- apply(Z, 1, which.max)
     clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
 
     # Place calls
-    calls <- rep("Debris", nrow(x@droplet_data))
+    calls <- rep("Debris", length(x@test_set))
     prob_keep <- (1 - Z[,1]) >= pp_thresh
-    gene_keep <- x@droplet_data$n_genes >= min_genes
+    gene_keep <- x@droplet_data[x@test_set, "n_genes"] >= min_genes
     calls[prob_keep & gene_keep] <- "Clean"
-    x@droplet_data[,"Call"] <- as.factor(calls)
+    x@droplet_data[,"Call"] <- "Debris"
+    x@droplet_data[x@test_set,"Call"] <- calls
+    x@droplet_data[,"Call"] <- as.factor(x@droplet_data[,"Call"])
 
     # Add debris log odds
     llk <- emo$llk[x@test_set,,drop=FALSE]
@@ -66,9 +69,12 @@ call_targets <- function(x,
     x@droplet_data[x@test_set, "DebrisLlk"] <- debris_prob
     x@droplet_data[x@test_set, "DebrisLogOdds"] <- debris_prob - clean_prob
 
-    x@droplet_data[,"DebrisProb"] <- Z[,1]
-    x@droplet_data[,"ClusterProb"] <- clust_prob
-    x@droplet_data[,"Cluster"] <- clust_max
+    x@droplet_data[,"DebrisProb"] <- 1
+    x@droplet_data[x@test_set,"DebrisProb"] <- Z[,1]
+    x@droplet_data["ClusterProb"] <-  1
+    x@droplet_data[x@test_set,"ClusterProb"] <- clust_prob
+    x@droplet_data[,"Cluster"] <- 1
+    x@droplet_data[x@test_set,"Cluster"] <- clust_max
 
     if (verbose){
         n_clean <- sum(x@droplet_data[,"Call"] == "Clean")
@@ -98,7 +104,7 @@ call_targets <- function(x,
 #' @export
 get_clean_ids <- function(x){
     if (!"Call" %in% colnames(x@droplet_data)) 
-        stop("Call targets before calling get_clean_ids")
+        stop("call targets before calling get_clean_ids")
 
     clean <- x@droplet_data$Call == "Clean"
     ids <- rownames(x@droplet_data)[clean]
@@ -122,7 +128,7 @@ get_clean_ids <- function(x){
 #' @export
 get_removed_ids <- function(x, min_genes = 200){
     if (!"Call" %in% colnames(x@droplet_data)) 
-        stop("Call targets before calling get_clean_ids")
+        stop("call targets before calling get_clean_ids")
 
     if (length(x@test_set) == 0) stop("No test set droplets")
     
@@ -131,38 +137,5 @@ get_removed_ids <- function(x, min_genes = 200){
     debris <- rownames(x@droplet_data)[ck & gk]
     removed <- intersect(x@test_set, debris)
     return(removed)
-}
-
-#' Get percent of reads aligned to given gene(s)
-#'
-#' Add a data column for each droplet giving the percentage of raw reads/UMIs 
-#' that align to genes given in \code{genes}. The column name is specified by 
-#' \code{name}.
-#'
-#' @param x An SCE object.
-#' @param genes Genes to calculate percentage of in counts.
-#' @param name Column name to place in dropl_info.
-#'
-#' @return An SCE object.
-#' 
-#' @importFrom Matrix colSums
-#' 
-#' @export
-#' 
-#' @examples
-#' # Add MT%
-#' mt_genes <- grep(pattern="^mt-", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
-#' mb_small <- get_gene_pct(x = mb_small, genes=mt_genes, name="pct.mt")
-#' # Add MALAT1
-#' genes <- grep(pattern="^malat1$", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
-#' mb_small <- get_gene_pct(x = mb_small, genes=genes, name="MALAT1")
-get_gene_pct <- function(x, genes, name){
-    gi <- intersect(genes, rownames(x@counts))
-    if (length(gi) != length(genes)){
-        stop("At least one of given genes not found.")
-    }
-    gene_pct <- 100 * colSums(x@counts[genes,,drop=FALSE]) / colSums(x@counts[genes,,drop=FALSE])
-    x@droplet_data[names(gene_pct),name] <- gene_pct
-    return(x)
 }
 

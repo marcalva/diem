@@ -5,7 +5,7 @@
 \title{Run EM}
 \usage{
 run_em(x, eps = 1e-04, fltr = 0.1, max_iter_dm = 100,
-  k_init = NULL, verbose = TRUE)
+  k_init = NULL, threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -27,6 +27,8 @@ of the Dirichlet-multinomial mixture model.}
 
 \item{k_init}{Run EM on the \code{k_init} initialization(s). 
 If NULL (default), run on all \code{k_init} initializations.}
+
+\item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Verbosity.}
 }

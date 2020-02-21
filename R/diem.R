@@ -52,7 +52,6 @@
 #' @param seedn The seed for random k-means initialization. 
 #'  It is set to 1 by default. If you desire truly random initializations
 #'  across runs, set to NULL or different values for each run.
-#' @param psc Pseudocount to add to all alpha parameter values to avoid 0.
 #' @param fltr The filter threshold between 0 and 1 
 #'  that controls the minimum distance to 
 #'  the background distribution that a cluster can have. Remove those 
@@ -71,6 +70,7 @@
 #'  This is turned off by default.
 #' @param debris_ids A character vector of droplet IDs that will be assigned 
 #'  to the debris set, regardless of its total counts or genes detected.
+#' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Logical indicating verbosity.
 #' 
 #' @return SCE object.
@@ -95,12 +95,12 @@ diem <- function(sce,
                  min_size_init = 10, 
                  fltr = 0.1, 
                  seedn = 1, 
-                 psc = 1e-10, 
                  eps = 1e-4, 
                  max_iter_dm = 100, 
                  min_genes = 0, 
                  top_n = NULL, 
                  debris_ids = NULL, 
+                 threads = 1, 
                  verbose = TRUE){
     sce <- set_debris_test_set(sce, 
                                min_counts = min_counts, 
@@ -121,7 +121,7 @@ diem <- function(sce,
                 nstart_init = nstart_init, 
                 min_size_init = min_size_init, 
                 seedn = seedn, 
-                psc = psc, 
+                threads = threads, 
                 verbose = verbose)
     sce <- get_dist(sce, 
                     k_init = k_init, 
@@ -135,6 +135,7 @@ diem <- function(sce,
                   fltr = fltr, 
                   max_iter_dm = max_iter_dm, 
                   k_init = k_init, 
+                  threads = threads, 
                   verbose = verbose)
 
     return(sce)

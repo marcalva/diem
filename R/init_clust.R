@@ -40,6 +40,7 @@ run_pca <- function(x, n_pcs = 30){
     pcs <- pcs$x
     rownames(pcs) <- colnames(x@norm[x@vg,])
     x@pcs <- pcs[,1:n_pcs,drop=FALSE]
+    x@norm <- matrix()
     return(x)
 }
 
@@ -158,7 +159,7 @@ merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
 #' @param seedn The seed for random k-means initialization. 
 #'  It is set to 1 by default. If you desire truly random initializations
 #'  across runs, set to NULL or different values for each run.
-#' @param psc Pseudocount to add to all alpha parameter values to avoid 0.
+#' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
 #' @return An SCE object
@@ -173,14 +174,14 @@ init <- function(x,
                  nstart_init = 30, 
                  min_size_init = 10, 
                  seedn = 1, 
-                 psc = 1e-10, 
+                 threads = 1, 
                  verbose = TRUE){ 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
 
     sizes <- colSums(x@counts[genes.use,])
 
     if (length(x@pcs) == 0){
-        stop("Calculate PCs before k-means initialization")
+        stop("calculate PCs before k-means initialization")
     }
 
     pcs_s <- scale(x@pcs)
@@ -198,6 +199,7 @@ init <- function(x,
             message("initializing parameters for k_init = ", k_init)
         }
 
+        if (verbose) message("running k-means")
         old_opt <- options(warn = -1)
         km <- kmeans(x = pcs_s, 
                      centers = k, 
@@ -210,17 +212,29 @@ init <- function(x,
         kclust <- merge_size(kclust, pcs_s, min_size_init, verbose)
         kclust <- as.numeric(kclust)
         names(kclust) <- rownames(pcs_s)
+        kclust <- kclust
 
         labs_k <- labs
         labs_k[names(kclust)] <- kclust + 1
 
-        Z <- z_table(labs_k)
-        Alpha <- get_alpha(x@counts[genes.use,], Z)
-        Pi <- get_pi(Z)
+        if (verbose) message("estimating initial parameters")
+        Z <- z_table(kclust)
+        Z <- cbind(0, Z)
+
+        Alpha <- get_alpha(counts = x@counts[genes.use,], 
+                           Z = Z, 
+                           test_set = x@test_set, 
+                           bg_set = x@bg_set, 
+                           threads = threads)
+        Pi <- get_pi(Z, add = length(x@bg_set), add_to = 1)
+        llk <- get_llk(counts = x@counts[genes.use, x@test_set], 
+                       Alpha = Alpha, 
+                       sizes = sizes[x@test_set], 
+                       threads = threads)
         params <- list("Alpha" = Alpha, "Pi" = Pi)
+        rm(Z)
         x@kruns[[kc]] <- list()
-        x@kruns[[kc]] <- list("params" = params, "Z" = Z)
-        # x@kruns[[kc]][[1]] <- list("params" = params)
+        x@kruns[[kc]] <- list("params" = params, "llk" = llk)
     }
     return(x)
 }

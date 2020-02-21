@@ -1,6 +1,6 @@
 Package: diem
 Title: Debris-Containing Droplet Identification using EM
-Version: 2.0
+Version: 2.1.0
 Date: 2020-02-17
 Authors@R: c(person(given = "Marcus",
             family = "Alvarez", 
@@ -25,17 +25,15 @@ LazyData: true
 RoxygenNote: 6.1.1
 Depends:
 	R (>= 3.5.0), 
-    methods
-LinkingTo: Rcpp, RcppEigen
+    methods 
+LinkingTo: Rcpp, RcppEigen, RcppProgress
 Imports:
     ggplot2,
     Matrix,
     irlba,
     scales,
     utils,
-    stats,
-    future,
-    future.apply
+    stats
 Suggests:
     Seurat (>= 3.0.0),
     testthat,

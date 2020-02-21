@@ -4,8 +4,8 @@
 \alias{get_alpha}
 \title{Get MLE of alphas}
 \usage{
-get_alpha(counts, Z, eps = 1e-04, max_loo = 500, psc = 1e-10,
-  tol = 100)
+get_alpha(counts, Z, test_set, bg_set, eps = 1e-04, max_loo = 500,
+  psc = 1e-10, threads = 1, tol = 100, verbose = FALSE)
 }
 \arguments{
 \item{counts}{A gene by droplet matrix}
@@ -13,6 +13,12 @@ get_alpha(counts, Z, eps = 1e-04, max_loo = 500, psc = 1e-10,
 \item{Z}{A droplet by cluster matrix of the posterior probability a 
 droplet belongs to cluster k. Rows must sum to 1 and entries must 
 be between 0 and 1.}
+
+\item{test_set}{Character vector of droplet IDs that belong to the 
+test set}
+
+\item{bg_set}{Character vector of droplet IDs that belong to the 
+background set}
 
 \item{eps}{The threshold of change in the parameter to stop the 
 LOO iterations.}
@@ -22,8 +28,12 @@ LOO iterations.}
 \item{psc}{The pseudocount to add to the final MLE estimate. This avoids 
 inappropriate alpha values of 0.}
 
+\item{threads}{Number of threads for parallel execution. Default is 1.}
+
 \item{tol}{The \code{tol} parameter for \code{\link[stats]{optimize}} 
 used in the  initialization.}
+
+\item{verbose}{Verbosity.}
 }
 \description{
 Given the count data and posterior probabilities (membership), 

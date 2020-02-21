@@ -4,7 +4,7 @@
 \alias{filter_genes}
 \title{Filter out lowly expressed genes}
 \usage{
-filter_genes(x, cpm_thresh = 0, verbose = FALSE)
+filter_genes(x, cpm_thresh = 0, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}

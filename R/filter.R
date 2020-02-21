@@ -40,7 +40,7 @@ set_debris_test_set <- function(x,
                                 min_genes = 0, 
                                 top_n = NULL, 
                                 debris_ids = NULL, 
-                                verbose = FALSE){
+                                verbose = TRUE){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -72,7 +72,7 @@ set_debris_test_set <- function(x,
                                       sQuote("min_counts"), " and ", sQuote("min_genes"))
 
     if (verbose){
-        message("using ", length(x@test_set), " droplets in the test set ", 
+        message(length(x@test_set), " droplets in the test set ", 
                 "and ", length(x@bg_set), " droplets in the debris set")
     }
 
@@ -95,9 +95,9 @@ set_debris_test_set <- function(x,
 #' @return An SCE object
 #' @importFrom Matrix rowSums
 #' @export
-filter_genes <- function(x, cpm_thresh = 0, verbose = FALSE){
+filter_genes <- function(x, cpm_thresh = 0, verbose = TRUE){
     if (length(x@test_set) == 0 || length(x@bg_set) == 0)
-        stop("No test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
+        stop("no test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
     groups <- list(c(x@test_set, x@bg_set))
     keep_all <- sapply(groups, function(g){
                        expr <- rowSums(x@counts[,g,drop=FALSE])

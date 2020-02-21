@@ -7,17 +7,15 @@
 #' @param counts A gene by droplet data matrix of read counts.
 #' @param Alpha A gene by cluster matrix of parameter values for the 
 #'  Dirichlet-multinomial. Each entry must be greater than 0.
-#' @param labs Optional vector of fixed labels. Must be the same 
-#'  length as number of columns in counts. Set llk of labeled to 
-#'  infinity.
+#' @param droplets Optional vector of droplet IDs the likelihood is 
+#'  calculated for (instead of all droplets in \code{counts}).
 #' @param sizes Optional vector of droplet (column) sizes.
+#' @param threads Number of threads for parallel execution. Default is 1.
+#' @param verbose Verbosity.
 #' 
-#' @importFrom future.apply future_sapply
-#' @importFrom future nbrOfWorkers
 #' @importFrom Matrix colSums
 #'
-get_llk <- function(counts, Alpha, labs = NULL, sizes = NULL){
-    sapply_f <- ifelse(nbrOfWorkers() == 1, sapply, future_sapply)
+get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, verbose = FALSE){
 
     if (any(is.na(Alpha))){
         stop("Alpha has NA value(s)")
@@ -29,30 +27,14 @@ get_llk <- function(counts, Alpha, labs = NULL, sizes = NULL){
     if (is.null(sizes)){
         sizes <- colSums(counts)
     }
-    if (is.null(labs)){
-        llks <- sapply_f(1:ncol(Alpha), function(j){
-                         LlkDirMultSparse(counts, sizes, alpha = Alpha[,j,drop=FALSE]) })
-        llks <- as.matrix(llks)
-        rownames(llks) <- colnames(counts)
+    if (verbose) message("estimating likelihoods")
+    if (is.null(droplets)){
+        llk <- LlkDirMultSparsePar(counts, sizes, alpha = Alpha, threads = threads, display_progress = verbose)
     } else {
-        if (length(labs) != ncol(counts)){
-            stop("labs must be same length as columns of counts")
-        }
-        labeld <- labs != 0
-        unlabeld <- ! labeld
-        groups <- setdiff(unique(labs), 0)
-        
-        llks <- matrix(0, nrow = ncol(counts), ncol = ncol(Alpha))
-        rownames(llks) <- colnames(counts)
-        for (g in groups){
-            ix <- which(labs == g)
-            llks[ix + ( nrow(llks) * (g-1) )] <- Inf
-        }
-        llks[unlabeld,] <- sapply_f(1:ncol(Alpha), function(j) {
-                                    LlkDirMultSparse(counts[,unlabeld], sizes[unlabeld], alpha = Alpha[,j,drop=FALSE]) })
-
+        llk <- LlkDirMultSparsePar(counts[,droplets], sizes[droplets], alpha = Alpha, threads = threads, display_progress = verbose)
     }
-    return(llks)
+    rownames(llk) <- colnames(counts)
+    return(llk)
 }
 
 #' Get MLE of alphas
@@ -68,67 +50,90 @@ get_llk <- function(counts, Alpha, labs = NULL, sizes = NULL){
 #' @param Z A droplet by cluster matrix of the posterior probability a 
 #'  droplet belongs to cluster k. Rows must sum to 1 and entries must 
 #'  be between 0 and 1.
+#' @param test_set Character vector of droplet IDs that belong to the 
+#'  test set
+#' @param bg_set Character vector of droplet IDs that belong to the 
+#'  background set
 #' @param eps The threshold of change in the parameter to stop the 
 #'  LOO iterations.
 #' @param max_loo The maximum number of LOO iterations
 #' @param psc The pseudocount to add to the final MLE estimate. This avoids 
 #'  inappropriate alpha values of 0.
+#' @param threads Number of threads for parallel execution. Default is 1.
 #' @param tol The \code{tol} parameter for \code{\link[stats]{optimize}} 
 #' used in the  initialization.
+#' @param verbose Verbosity.
 #' 
 #' @importFrom Matrix rowSums t
 #' @importFrom stats optimize
-#' @importFrom future.apply future_sapply
-#' @importFrom future nbrOfWorkers
 #
 get_alpha <- function(counts, 
                       Z, 
+                      test_set, 
+                      bg_set, 
                       eps = 1e-4, 
                       max_loo = 500, 
                       psc = 1e-10, 
-                      tol = 1e2){
-    sapply_f <- ifelse(nbrOfWorkers() == 1, sapply, future_sapply)
+                      threads = 1, 
+                      tol = 1e2, 
+                      verbose = FALSE){
     countst <- t(counts)
     K <- ncol(Z)
     ks <- 1:K
     sizes <- colSums(counts)
 
+    if (verbose) message("estimating alpha")
+
     clusts <- 1:ncol(Z)
 
+    # Get droplet membership
+    clust_mem <- matrix(FALSE, nrow = ncol(counts), ncol = length(clusts))
+    rownames(clust_mem) <- colnames(counts)
+    colnames(clust_mem) <- clusts
+    clust_mem[bg_set, 1] <- TRUE
+    clust_mem[test_set,] <- apply(Z, 2, function(i) i > 0.01)
+
+    zl <- lapply(1:K, function(k){
+                 v1 <- rep(1, ncol(counts))
+                 names(v1) <- colnames(counts)
+                 v1[test_set] <- Z[,k]
+                 return(v1[clust_mem[,k]])
+                      })
+    names(zl) <- clusts
+
     # Loop over droplets with high enough p(z)
-    clust_mem <- apply(Z, 2, function(i) i > 0.01)
-    p_bar <- sapply_f(clusts, function(k){
-                      p <- counts[,clust_mem[,k],drop=FALSE] %*% Z[clust_mem[,k],k]
+    p_bar <- sapply(clusts, function(k){
+                      p <- counts[,clust_mem[,k],drop=FALSE] %*% zl[[k]]
                       p <- as.matrix(p) + psc
                       p / sum(p) })
 
     # Initialize
     a_range <- c(10, 1e6)
     a0 <- c()
-    a0 <- sapply_f(clusts, function(k){
-                   ct <- counts[,clust_mem[,k],drop=FALSE]
-                   si <- sizes[clust_mem[,k]]
-                   Zk <- Z[clust_mem[,k],k]
+    a0 <- sapply(clusts, function(k){
                    f <- function(x){
-                       r <- get_llk(ct, 
-                                    x * p_bar[,k,drop=FALSE], 
-                                    sizes = si)
-                       r <- as.numeric(t(r) %*% Zk)
+                       r <- get_llk(counts = counts[,clust_mem[,k],drop=FALSE], 
+                                    Alpha = x * p_bar[,k,drop=FALSE], 
+                                    sizes = sizes[clust_mem[,k]], 
+                                    threads = threads, 
+                                    verbose = FALSE)
+                       r <- as.numeric(t(r) %*% zl[[k]])
                        return(r)
                    }
                    a_max <- optimize(f, interval = a_range, tol = tol, maximum = TRUE)
-                   rm(Zk)
                    return(a_max$maximum)
                       })
 
     # LOO optimize
-    Alpha <- sapply_f(ks, function(k){
-                      ct <- countst[clust_mem[,k],,drop=FALSE]
-                      si <- sizes[clust_mem[,k]]
-                      Zk <- Z[clust_mem[,k],k]
-                      Ak <- p_bar[,k] * a0[k]
-                      Ak <- compute_LOO_step_all(ct, si, Zk, Ak, eps = eps, psc = psc, max_loo = max_loo)
-                      rm(Zk)
+    Alpha <- sapply(ks, function(k){
+                      Ak <- compute_LOO_step_all(x = countst[clust_mem[,k],,drop=FALSE], 
+                                                 sizes = sizes[clust_mem[,k]], 
+                                                 weights = zl[[k]], 
+                                                 alpha = p_bar[,k] * a0[k], 
+                                                 eps = eps, 
+                                                 psc = psc, 
+                                                 threads = threads, 
+                                                 max_loo = max_loo)
                       return(Ak)})
 
     rownames(Alpha) <- rownames(counts)
@@ -141,71 +146,42 @@ get_alpha <- function(counts,
 #' @param Z A droplet by cluster matrix of the posterior probability a 
 #'  droplet belongs to cluster k. Rows must sum to 1 and entries must 
 #'  be between 0 and 1.
+#' @param add A number, or weight, to add to the column sums of the 
+#'  posterior probabilities. This number is added to the \code{add_to} index.
+#' @param add_to The index to add the number \code{add} to.
 #' 
 #' @return A cluster-length numeric vector that sums to 1 and entries 
 #'  between 0 and 1.
-get_pi <- function(Z){
+get_pi <- function(Z, add = 0, add_to = 1){
     Pi <- colSums(Z)
+    Pi[add_to] <- Pi[add_to] + add
     Pi <- Pi / sum(Pi)
     return(Pi)
 }
 
 #' Get posterior probabilities from log likelihoods and mixing coefficients
 #'
-#' @param llks A droplet by cluster matrix that gives the log liklihood of 
+#' @param llk A droplet by cluster matrix that gives the log liklihood of 
 #'  each droplet against each cluster.
 #' @param Pi A cluster-length numeric vector of mixing coefficients.
 #'
 #' @return A droplet by cluster matrix of posterior probabilities
 #'
-#' @importFrom future.apply future_apply
-#' @importFrom future nbrOfWorkers
-get_z <- function(llks, Pi){
-    if (length(Pi) != ncol(llks)){
-        stop("Length of Pi must match the number of columns in llks")
+get_z <- function(llk, Pi){
+    if (length(Pi) != ncol(llk)){
+        stop("Length of Pi must match the number of columns in llk")
     }
 
     K <- length(Pi)
     if (K == 1){
         Z <- matrix(1, nrow = K, ncol = 1)
-        rownames(Z) <- rownames(llks)
+        rownames(Z) <- rownames(llk)
         return(Z)
     }
 
-    apply_f <- ifelse(nbrOfWorkers() == 1, apply, future_apply)
-
-    llks_pi <- t(apply_f(llks, 1, function(j) j + log(Pi)))
-    Z <- as.matrix(t(apply_f(llks_pi, 1, fraction_log)))
-    rownames(Z) <- rownames(llks)
-    return(Z)
-}
-
-#' Fix posterior probabilities of labeled to 1
-#'
-#' @param Z A droplet by cluster matrix of the posterior probability a 
-#'  droplet belongs to cluster k. Rows must sum to 1 and entries must 
-#'  be between 0 and 1.
-#' @param labs A droplet-length vector containing labels of the droplets. 
-#'  Non-zero values indicate unlabeled droplets.
-#' 
-#' @return The droplet by cluster matrix with labeled droplets fixed 
-#'  to ther corresponding cluster.
-fix_z <- function(Z, labs = NULL){
-    if (is.null(labs)) return(Z)
-    if (sum(labs) == 0) return(Z)
-    if (length(labs) != nrow(Z)){
-        stop("length of labs must equal to number of rows in Z")
-    }
-
-    if (max(labs) > ncol(Z)){
-        stop("Max label in labs must be less than or equal to column in Z")
-    }
-
-    f <- setdiff(sort(unique(labs)), 0)
-    for (i in f){
-        Z[labs == i,] <- 0
-        Z[labs == i, i] <- 1
-    }
+    llk_pi <- t(apply(llk, 1, function(j) j + log(Pi)))
+    Z <- as.matrix(t(apply(llk_pi, 1, fraction_log)))
+    rownames(Z) <- rownames(llk)
     return(Z)
 }
 
@@ -219,26 +195,38 @@ fix_z <- function(Z, labs = NULL){
 #'      \item{Pi}{ A vector of mixing coefficients. Must sum to 1 
 #'          and be between 0 and 1.}
 #'      }
-#' @param labs Vector of labels for droplets. A label of 0 means unknwon 
 #'  while 1 means background.
+#' @param llk A droplet (row) by cluster (column) matrix of log-likelihoods 
+#'  of a droplet belonging to each cluster. The log-likelihoods are only 
+#'  calculated for the test set droplets and should correspond to the 
+#'  likelihoods under the current values of the parameters given in 
+#'  \code{params}.
+#' @param test_set Character vector of droplet IDs that belong to the 
+#'  test set
+#' @param bg_set Character vector of droplet IDs that belong to the 
+#'  background set
 #' @param eps The threshold of change in the parameter to stop the 
 #'  EM. The parameter checked is the average change in posterior 
 #'  probabilities Z.
 #' @param max_iter Maximum number of iterations.
+#' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
 #' @importFrom Matrix t colSums
 em <- function(counts, 
                params, 
-               labs, 
+               llk, 
+               test_set, 
+               bg_set, 
                eps = 1e-4, 
                max_iter = 1e2, 
+               threads = 1, 
                verbose = TRUE){
     sizes <- colSums(counts)
 
     Alpha <- params$Alpha
     Pi <- params$Pi
-    unl <- labs == 0
+    Z <- get_z(llk, Pi)
 
     K <- ncol(Alpha)
 
@@ -246,20 +234,27 @@ em <- function(counts,
     iter <- 1
     while (iter <= max_iter & delta > eps){
 
-        # Estimate prob of Z
-        llks <- get_llk(counts, Alpha, labs = labs, sizes)
-        rownames(llks) <- colnames(counts)
-        Z <- get_z(llks, Pi)
 
         # Estimate pi
-        Pi <- get_pi(Z)
+        Pi <- get_pi(Z, add = length(bg_set), add_to = 1)
 
         # Estimate alpha
-        Alpha <- get_alpha(counts, Z)
+        Alpha <- get_alpha(counts, 
+                           Z, 
+                           test_set = test_set, 
+                           bg_set = bg_set)
+
+        # Evaluate llk and estimate Z
+        llk <- get_llk(counts = counts[,test_set], 
+                       Alpha = Alpha, 
+                       sizes = sizes[test_set], 
+                       threads = threads)
+        rownames(llk) <- test_set
+        Z <- get_z(llk, Pi)
 
         # Evaluate delta
         if (iter > 1) {
-            delta <- sum(abs(Z[unl,] - Z_old[unl,])) / sum(Z_old[unl,])
+            delta <- sum(abs(Z - Z_old)) / sum(Z_old)
         }
         if (verbose) message("iteration ", iter, "; delta = ", round(delta, 10))
         iter <- iter + 1
@@ -270,7 +265,7 @@ em <- function(counts,
 
     converged <- FALSE
     if (iter > max_iter) {
-        warning("Warning: failed to converge after ", max_iter, " iterations")
+        warning("warning: failed to converge after ", max_iter, " iterations")
     } else {
         converged <- TRUE
         if (verbose)
@@ -280,8 +275,7 @@ em <- function(counts,
     params <- list("Alpha" = Alpha, 
                    "Pi" = Pi)
     ret <- list("params" = params, 
-                "llk" = llks, 
-                "Z" = Z,  
+                "llk" = llk, 
                 "converged" = converged)
     return(ret)
 }
@@ -309,6 +303,7 @@ em <- function(counts,
 #'  of the Dirichlet-multinomial mixture model.
 #' @param k_init Run EM on the \code{k_init} initialization(s). 
 #'  If NULL (default), run on all \code{k_init} initializations.
+#' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
 #' @return An SCE object.
@@ -320,23 +315,20 @@ run_em <- function(x,
                    fltr = 0.1, 
                    max_iter_dm = 1e2, 
                    k_init = NULL, 
+                   threads = 1, 
                    verbose = TRUE){
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
     droplets.use <- colnames(x@counts)
 
-    if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
+    if (length(genes.use) == 0 | length(droplets.use) == 0) stop("specify test set and filter genes before running EM.")
+    if (length(x@kruns) == 0) stop("initialize parameters before running run_em")
 
     # counts is a droplet by gene matrix
     sizes <- colSums(x@counts[genes.use,droplets.use])
 
     N <- length(droplets.use)
     G <- length(genes.use)
-
-    # Fix labels of debris
-    labs <- rep(0, N)
-    names(labs) <- droplets.use
-    labs[x@bg_set] <- 1
 
     # Run EM for each K start value
     k_init <- check_k_init(x, k_init)
@@ -346,11 +338,14 @@ run_em <- function(x,
         k <- as.character(k)
         if (verbose) message("running EM for k_init = ", k)
         while (TRUE){
-            x@kruns[[k]] <- em(x@counts[genes.use,droplets.use],
-                               x@kruns[[k]]$params, 
-                               labs = labs, 
+            x@kruns[[k]] <- em(counts = x@counts[genes.use,droplets.use],
+                               params = x@kruns[[k]]$params, 
+                               llk = x@kruns[[k]]$llk, 
+                               test_set = x@test_set, 
+                               bg_set = x@bg_set, 
                                eps = eps, 
                                max_iter = max_iter_dm, 
+                               threads = threads, 
                                verbose = verbose)
             prev_k <- length(x@kruns[[k]]$params$Pi)
             x <- get_dist(x, verbose = verbose)

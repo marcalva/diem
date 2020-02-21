@@ -23,9 +23,7 @@ get_dist <- function(x, k_init = NULL, verbose = TRUE){
 
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
     droplets.use <- colnames(x@counts)
-    if (length(genes.use) == 0 | length(droplets.use) == 0) stop("Specify test set and filter genes before running EM.")
-
-    counts <- x@counts[genes.use,]
+    if (length(x@kruns) == 0) stop("initialize parameters before running get_dist")
 
     N <- ncol(x@counts[genes.use,])
     labs <- rep(0, N)
@@ -42,12 +40,7 @@ get_dist <- function(x, k_init = NULL, verbose = TRUE){
         params <- ic$params
         Alpha <- ic$params$Alpha
         Pi <- ic$params$Pi
-        if ("llk" %in% names(ic)){
-            llks <- ic$llk
-        } else {
-            llks <- get_llk(x@counts[genes.use,], labs = labs, Alpha)
-        }
-        # Z <- ic$Z
+        llk <- ic$llk
 
         if (ncol(Alpha) == 1){
             if (verbose){
@@ -56,12 +49,12 @@ get_dist <- function(x, k_init = NULL, verbose = TRUE){
             return(x)
         }
 
-        Z <- get_z(llks, Pi)
+        Z <- get_z(llk, Pi)
 
         d <- c(0)
         for (k in 2:ncol(Alpha)){
-            diffs <- Z[nbg,k] * (llks[nbg,k] - llks[nbg,1])
-            wsum <- sum(Z[nbg,k])
+            diffs <- Z[,k] * (llk[,k] - llk[,1])
+            wsum <- sum(Z[,k])
             if (wsum == 0){
                 d[k] <- 0
             } else {
@@ -120,6 +113,9 @@ rm_close <- function(x,
         stop("fltr value is set to NA, change to a value between 0 and 1")
     }
 
+    if (length(x@kruns) == 0) 
+        stop("initialize parameters and get distances before running rm_close")
+
     k_init <- check_k_init(x, k_init)
 
     for (k in k_init){
@@ -130,9 +126,8 @@ rm_close <- function(x,
         kc <- as.character(k)
         i <- length(x@kruns[[kc]])
 
-        if (! "Dist" %in% names(x@kruns[[kc]])){
-            stop("Distance not calculated for latest krun")
-        }
+        if (! "Dist" %in% names(x@kruns[[kc]]))
+            stop("calculate distances before running rm_close")
 
         ds <- x@kruns[[kc]]$Dist[-1]
         skeep <- c(TRUE, (ds >= fltr))
@@ -140,13 +135,7 @@ rm_close <- function(x,
             x@kruns[[kc]]$params$Alpha <- x@kruns[[kc]]$params$Alpha[,skeep,drop=FALSE]
             x@kruns[[kc]]$params$Pi <- x@kruns[[kc]]$params$Pi[skeep]
             x@kruns[[kc]]$params$Pi <- x@kruns[[kc]]$params$Pi / sum(x@kruns[[kc]]$params$Pi)
-            if ("llk" %in% names(x@kruns[[kc]])){
-                x@kruns[[kc]]$llk <- x@kruns[[kc]]$llk[,skeep,drop=FALSE]
-                x@kruns[[kc]]$Z <- get_z(x@kruns[[kc]]$llk,
-                                                  x@kruns[[kc]]$params$Pi)
-            } else {
-                x@kruns[[kc]]$Z <- matrix()
-            }
+            x@kruns[[kc]]$llk <- x@kruns[[kc]]$llk[,skeep,drop=FALSE]
             ds <- x@kruns[[kc]]$Dist[skeep]
             x@kruns[[kc]]$Dist <- ds
         }

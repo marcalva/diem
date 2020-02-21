@@ -5,7 +5,7 @@
 \title{Initialize clusters}
 \usage{
 init(x, k_init = 30, iter.max_init = 15, nstart_init = 30,
-  min_size_init = 10, seedn = 1, psc = 1e-10, verbose = TRUE)
+  min_size_init = 10, seedn = 1, threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -25,7 +25,7 @@ to an initialized cluster.}
 It is set to 1 by default. If you desire truly random initializations
 across runs, set to NULL or different values for each run.}
 
-\item{psc}{Pseudocount to add to all alpha parameter values to avoid 0.}
+\item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Verbosity.}
 }

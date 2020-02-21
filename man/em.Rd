@@ -4,7 +4,8 @@
 \alias{em}
 \title{Run EM}
 \usage{
-em(counts, params, labs, eps = 1e-04, max_iter = 100, verbose = TRUE)
+em(counts, params, llk, test_set, bg_set, eps = 1e-04, max_iter = 100,
+  threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{counts}{A gene by droplet matrix}
@@ -15,16 +16,28 @@ em(counts, params, labs, eps = 1e-04, max_iter = 100, verbose = TRUE)
          Dirichlet-multinomial.}
      \item{Pi}{ A vector of mixing coefficients. Must sum to 1 
          and be between 0 and 1.}
-     }}
+     }
+ while 1 means background.}
 
-\item{labs}{Vector of labels for droplets. A label of 0 means unknwon 
-while 1 means background.}
+\item{llk}{A droplet (row) by cluster (column) matrix of log-likelihoods 
+of a droplet belonging to each cluster. The log-likelihoods are only 
+calculated for the test set droplets and should correspond to the 
+likelihoods under the current values of the parameters given in 
+\code{params}.}
+
+\item{test_set}{Character vector of droplet IDs that belong to the 
+test set}
+
+\item{bg_set}{Character vector of droplet IDs that belong to the 
+background set}
 
 \item{eps}{The threshold of change in the parameter to stop the 
 EM. The parameter checked is the average change in posterior 
 probabilities Z.}
 
 \item{max_iter}{Maximum number of iterations.}
+
+\item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Verbosity.}
 }

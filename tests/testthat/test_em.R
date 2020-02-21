@@ -29,13 +29,10 @@ test_that("EM works when initialized", {
           mb_small <- run_em(mb_small, fltr = 0.5)
           mb_small <- call_targets(mb_small, min_genes = 100)
           emo <- mb_small@kruns[["15"]]
-          expect_equal(length(emo), 6)
+          expect_equal(length(emo), 5)
           expect_equal(ncol(emo$params$Alpha), length(emo$params$Pi))
-          expect_equal(ncol(emo$Z), length(emo$params$Pi))
-          expect_equal(ncol(emo$llk), ncol(emo$Z))
           expect_equal(length(emo$Dist), length(emo$params$Pi))
           expect_true(emo$converged)
-          expect_true(all(rowSums(emo$Z) >= (1 - eps) & rowSums(emo$Z) <= (1 + eps)))
           expect_equal(emo$removed, 0)
                                 })
 

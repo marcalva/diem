@@ -63,6 +63,8 @@ February 19, 2020
 * version 2.1.0
     * Additional function for extracting Alpha parameters for use with DE
     * Run multiple k_init values at the same time
+    * Multi-threading
+    * More efficient memory storage of objects
 
 February 18, 2020
 * version 2.0.1
