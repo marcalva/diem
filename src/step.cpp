@@ -47,6 +47,7 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
 
     double delt = eps + 1;
     int iter = 1;
+    double* numer = new[n_g]();
     // calculate weighted gene sums
     while (delt > eps && iter <= max_loo){
         double as = sum(alpha_old);
@@ -60,12 +61,11 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
             stop("NA values encountered. An alpha value is likely 0.");
         }
 
-
-        double numer[n_g] = {0};
 #ifdef _OPENMP
         #pragma omp parallel for num_threads(threads) schedule(static)
 #endif
         for (int k = 0; k < n_g; ++k){
+            numer[k] = 0;
             for (Eigen::SparseMatrix<double>::InnerIterator it(x,k); it; ++it) {
                 // double xik = it.value();
                 // int i = it.index();
@@ -90,6 +90,7 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
         iter += 1;
         alpha_old = clone(alpha_new);
     }
+    delete [] numer;
     return(alpha_new);
 }
 

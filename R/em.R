@@ -15,7 +15,7 @@
 #' 
 #' @importFrom Matrix colSums
 #'
-get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, verbose = FALSE){
+get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, verbose = TRUE){
 
     if (any(is.na(Alpha))){
         stop("Alpha has NA value(s)")
@@ -76,8 +76,7 @@ get_alpha <- function(counts,
                       psc = 1e-10, 
                       threads = 1, 
                       tol = 1e2, 
-                      verbose = FALSE){
-    countst <- t(counts)
+                      verbose = TRUE){
     K <- ncol(Z)
     ks <- 1:K
     sizes <- colSums(counts)
@@ -130,7 +129,7 @@ get_alpha <- function(counts,
 
     # LOO optimize
     Alpha <- sapply(ks, function(k){
-                      Ak <- compute_LOO_step_all(x = countst[clust_mem[,k],,drop=FALSE], 
+                      Ak <- compute_LOO_step_all(x = t(counts[,clust_mem[,k],drop=FALSE]), 
                                                  sizes = sizes[clust_mem[,k]], 
                                                  weights = zl[[k]], 
                                                  alpha = p_bar[,k] * a0[k], 

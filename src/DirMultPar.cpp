@@ -47,14 +47,14 @@ NumericVector LlkDirMultSparsePar(Eigen::SparseMatrix<double> x,
 #endif
 
     int K = alpha.ncol();
-    double llk[n_c * K] = {0};
-
-    Progress p(n_c * K, display_progress);
-
-    double asum[K];
+    double* llk = new[n_c * K]();
+    double* asum = new[K]();
     for (int i = 0; i < K; ++i){
         asum[i] = sum(alpha(_,i));
     }
+
+    Progress p(n_c * K, display_progress);
+
 
 #ifdef _OPENMP
 #pragma omp parallel for num_threads(threads) schedule(static) collapse(2) 
@@ -82,8 +82,11 @@ NumericVector LlkDirMultSparsePar(Eigen::SparseMatrix<double> x,
             }
         }
     }
+
     NumericVector llk_rv(llk, llk + sizeof(llk)/sizeof(*llk));
     llk_rv.attr("dim") = Dimension(n_c, K);
+    delete [] llk;
+    delete [] asum;
     return(llk_rv);
 }
 
