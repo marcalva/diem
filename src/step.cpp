@@ -47,7 +47,7 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
 
     double delt = eps + 1;
     int iter = 1;
-    double* numer = new[n_g]();
+    double* numer = new double[n_g]();
     // calculate weighted gene sums
     while (delt > eps && iter <= max_loo){
         double as = sum(alpha_old);

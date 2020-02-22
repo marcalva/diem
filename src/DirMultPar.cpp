@@ -47,8 +47,8 @@ NumericVector LlkDirMultSparsePar(Eigen::SparseMatrix<double> x,
 #endif
 
     int K = alpha.ncol();
-    double* llk = new[n_c * K]();
-    double* asum = new[K]();
+    double* llk = new double[n_c * K]();
+    double* asum = new double[K]();
     for (int i = 0; i < K; ++i){
         asum[i] = sum(alpha(_,i));
     }
