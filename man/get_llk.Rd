@@ -5,7 +5,7 @@
 \title{Get log likelihood under Dirichlet-multinomial}
 \usage{
 get_llk(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1,
-  verbose = FALSE)
+  verbose = TRUE)
 }
 \arguments{
 \item{counts}{A gene by droplet data matrix of read counts.}
@@ -21,6 +21,9 @@ calculated for (instead of all droplets in \code{counts}).}
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Verbosity.}
+}
+\value{
+A droplet by cluster matrix of likelihood values
 }
 \description{
 Get log likelihood from \code{counts} under a Dirichlet-multinomial 

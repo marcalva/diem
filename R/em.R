@@ -13,6 +13,8 @@
 #' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #' 
+#' @return A droplet by cluster matrix of likelihood values
+#' 
 #' @importFrom Matrix colSums
 #'
 get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, verbose = TRUE){

@@ -32,15 +32,13 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
     double as = sum(alpha);
     NumericVector alpha_new(n_g);
     NumericVector alpha_old = clone(alpha);
-    // double alpha_new[n_g];
-    // std::copy( alpha.begin(), alpha.end(), alpha_old.begin() ) ;
 
 #ifdef _OPENMP
     if ( threads > 0 ){
-        int mt = omp_get_max_threads();
-        if (threads > mt){
-            threads = mt;
-        }
+        //int mt = omp_get_max_threads();
+        //if (threads > mt){
+        //    threads = mt;
+        //}
         omp_set_num_threads( threads );
     }
 #endif
@@ -67,8 +65,6 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
         for (int k = 0; k < n_g; ++k){
             numer[k] = 0;
             for (Eigen::SparseMatrix<double>::InnerIterator it(x,k); it; ++it) {
-                // double xik = it.value();
-                // int i = it.index();
                 numer[k] += (weights(it.index()) * it.value()) / (it.value() - 1 + alpha_old(k));
             }
             alpha_new(k) = alpha_old(k) * (numer[k] / denom);

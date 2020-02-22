@@ -5,7 +5,7 @@
 \title{Get MLE of alphas}
 \usage{
 get_alpha(counts, Z, test_set, bg_set, eps = 1e-04, max_loo = 500,
-  psc = 1e-10, threads = 1, tol = 100, verbose = FALSE)
+  psc = 1e-10, threads = 1, tol = 100, verbose = TRUE)
 }
 \arguments{
 \item{counts}{A gene by droplet matrix}
