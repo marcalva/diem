@@ -33,6 +33,14 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
     NumericVector alpha_new(n_g);
     NumericVector alpha_old = clone(alpha);
 
+    if (weights.length() != n_c){
+        stop("weights must be same length as number of droplets");
+    }
+    if (sizes.length() != n_c){
+        stop("sizes must be same length as number of droplets");
+    }
+
+
 #ifdef _OPENMP
     if ( threads > 0 ){
         //int mt = omp_get_max_threads();
@@ -58,6 +66,10 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
             Rcout << "Denominator " << denom << "\n";
             stop("NA values encountered. An alpha value is likely 0.");
         }
+        if (denom == 0){
+            Rcout << "Denominator " << denom << " for " << n_c << " cells\n";
+            stop("Denominator is 0");
+        }
 
 #ifdef _OPENMP
         #pragma omp parallel for num_threads(threads) schedule(static)
@@ -69,6 +81,7 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
             }
             alpha_new(k) = alpha_old(k) * (numer[k] / denom);
             if (isnan(alpha_new(k))){
+                Rcout << n_c << " cells\n";
                 Rcout << "alpha_k " << alpha_old(k) << "\n";
                 Rcout << "value " << (numer[k] / denom) << "\n";
                 Rcout << "Numerator " << numer[k] << "\n";

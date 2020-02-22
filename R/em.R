@@ -97,6 +97,7 @@ get_alpha <- function(counts,
     colnames(clust_mem) <- clusts
     clust_mem[bg_set, 1] <- TRUE
     clust_mem[test_set,] <- apply(Z, 2, function(i) i > 0.01)
+    print(colSums(clust_mem))
 
     zl <- lapply(1:K, function(k){
                  v1 <- rep(1, ncol(counts))
