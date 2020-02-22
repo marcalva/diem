@@ -191,7 +191,6 @@ init <- function(x,
     labs[x@bg_set] <- 1
 
     all_ret <- list()
-    set.seed(seedn)
 
     for (k in k_init){
         kc <- as.character(k)
@@ -201,6 +200,7 @@ init <- function(x,
 
         if (verbose) message("running k-means")
         old_opt <- options(warn = -1)
+        set.seed(seedn)
         km <- kmeans(x = pcs_s, 
                      centers = k, 
                      iter.max = iter.max_init, 
