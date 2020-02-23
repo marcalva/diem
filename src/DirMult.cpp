@@ -34,7 +34,7 @@ NumericVector LlkDirMultSparse(Eigen::SparseMatrix<double> x,
         double as = sum(alpha_k);
         for (int i = 0; i < n_c; ++i){
             s = sizes(i);
-            if (isnan(s) || s < 0){
+            if (std::isnan(s) || s < 0){
                 Rcout << "sizes[" << i << "] is " << sizes(i) << "\n";
                 stop("Exiting");
             }
@@ -46,14 +46,14 @@ NumericVector LlkDirMultSparse(Eigen::SparseMatrix<double> x,
                 l += lgamma(it.value() + alpha_k(it.index()) ) - 
                     lgamma(it.value() + 1) - 
                     lgamma( alpha_k(it.index()) );
-                if (isnan(l)) {
+                if (std::isnan(l)) {
                     Rcout << "alpha_g = " << alpha_k(it.index()) << "\n";
                     Rcout << "Likelihood value is NA for cell " << i << 
                         " after adding gene " << it.index() << "\n";
                     stop("Exiting");
                 }
             }
-            if (isnan(l)) {
+            if (std::isnan(l)) {
                 stop("nan value encountered. There are likely non-positive values in x, sizes, or alpha.");
             }
             llks(i,k) = l;

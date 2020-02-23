@@ -70,14 +70,14 @@ NumericVector LlkDirMultSparsePar(Eigen::SparseMatrix<double> x,
                 llk[i + (k * n_c)] += lgamma(it.value() + alpha(it.index(), k) ) - 
                     lgamma(it.value() + 1) - 
                     lgamma( alpha(it.index(), k) );
-                if (isnan(llk[i + (k * n_c)])) {
+                if (std::isnan(llk[i + (k * n_c)])) {
                     Rcout << "alpha_g = " << alpha(it.index(), k) << "\n";
                     Rcout << "Likelihood value is NA for cell " << i << 
                         " after adding gene " << it.index() << "\n";
                     stop("Exiting");
                 }
             }
-            if (isnan(llk[i + (k * n_c)])) {
+            if (std::isnan(llk[i + (k * n_c)])) {
                 stop("nan value encountered. There are likely non-positive values in x, sizes, or alpha.");
             }
         }

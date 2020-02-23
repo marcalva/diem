@@ -33,7 +33,8 @@ Imports:
     irlba,
     scales,
     utils,
-    stats
+    stats,
+    Rcpp
 Suggests:
     Seurat (>= 3.0.0),
     testthat,

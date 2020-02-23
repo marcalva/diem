@@ -62,7 +62,7 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
         for (int i = 0; i < n_c; ++i){
             denom += (weights(i) * sizes(i)) / (sizes(i) - 1 + as);
         }
-        if (isnan(denom)){
+        if (std::isnan(denom)){
             Rcout << "Denominator " << denom << "\n";
             stop("NA values encountered. An alpha value is likely 0.");
         }
@@ -80,7 +80,7 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
                 numer[k] += (weights(it.index()) * it.value()) / (it.value() - 1 + alpha_old(k));
             }
             alpha_new(k) = alpha_old(k) * (numer[k] / denom);
-            if (isnan(alpha_new(k))){
+            if (std::isnan(alpha_new(k))){
                 Rcout << n_c << " cells\n";
                 Rcout << "alpha_k " << alpha_old(k) << "\n";
                 Rcout << "value " << (numer[k] / denom) << "\n";
@@ -121,7 +121,7 @@ NumericVector compute_LOO_step(Eigen::SparseMatrix<double> x,
         denom += (weights[i] * sizes[i]) / (sizes[i] - 1 + as);
     }
 
-    if (isnan(denom)){
+    if (std::isnan(denom)){
         Rcout << "Denominator " << denom << "\n";
         stop("NA values encountered. An alpha value is likely 0.");
     }
@@ -134,7 +134,7 @@ NumericVector compute_LOO_step(Eigen::SparseMatrix<double> x,
             numer += (weights[i] * xik) / (xik - 1 + alpha[k]);
         }
         alpha_new[k] = alpha[k] * (numer / denom);
-        if (isnan(alpha_new[k])){
+        if (std::isnan(alpha_new[k])){
             Rcout << "alpha_k " << alpha[k] << "\n";
             Rcout << "value " << (numer / denom) << "\n";
             Rcout << "Numerator " << numer << "\n";

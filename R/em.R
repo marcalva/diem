@@ -96,7 +96,9 @@ get_alpha <- function(counts,
     rownames(clust_mem) <- colnames(counts)
     colnames(clust_mem) <- clusts
     clust_mem[bg_set, 1] <- TRUE
-    clust_mem[test_set,] <- apply(Z, 2, function(i) i > 0.01)
+    # clust_mem[test_set,] <- apply(Z, 2, function(i) i > 0.01)
+    clust_mem[test_set,] <- apply(Z, 2, function(i) i != 0)
+    print(colSums(Z))
     print(colSums(clust_mem))
 
     zl <- lapply(1:K, function(k){

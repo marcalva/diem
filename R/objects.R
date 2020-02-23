@@ -1,4 +1,5 @@
 #' @useDynLib diem
+#' @import Rcpp
 #' @importClassesFrom Matrix dgCMatrix
 #' @importFrom methods setClassUnion setOldClass
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
