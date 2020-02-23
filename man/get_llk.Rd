@@ -5,7 +5,7 @@
 \title{Get log likelihood under Dirichlet-multinomial}
 \usage{
 get_llk(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1,
-  verbose = TRUE)
+  verbose = FALSE)
 }
 \arguments{
 \item{counts}{A gene by droplet data matrix of read counts.}
