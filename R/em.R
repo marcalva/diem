@@ -17,7 +17,7 @@
 #' 
 #' @importFrom Matrix colSums
 #'
-get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, verbose = TRUE){
+get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, verbose = FALSE){
 
     if (any(is.na(Alpha))){
         stop("Alpha has NA value(s)")
@@ -78,7 +78,7 @@ get_alpha <- function(counts,
                       psc = 1e-10, 
                       threads = 1, 
                       tol = 1e2, 
-                      verbose = TRUE){
+                      verbose = FALSE){
     K <- ncol(Z)
     ks <- 1:K
     sizes <- colSums(counts)
@@ -96,10 +96,7 @@ get_alpha <- function(counts,
     rownames(clust_mem) <- colnames(counts)
     colnames(clust_mem) <- clusts
     clust_mem[bg_set, 1] <- TRUE
-    # clust_mem[test_set,] <- apply(Z, 2, function(i) i > 0.01)
     clust_mem[test_set,] <- apply(Z, 2, function(i) i != 0)
-    print(colSums(Z))
-    print(colSums(clust_mem))
 
     zl <- lapply(1:K, function(k){
                  v1 <- rep(1, ncol(counts))
@@ -241,8 +238,6 @@ em <- function(counts,
     delta <- Inf
     iter <- 1
     while (iter <= max_iter & delta > eps){
-
-
         # Estimate pi
         Pi <- get_pi(Z, add = length(bg_set), add_to = 1)
 
@@ -265,6 +260,8 @@ em <- function(counts,
             delta <- sum(abs(Z - Z_old)) / sum(Z_old)
         }
         if (verbose) message("iteration ", iter, "; delta = ", round(delta, 10))
+
+        # Update
         iter <- iter + 1
         Alpha_old <- Alpha
         Z_old <- Z

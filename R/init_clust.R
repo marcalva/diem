@@ -207,7 +207,6 @@ init <- function(x,
                      nstart = nstart_init)
         options(old_opt)
         kclust <- km$cluster # integer vector of 1 to k values, corresponding to column in pcs_s
-        print(table(kclust))
 
         # Merge small clusters from k-means
         kclust <- merge_size(kclust, pcs_s, min_size_init, verbose)
