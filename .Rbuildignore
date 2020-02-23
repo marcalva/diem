@@ -2,3 +2,5 @@
 \.travis\.yml
 data-raw
 .*pdf$
+^doc$
+^Meta$

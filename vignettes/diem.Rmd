@@ -60,7 +60,7 @@ class(counts)
 
 This function reads in the counts present in the `tests/testdata` 
 directory into a sparse matrix. This subset of the mouse brain raw data 
-from 10X contains 1,001 genes and 2,457 droplets.
+from 10X contains 501 genes and 1,200 droplets.
 
 The raw counts in a sparse matrix forms the starting point for 
 pre-processing with `diem`.
@@ -105,7 +105,7 @@ summary(drop_data)
 We plot the distribution of reads and MT%.
 
 ```{r, fig.width=14, fig.height=14}
-drop_data <- droplet_data(mb_small, min_counts = 100)
+drop_data <- droplet_data(mb_small, min_counts = 10)
 datf <- drop_data
 par(mfrow=c(2,2))
 plot(datf$total_counts, datf$n_genes, pch = 16,
@@ -158,10 +158,10 @@ However, setting the cutoff too high can result in
 excluding droplets that contain nuclei or cells, while setting the
 cutoff too low can result in losing information and misclassifying
 debris as a cell type. The default is to set the test set as those 
-with at least 100 counts.
+with at least 100 counts. Here we set it to 10 since this is a subset.
 
 ```{r}
-mb_small <- set_debris_test_set(mb_small, min_counts = 100)
+mb_small <- set_debris_test_set(mb_small, min_counts = 10)
 length(mb_small@test_set)
 length(mb_small@bg_set)
 ```
@@ -169,8 +169,7 @@ length(mb_small@bg_set)
 ## 3.2 Running PCA on the test set
 
 In order to initialize the parameters, we run PCA and then k-means 
-on these PCs. We first select the 2,000 most variable genes from the 
-expressed genes. 
+on these PCs.
 
 We define expressed genes as those with a counts per million (CPM) 
 greater than 0. This can be set to a higher value to 
@@ -182,14 +181,16 @@ genes <- gene_data(mb_small)
 summary(genes)
 ```
 
-After filtering genes, we run PCA
+After filtering genes, we run PCA. Although the default is to 
+select the top 2,00 variable genes, we select the top 250 
+most variable genes here since this is a subset
 
 ```{r}
 mb_small <- get_pcs(mb_small, 
-                    n_var_genes = 2000)
+                    n_var_genes = 250)
 ```
 
-This uses the top 2,000 variable genes to run PCA. We define 
+This uses the top 250 variable genes to run PCA. We define 
 variable genes after taking into account the relationship 
 between the mean gene expression and the variance. We do so 
 by running loess regression of the log variance against the 
@@ -236,7 +237,7 @@ remove clusters with a distance below a certain threshold. We call the
 
 ```{r}
 mb_small <- get_dist(mb_small)
-d <- distances(mb_small)
+distances(mb_small)
 ```
 
 The distance values are scaled so that the maximum takes a value of 1. 
@@ -251,14 +252,15 @@ plot_dist(mb_small, alpha=.8)
 Looking at the distribution of distance values, we notice a somewhat 
 bimodal pattern, where we can select a value between 0.4 and 0.6. Here 
 we choose 0.5, but we note the default is 0.1 to be careful so as to 
-not remove cell types.
+not remove cell types. We'll see what happens later when we remove 
+droplets using a default filter value of 0.1.
 
 ```{r}
-mb_small <- rm_close(mb_small, fltr = 0.1)
+mb_small <- rm_close(mb_small, fltr = 0.5)
 ```
 
-After removing small clusters and those that lie close to the background 
-distribution, we are left with 7 cell types and 1 debris cluster. 
+This removes those clusters that lie close to the background 
+distribution.
 Now that we have the number of mixtures and their initializations, we can 
 run EM to estimate the parameters and classify the droplets.
 
@@ -276,18 +278,19 @@ drop_data <- droplet_data(mb_small)
 summary(drop_data)
 ```
 
-After running EM, we see an additional 3 clusters are removed because 
+After runnning EM, we call nuclei based off the likelihood. We use the 
+default posterior probability threshold of 0.95.
 they are too close to the background. After a second EM, the procedure 
-is finished. We are left with 297 clean droplets and removed 1,455.
+is finished.
 
 
 ```{r}
 mb_small <- call_targets(mb_small, 
                          pp_thresh = 0.95, 
-                         min_genes = 100)
+                         min_genes = 50)
 clean_ids <- get_clean_ids(mb_small)
 length(clean_ids)
-debris_ids <- get_removed_ids(mb_small, min_genes = 100)
+debris_ids <- get_removed_ids(mb_small, min_genes = 0)
 length(debris_ids)
 drop_data <- droplet_data(mb_small)
 dd_test <- droplet_data(mb_small, type = "test")
@@ -330,17 +333,12 @@ mb_small <- run_em(mb_small, fltr = 0.1)
 
 mb_small <- call_targets(mb_small, 
                          pp_thresh = 0.95, 
-                         min_genes = 100)
+                         min_genes = 50)
 clean_ids <- get_clean_ids(mb_small)
 length(clean_ids)
-debris_ids <- get_removed_ids(mb_small, min_genes = 100)
+debris_ids <- get_removed_ids(mb_small, min_genes = 50)
 length(debris_ids)
-```
 
-Using this lower threshold, we now have 393 passing filtering, more than 
-the 297 that passed using a threshold of 0.5.
-
-```{r}
 library(ggplot2)
 dd_test <- droplet_data(mb_small, type = "test")
 ggplot(dd_test, aes(x = total_counts, y = pct.mt, color = Call)) + 
@@ -350,8 +348,9 @@ scale_x_log10() +
 xlab("Total Counts") + ylab("MT%")
 ```
 
-We also see that droplets with higher percent mitochondrial reads pass 
-filtering.
+We also see that a higher number of droplets pass and these have 
+high reads counts but still have a higher percent of mitochondrial 
+reads that pass filtering.
 
 # 5. Downstream analysis
 
@@ -406,11 +405,11 @@ We provide a convenience function that calls many of these functions at
 once. The workflow is as follows
 
 ```{r, eval = FALSE}
-mb_small <- diem(mb_small, min_counts = 100, cpm_thresh = 0, 
-        n_var_genes = 2000, k_init = 30, fltr = 0.5)
+mb_small <- diem(mb_small, min_counts = 10, cpm_thresh = 0, 
+        n_var_genes = 250, k_init = 30, fltr = 0.5)
 mb_small <- call_targets(mb_small, 
                          pp_thresh = 0.95, 
-                         min_genes = 100)
+                         min_genes = 50)
 
 ```
 
