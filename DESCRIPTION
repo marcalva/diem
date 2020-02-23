@@ -1,7 +1,7 @@
 Package: diem
 Title: Debris-Containing Droplet Identification using EM
 Version: 2.1.0
-Date: 2020-02-17
+Date: 2020-02-19
 Authors@R: c(person(given = "Marcus",
             family = "Alvarez", 
             role = c("aut", "cre"),
