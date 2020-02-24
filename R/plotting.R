@@ -62,7 +62,7 @@ plot_umi_gene <- function(x,
                           alpha=0.1, 
                           ret=FALSE){
 
-	df <- x@droplet_data[x@test_set,]
+	df <- x@test_data
 
 	p <- ggplot(df, aes_string(x = "total_counts", y = "n_genes")) + 
     geom_point(alpha=alpha, aes_string(colour=color)) + 
@@ -93,7 +93,7 @@ plot_umi_gene_call <- function(x,
     color <- "Call"
     color_name <- "Call"
 
-	df <- x@droplet_data[x@test_set,]
+	df <- x@test_data
     df <- df[order(df$Call),]
     df$Call <- factor(df$Call, levels = c("Debris", "Clean"))
 
@@ -137,7 +137,7 @@ plot_dist <- function(x,
     d <- ic$Dist
     keep <- !is.na(d)
 
-    dd <- x@droplet_data[x@test_set,]
+    dd <- x@test_data
     cm <- tapply(dd[,"total_counts"], zmax, mean)
     datf <- data.frame("Counts" = cm[keep], 
                        "Dist" = d[keep], 

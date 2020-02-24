@@ -21,39 +21,25 @@
 get_dist <- function(x, k_init = NULL, verbose = TRUE){
     if (verbose) message("checking distances to background distribution...")
 
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    droplets.use <- colnames(x@counts)
     if (length(x@kruns) == 0) stop("initialize parameters before running get_dist")
-
-    N <- ncol(x@counts[genes.use,])
-    labs <- rep(0, N)
-    names(labs) <- droplets.use
-    labs[x@bg_set] <- 1
-    nbg <- labs != 1
 
     k_init <- check_k_init(x, k_init)
 
     for (k in k_init){
         kc <- as.character(k)
 
-        ic <- x@kruns[[kc]]
-        params <- ic$params
-        Alpha <- ic$params$Alpha
-        Pi <- ic$params$Pi
-        llk <- ic$llk
-
-        if (ncol(Alpha) == 1){
+        if (ncol(x@kruns[[kc]]$params$Alpha) == 1){
             if (verbose){
                 warning("warning: only the debris distribution is present, no distances calculated")
             }
             return(x)
         }
 
-        Z <- get_z(llk, Pi)
+        Z <- get_z(x@kruns[[kc]]$llk, x@kruns[[kc]]$params$Pi)
 
         d <- c(0)
-        for (k in 2:ncol(Alpha)){
-            diffs <- Z[,k] * (llk[,k] - llk[,1])
+        for (k in 2:ncol(x@kruns[[kc]]$params$Alpha)){
+            diffs <- Z[,k] * (x@kruns[[kc]]$llk[,k] - x@kruns[[kc]]$llk[,1])
             wsum <- sum(Z[,k])
             if (wsum == 0){
                 d[k] <- 0

@@ -4,7 +4,7 @@
 \alias{get_pcs}
 \title{Get PCs}
 \usage{
-get_pcs(x, n_var_genes = 2000, lss = 0.3, n_pcs = 30)
+get_pcs(x, n_var_genes = 2000, lss = 0.3, threads = 1, n_pcs = 30)
 }
 \arguments{
 \item{x}{An SCE object.}

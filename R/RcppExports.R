@@ -5,15 +5,19 @@ LlkDirMultSparsePar <- function(x, sizes, alpha, threads = 1L, display_progress 
     .Call('_diem_LlkDirMultSparsePar', PACKAGE = 'diem', x, sizes, alpha, threads, display_progress, debug)
 }
 
-compute_LOO_step_all <- function(x, sizes, weights, alpha, eps = 1e-4, max_loo = 500L, psc = 1e-10, threads = 1L, debug = FALSE) {
-    .Call('_diem_compute_LOO_step_all', PACKAGE = 'diem', x, sizes, weights, alpha, eps, max_loo, psc, threads, debug)
-}
-
-compute_LOO_step <- function(x, sizes, weights, alpha, psc = 1e-10, debug = FALSE) {
-    .Call('_diem_compute_LOO_step', PACKAGE = 'diem', x, sizes, weights, alpha, psc, debug)
+max_loo <- function(x, sizes, weights, alpha, eps = 1e-4, max_iter = 1e4L, psc = 1e-10, threads = 1L, debug = FALSE) {
+    .Call('_diem_max_loo', PACKAGE = 'diem', x, sizes, weights, alpha, eps, max_iter, psc, threads, debug)
 }
 
 fast_varCPP <- function(x, mu, threads = 1L, display_progress = FALSE) {
     .Call('_diem_fast_varCPP', PACKAGE = 'diem', x, mu, threads, display_progress)
+}
+
+fast_wvarCPP <- function(x, mu, weights, threads = 1L, display_progress = FALSE) {
+    .Call('_diem_fast_wvarCPP', PACKAGE = 'diem', x, mu, weights, threads, display_progress)
+}
+
+fast_wmeanCPP <- function(x, weights, threads = 1L, display_progress = FALSE) {
+    .Call('_diem_fast_wmeanCPP', PACKAGE = 'diem', x, weights, threads, display_progress)
 }
 
