@@ -58,14 +58,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // fast_varCPP
-NumericVector fast_varCPP(Eigen::SparseMatrix<double> x, NumericVector mu);
-RcppExport SEXP _diem_fast_varCPP(SEXP xSEXP, SEXP muSEXP) {
+NumericVector fast_varCPP(Eigen::SparseMatrix<double> x, NumericVector mu, int threads, bool display_progress);
+RcppExport SEXP _diem_fast_varCPP(SEXP xSEXP, SEXP muSEXP, SEXP threadsSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
-    rcpp_result_gen = Rcpp::wrap(fast_varCPP(x, mu));
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_varCPP(x, mu, threads, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -74,7 +76,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_diem_LlkDirMultSparsePar", (DL_FUNC) &_diem_LlkDirMultSparsePar, 6},
     {"_diem_compute_LOO_step_all", (DL_FUNC) &_diem_compute_LOO_step_all, 9},
     {"_diem_compute_LOO_step", (DL_FUNC) &_diem_compute_LOO_step, 6},
-    {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 2},
+    {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 4},
     {NULL, NULL, 0}
 };
 

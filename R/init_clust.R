@@ -67,8 +67,9 @@ run_pca <- function(x, n_pcs = 30){
 get_pcs <- function(x, 
                     n_var_genes = 2000, 
                     lss = 0.3, 
+                    threads = 1, 
                     n_pcs = 30){
-    x <- get_var_genes(x, n_genes = n_var_genes, lss = lss)
+    x <- get_var_genes(x, n_genes = n_var_genes, lss = lss, threads = threads)
     x <- normalize_data(x)
     x <- run_pca(x, n_pcs = n_pcs)
     return(x)

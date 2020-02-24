@@ -26,6 +26,7 @@ get_var_genes <- function(x,
                           n_genes=2000, 
                           lss=0.3, 
                           droplets.use = NULL, 
+                          threads = 1, 
                           verbose=FALSE){
     if (verbose) message("getting variable genes")
 
@@ -37,7 +38,7 @@ get_var_genes <- function(x,
     gene_names <- rownames(x@counts[x@gene_data$exprsd, x@test_set])
 
     log_mean <- log10(gene_means + 1)
-    log_var <- log10(fast_varCPP(x@counts[x@gene_data$exprsd, x@test_set], gene_means) + 1)
+    log_var <- log10(fast_varCPP(x@counts[x@gene_data$exprsd, x@test_set], gene_means, threads = threads) + 1)
     fit <- loess(log_var ~ log_mean, span=lss)
     rsd <- log_var - fit$fitted
     topi <- order(rsd, decreasing=TRUE)[1:n_genes]

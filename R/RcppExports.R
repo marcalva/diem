@@ -13,7 +13,7 @@ compute_LOO_step <- function(x, sizes, weights, alpha, psc = 1e-10, debug = FALS
     .Call('_diem_compute_LOO_step', PACKAGE = 'diem', x, sizes, weights, alpha, psc, debug)
 }
 
-fast_varCPP <- function(x, mu) {
-    .Call('_diem_fast_varCPP', PACKAGE = 'diem', x, mu)
+fast_varCPP <- function(x, mu, threads = 1L, display_progress = FALSE) {
+    .Call('_diem_fast_varCPP', PACKAGE = 'diem', x, mu, threads, display_progress)
 }
 
