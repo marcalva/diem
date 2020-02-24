@@ -4,7 +4,25 @@
 \alias{plot_dist}
 \title{plot dist values against counts}
 \usage{
-plot_dist(x, k_init = NULL, i = 1, palette = "PuBuGn", ret = FALSE)
+plot_dist(x, k_init = NULL, alpha = 0.4, palette = "PuBuGn",
+  ret = FALSE)
+}
+\arguments{
+\item{x}{An SCE object.}
+
+\item{k_init}{The k_init run to use.}
+
+\item{alpha}{A numeric value controlling the transparency of the points. 
+From 0 (transparent) to 1 (no transparency).}
+
+\item{palette}{Name of the palette to use from RColorBrewer;
+see \code{\link[ggplot2]{scale_color_distiller}}.}
+
+\item{ret}{A logical specifying whether to return the ggplot object 
+or just print it out.}
+}
+\value{
+Nothing, unless return=TRUE then a ggplot
 }
 \description{
 plot dist values against counts

@@ -14,6 +14,8 @@
 #' @param x An SCE object.
 #' @param n_genes Number of variable genes to return.
 #' @param lss Numeric value of the span parameter of the loess regression.
+#' @param droplets.use Vector of droplet IDs to use for getting variable 
+#'  genes. Default is to use the test set.
 #' @param verbose Verbosity.
 #'
 #' @return An SCE object
@@ -30,16 +32,12 @@ get_var_genes <- function(x,
     if (is.null(droplets.use)){
         droplets.use <- x@test_set
     }
-    counts <- x@counts[,droplets.use]
     if (sum(x@gene_data$exprsd) == 0) x <- filter_genes(x)
-    counts <- counts[x@gene_data$exprsd,]
-    exprsd <- rowSums(counts) > 0
-    counts <- counts[exprsd,,drop=FALSE]
-    gene_means <- rowMeans(counts)
-    gene_names <- rownames(counts)
+    gene_means <- rowMeans(x@counts[x@gene_data$exprsd, x@test_set])
+    gene_names <- rownames(x@counts[x@gene_data$exprsd, x@test_set])
 
     log_mean <- log10(gene_means + 1)
-    log_var <- log10(fast_varCPP(counts, gene_means) + 1)
+    log_var <- log10(fast_varCPP(x@counts[x@gene_data$exprsd, x@test_set], gene_means) + 1)
     fit <- loess(log_var ~ log_mean, span=lss)
     rsd <- log_var - fit$fitted
     topi <- order(rsd, decreasing=TRUE)[1:n_genes]

@@ -14,6 +14,9 @@ get_var_genes(x, n_genes = 2000, lss = 0.3, droplets.use = NULL,
 
 \item{lss}{Numeric value of the span parameter of the loess regression.}
 
+\item{droplets.use}{Vector of droplet IDs to use for getting variable 
+genes. Default is to use the test set.}
+
 \item{verbose}{Verbosity.}
 }
 \value{

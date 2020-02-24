@@ -1,4 +1,5 @@
 #' @useDynLib diem
+#' @import Rcpp
 #' @importClassesFrom Matrix dgCMatrix
 #' @importFrom methods setClassUnion setOldClass
 setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
@@ -9,9 +10,7 @@ setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 #'
 #' This class is used to store the expression data from a 
 #' single-cell RNA-seq experiment. It is the class that is used by 
-#' DIEM. The results from filtering are stored in the \code{droplet_data} 
-#' slot, and the converged EM parameters are stored in a list in the 
-#' \code{vemo} slot.
+#' DIEM. 
 #'
 #' Single Cell Expression object
 #' @name SCE-class
@@ -20,18 +19,12 @@ setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 SCE <- setClass(Class = "SCE", 
                 slots = c(counts = "any_matrix", 
                           norm = "any_matrix", 
-                          coefs = "matrix", 
                           pcs = "matrix", 
                           test_set = "character", 
                           bg_set = "character", 
-                          pp_thresh = "numeric", 
                           gene_data = "data.frame", 
                           droplet_data = "data.frame", 
                           kruns = "list", 
-                          init = "list", 
-                          assignments = "factor", 
-                          emo = "list", 
-                          test_k = "vector", 
                           vg_info = "data.frame", 
                           vg = "character", 
                           name = "character"))
@@ -123,12 +116,23 @@ create_SCE <- function(x, name = "SCE"){
 #' @param x An SCE object.
 #' @param min_counts Minimum number of read counts a droplet must have to 
 #'  be output.
+#' @param type One of either 'all' (default), 'test', 'clean', or 'debris' 
+#'  specifying how to subset the data frame to include only those droplets.
 #'
 #' @return A data frame
 #'
 #' @export
-droplet_data <- function(x, min_counts = 1){
+droplet_data <- function(x, min_counts = 1, type = "all"){
     keep <- x@droplet_data$total_counts >= min_counts
+    if (type == "clean"){
+        keep <- keep & x@droplet_data$Call == "Clean"
+    }
+    if (type == "test"){
+        keep <- keep & (rownames(x@droplet_data) %in% x@test_set)
+    }
+    if (type == "debris"){
+        keep <- keep & x@droplet_data$Call == "Debris"
+    }
     return(x@droplet_data[keep,,drop=FALSE])
 }
 
@@ -163,6 +167,75 @@ raw_counts <- function(x){
     return(x@counts)
 }
 
+#' Get cluster distances to background
+#'
+#' @param x An SCE object.
+#' @param k_init The k_init run to extract the values from.
+#'
+#' @return A numeric vector containing the distances for each cluster.
+#' 
+#' @export
+distances <- function(x, k_init = NULL){
+    k_init <- check_k_init(x, k_init, return_all = FALSE)
+
+    if ("Dist" %in% names(x@kruns[[k_init]])){
+        return(x@kruns[[k_init]]$Dist)
+    } else {
+        return(NULL)
+    }
+}
+
+#' Get Alpha parameters for clusters
+#'
+#' @param x An SCE object.
+#' @param k_init The k_init run to extract the values from.
+#'
+#' @return A droplet by cluster matrix containing the alpha parameters of 
+#'  of the Dirichlet-multinomial cluster in each column.
+#'
+#' @export
+Alpha <- function(x, k_init = NULL){
+    k_init <- check_k_init(x, k_init, return_all = FALSE)
+    if ("Alpha" %in% names(x@kruns[[k_init]]$params)){
+        return(x@kruns[[k_init]]$params$Alpha)
+    } else {
+        return(NULL)
+    }
+}
+
+#' Get percent of reads aligned to given gene(s)
+#'
+#' Add a data column for each droplet giving the percentage of raw reads/UMIs 
+#' that align to genes given in \code{genes}. The column name is specified by 
+#' \code{name}.
+#'
+#' @param x An SCE object.
+#' @param genes Genes to calculate percentage of in counts.
+#' @param name Column name to place in dropl_info.
+#'
+#' @return An SCE object.
+#' 
+#' @importFrom Matrix colSums
+#' 
+#' @export
+#' 
+#' @examples
+#' # Add MT%
+#' mt_genes <- grep(pattern="^mt-", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
+#' mb_small <- get_gene_pct(x = mb_small, genes=mt_genes, name="pct.mt")
+#' # Add MALAT1
+#' genes <- grep(pattern="^malat1$", x=rownames(mb_small@gene_data), ignore.case=TRUE, value=TRUE)
+#' mb_small <- get_gene_pct(x = mb_small, genes=genes, name="MALAT1")
+get_gene_pct <- function(x, genes, name){
+    gi <- intersect(genes, rownames(x@counts))
+    if (length(gi) != length(genes)){
+        stop("at least one of given genes not found.")
+    }
+    gene_pct <- 100 * colSums(x@counts[genes,,drop=FALSE]) / colSums(x@counts)
+    x@droplet_data[names(gene_pct),name] <- gene_pct
+    return(x)
+}
+
 #' Convert an SCE object to Seurat
 #'
 #' Convert an SCE object to a Seurat object. if \code{targets} is true (default), output only droplets that are 
@@ -180,7 +253,7 @@ raw_counts <- function(x){
 #' @return A Seurat object
 #' @export
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' mm_seur <- convert_to_seurat(x = mb_small, 
 #'                              targets = FALSE, 
 #'                              min.features = 500, 
@@ -199,8 +272,8 @@ convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
         if (meta) meta.data <- x@droplet_data[drops,,drop=FALSE]
         else meta.data <- NULL
 
-        counts <- counts[,drops,drop=FALSE]
-        seur <- Seurat::CreateSeuratObject(counts = counts, meta.data = meta.data, ...)
+        seur <- Seurat::CreateSeuratObject(counts = x@counts[,drops,drop=FALSE], 
+                                           meta.data = meta.data, ...)
         return(seur)
     }
 }

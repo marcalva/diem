@@ -1,7 +1,7 @@
 Package: diem
 Title: Debris-Containing Droplet Identification using EM
-Version: 2.0.0
-Date: 2020-02-16
+Version: 2.1.0
+Date: 2020-02-19
 Authors@R: c(person(given = "Marcus",
             family = "Alvarez", 
             role = c("aut", "cre"),
@@ -11,12 +11,13 @@ Authors@R: c(person(given = "Marcus",
             role = "aut", 
             email = "elior.rahmani@gmail.com"))
 Description: Identification of debris-containing droplets 
-        from a droplet-based single cell/nucleus RNA-seq. 'diem' models 
-        the expression profile of background RNA droplets and 
-        cell types using a Dirichlet-multinomial mixture model. Parameters  
-        are estimated with expectation maximization (EM) and
-        candidates are assigned as debris or nuclei based on their 
-        likelihood.See Alvarez M, Rahmani E, et al (2019)
+        from a droplet-based single cell/nucleus RNA-seq. 'diem' 
+        classifies droplets by modeling droplet expression with a 
+        Dirichlet-multinomial mixture model. 
+        The expression profile of background RNA and cell types 
+        are estimated using expectation maximization (EM), and 
+        the likelihood is used to assign candidates as 
+        debris or nuclei. See Alvarez M, Rahmani E, et al (2019) 
         <doi:10.1101/786285> for details.
 License: GPL-3
 Encoding: UTF-8
@@ -24,18 +25,16 @@ LazyData: true
 RoxygenNote: 6.1.1
 Depends:
 	R (>= 3.5.0), 
-    methods
-LinkingTo: Rcpp, RcppEigen
+    methods 
+LinkingTo: Rcpp, RcppEigen, RcppProgress
 Imports:
     ggplot2,
     Matrix,
     irlba,
     scales,
     utils,
-    nnls,
     stats,
-    future,
-    future.apply
+    Rcpp
 Suggests:
     Seurat (>= 3.0.0),
     testthat,

@@ -2,14 +2,44 @@
 % Please edit documentation in R/em.R
 \name{get_alpha}
 \alias{get_alpha}
-\title{LOO optimization}
+\title{Get MLE of alphas}
 \usage{
-get_alpha(counts, Z, eps = 1e-04, max_loo = 500, psc = 1e-10,
-  debug = FALSE)
+get_alpha(counts, Z, test_set, bg_set, eps = 1e-04, max_loo = 500,
+  psc = 1e-10, threads = 1, tol = 100, verbose = FALSE)
+}
+\arguments{
+\item{counts}{A gene by droplet matrix}
+
+\item{Z}{A droplet by cluster matrix of the posterior probability a 
+droplet belongs to cluster k. Rows must sum to 1 and entries must 
+be between 0 and 1.}
+
+\item{test_set}{Character vector of droplet IDs that belong to the 
+test set}
+
+\item{bg_set}{Character vector of droplet IDs that belong to the 
+background set}
+
+\item{eps}{The threshold of change in the parameter to stop the 
+LOO iterations.}
+
+\item{max_loo}{The maximum number of LOO iterations}
+
+\item{psc}{The pseudocount to add to the final MLE estimate. This avoids 
+inappropriate alpha values of 0.}
+
+\item{threads}{Number of threads for parallel execution. Default is 1.}
+
+\item{tol}{The \code{tol} parameter for \code{\link[stats]{optimize}} 
+used in the  initialization.}
+
+\item{verbose}{Verbosity.}
 }
 \description{
-counts is a droplet by gene matrix
-sizes is total droplet size
-a is current value of alpha parameter, gene by k matrix
-z is current membership
+Given the count data and posterior probabilities (membership), 
+update alpha by finding the MLE. This initializes alpha to 
+the mean proportion of the cluster's gene expression and 
+maximizes the likelihood with respect to the precision (the sum 
+of the alphas). Then, the leave-one-out likelihood is maximized, 
+providing the final MLE.
 }

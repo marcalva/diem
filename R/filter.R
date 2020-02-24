@@ -8,30 +8,27 @@
 #' debris group during the EM.
 #' 
 #' \code{min_counts} and \code{min_genes} specify the lower limit 
-#' that droplets in the test set must have. In addition, 
-#' the parameter \code{top_n} specifies that at most the top \code{top_n} 
-#' should be included in the test set. The default is 10,000 
-#' in accordance with the typical maximum number of droplets 
-#' generated during a single-cell experiment, but should be changed 
-#' accordingly.
+#' that droplets in the test set must have. The default it to 
+#' set all droplets with at least 100 read counts. Optionally, the 
+#' \code{top_n} parameter can specify that the top 
+#' \code{top_n} are set the test set, and all others are set to the 
+#' debris set.
 #' If the read/UMI count of the \code{top_n} count-ranked droplet is greater 
 #' than \code{min_counts}, then the \code{min_counts} is 
-#' increased to this limit. The \code{fix_debris} parameter allows 
+#' increased to this limit. The \code{debris_ids} parameter allows 
 #' additional flexibility in specifying those droplets that are 
 #' included in the debris set. For example, it may be useful to 
-#' set droplets above a pre-determined MT% threshold as debris, 
-#' regardless of the total number of read/UMI counts present.
+#' set droplets above a pre-determined MT% threshold as debris.
 #'
 #' @param x An SCE object.
-#' @param top_n A numeric value giving the total number of test droplets 
-#'  and take the counts of the \code{top_n} ranked droplet. Set to \code{NULL} 
-#'  to disable and set all droplets above \code{min_counts} and 
-#'  \code{min_genes} to the test set.
 #' @param min_counts A numeric value that specifies the minimum 
 #'  total read/UMI counts a test droplet can have.
 #' @param min_genes A numeric value that specifies the minimum 
-#'  total genes detected a test droplet can have.
-#' @param fix_debris A character vector of droplet IDs that will be assigned 
+#'  total genes detected a test droplet can have. Set to 0 by default.
+#' @param top_n A numeric value giving the total number of test droplets 
+#'  and take the counts of the \code{top_n} ranked droplet. Turned off
+#'  by default.
+#' @param debris_ids A character vector of droplet IDs that will be assigned 
 #'  to the debris set, regardless of its total counts or genes detected.
 #' @param verbose verbosity
 #'
@@ -39,11 +36,11 @@
 #' @importFrom Matrix colSums
 #' @export
 set_debris_test_set <- function(x, 
-                                top_n = NULL, 
                                 min_counts = 100, 
-                                min_genes = 100, 
-                                fix_debris = NULL, 
-                                verbose = FALSE){
+                                min_genes = 0, 
+                                top_n = NULL, 
+                                debris_ids = NULL, 
+                                verbose = TRUE){
     if (is.null(top_n)){
         top_n <- ncol(x@counts)
     }
@@ -68,14 +65,14 @@ set_debris_test_set <- function(x,
     dco <- dc[o]
     min_counts <- max(min_counts, dco[top_n], na.rm=TRUE)
     ts <- names(dco)[dco >= min_counts]
-    x@test_set <- setdiff(ts, fix_debris)
+    x@test_set <- setdiff(ts, debris_ids)
     x@bg_set <- setdiff(colnames(x@counts), x@test_set)
 
     if (length(x@test_set) <= 1) stop("1 or less test droplets found. Check ", 
                                       sQuote("min_counts"), " and ", sQuote("min_genes"))
 
     if (verbose){
-        message("using ", length(x@test_set), " droplets in the test set ", 
+        message(length(x@test_set), " droplets in the test set ", 
                 "and ", length(x@bg_set), " droplets in the debris set")
     }
 
@@ -91,15 +88,16 @@ set_debris_test_set <- function(x,
 #' data set are kept.
 #' 
 #' @param x An SCE object.
-#' @param cpm_thresh The minimum CPM threshold for removing genes.
+#' @param cpm_thresh CPMs must be greater than this value. This is 0 by 
+#'  default to include all expressed genes.
 #' @param verbose verbosity
 #'
 #' @return An SCE object
 #' @importFrom Matrix rowSums
 #' @export
-filter_genes <- function(x, cpm_thresh = 0, verbose = FALSE){
+filter_genes <- function(x, cpm_thresh = 0, verbose = TRUE){
     if (length(x@test_set) == 0 || length(x@bg_set) == 0)
-        stop("No test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
+        stop("no test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
     groups <- list(c(x@test_set, x@bg_set))
     keep_all <- sapply(groups, function(g){
                        expr <- rowSums(x@counts[,g,drop=FALSE])

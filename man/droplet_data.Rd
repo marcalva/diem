@@ -4,13 +4,16 @@
 \alias{droplet_data}
 \title{Return the droplet data from an SCE object}
 \usage{
-droplet_data(x, min_counts = 1)
+droplet_data(x, min_counts = 1, type = "all")
 }
 \arguments{
 \item{x}{An SCE object.}
 
 \item{min_counts}{Minimum number of read counts a droplet must have to 
 be output.}
+
+\item{type}{One of either 'all' (default), 'test', 'clean', or 'debris' 
+specifying how to subset the data frame to include only those droplets.}
 }
 \value{
 A data frame

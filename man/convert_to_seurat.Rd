@@ -27,7 +27,7 @@ slot in the Seurat object. Additional functions \code{...} to this function are 
 \code{min.features = 200}.
 }
 \examples{
-\dontrun{
+\donttest{
 mm_seur <- convert_to_seurat(x = mb_small, 
                              targets = FALSE, 
                              min.features = 500, 

@@ -4,32 +4,28 @@
 \alias{init}
 \title{Initialize clusters}
 \usage{
-init(x, n_pcs = 30, k_init = 30, iter.max = 15, nstart = 30,
-  min_size = 10, fltr = 0.1, seedn = 1, psc = 1e-10,
-  verbose = TRUE)
+init(x, k_init = 30, iter.max_init = 15, nstart_init = 30,
+  min_size_init = 10, seedn = 1, threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{n_pcs}{The number of PCs to use for the k-means.}
-
 \item{k_init}{The number of clusters to initialize k-means.}
 
-\item{iter.max}{The maximum number of k-means interations.}
+\item{iter.max_init}{The maximum number of k-means interations 
+for the initialization.}
 
-\item{nstart}{The number of starts to use in k-means.}
+\item{nstart_init}{The number of starts to use in k-means for 
+for the initialization.}
 
-\item{min_size}{The minimum number of members that belong to a cluster.}
-
-\item{fltr}{The filter threshold that controls the minimum distance to 
-the background distribution that a cluster must have. Remove those 
-centers with a distance less than this value.}
+\item{min_size_init}{The minimum number of droplets that must belong 
+to an initialized cluster.}
 
 \item{seedn}{The seed for random k-means initialization. 
-It is set to 1 by default. If you desire random initializations, 
-set to NULL, or different values across runs.}
+It is set to 1 by default. If you desire truly random initializations
+across runs, set to NULL or different values for each run.}
 
-\item{psc}{Pseudocount to add to all alpha parameter values to avoid 0.}
+\item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Verbosity.}
 }
@@ -37,5 +33,13 @@ set to NULL, or different values across runs.}
 An SCE object
 }
 \description{
-Initialize clusters
+Initialize the parameters of the Dirichlet-mulitnomial 
+mixture model. First 
+run k-means on the principal components of the test set to 
+initialize the cluster memberships. Then use these memberships 
+to estimate alpha and pi, the parameters of the mixture model. 
+These clusters are pruned by removing those that are close in 
+to the background distribution using a likelihood-based 
+distance metric. The parameter \code{k_init} specifies 
+initial number of clusters k to set for k-means.
 }
