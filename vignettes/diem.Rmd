@@ -105,7 +105,7 @@ summary(drop_data)
 We plot the distribution of reads and MT%.
 
 ```{r, fig.width=14, fig.height=14}
-drop_data <- droplet_data(mb_small, min_counts = 10)
+drop_data <- droplet_data(mb_small)
 datf <- drop_data
 par(mfrow=c(2,2))
 plot(datf$total_counts, datf$n_genes, pch = 16,

@@ -16,6 +16,7 @@
 #' @param lss Numeric value of the span parameter of the loess regression.
 #' @param droplets.use Vector of droplet IDs to use for getting variable 
 #'  genes. Default is to use the test set.
+#' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
 #' @return An SCE object

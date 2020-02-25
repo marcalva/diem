@@ -59,6 +59,7 @@ run_pca <- function(x, n_pcs = 30){
 #' @param lss The span parameter of the loess regression, the parameter 
 #'  for the function \code{\link[stats]{loess}}. The loess regression is
 #'  used to regress out the effect of mean expression on variance.
+#' @param threads Number of threads for parallel execution. Default is 1.
 #' @param n_pcs Number of PCs to return.
 #'
 #' @return An SCE object with PCs

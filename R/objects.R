@@ -124,14 +124,16 @@ create_SCE <- function(x, name = "SCE"){
 #'
 #' @export
 droplet_data <- function(x, min_counts = 1, type = "test"){
-    keep <- x@test_data$total_counts >= min_counts
+    if (length(x@test_data) < 2) dd <- x@droplet_data
+    else dd <- x@test_data
+    keep <- dd$total_counts >= min_counts
     if (type == "clean"){
-        keep <- keep & x@test_data$Call == "Clean"
+        keep <- keep & dd$Call == "Clean"
     }
     if (type == "debris"){
-        keep <- keep & x@test_data$Call == "Debris"
+        keep <- keep & dd$Call == "Debris"
     }
-    return(x@test_data[keep,,drop=FALSE])
+    return(dd[keep,,drop=FALSE])
 }
 
 #' Return the gene data from an SCE object
@@ -231,7 +233,9 @@ get_gene_pct <- function(x, genes, name){
     }
     gene_pct <- 100 * colSums(x@counts[genes,,drop=FALSE]) / colSums(x@counts)
     x@droplet_data[names(gene_pct),name] <- gene_pct
-    x@test_data[,name] <- gene_pct[x@test_set]
+    if (length(x@test_data) > 1){
+        x@test_data[,name] <- gene_pct[rownames(x@test_data)]
+    }
     return(x)
 }
 
