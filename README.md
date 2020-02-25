@@ -59,6 +59,10 @@ seur <- convert_to_seurat(sce)
 
 ## Version History
 
+February 25, 2020
+* version 2.2.0
+    * Initialize alpha with method of moments instead of optimize
+
 February 19, 2020
 * version 2.1.0
     * Additional function for extracting Alpha parameters for use with DE
