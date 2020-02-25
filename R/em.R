@@ -67,14 +67,12 @@ alpha_mom <- function(counts,
                       threads = 1){
     clusts <- 1:ncol(clust_mem)
     p <- divide_by_colsum(counts)
-    print("pbar")
     p_bar <- sapply(clusts, function(k){
                     pb <- fast_wmeanCPP(x = t(p[,clust_mem[,k],drop=FALSE]), 
                                         weights = weights[clust_mem[,k], k], 
                                         threads = threads)
                     return(pb) })
 
-    print("pvar")
     p_var <- sapply(clusts, function(k){
                     pv <- fast_wvarCPP(x = t(p[,clust_mem[,k],drop=FALSE]), 
                                        mu = p_bar[,k], 
@@ -82,7 +80,6 @@ alpha_mom <- function(counts,
                                        threads = threads)
                     return(pv) })
 
-    print("a0")
     a0 <- sapply(clusts, function(k){
                  nm <- p_bar[,k] * (1 - p_bar[,k])
                  a <- (nm / p_var[,k]) - 1
@@ -205,14 +202,12 @@ get_alpha <- function(counts,
 
     clust_mem <- Z_all > ignore
 
-    print("initializing")
     alpha0 <- alpha_mom(counts = counts, 
                         clust_mem = clust_mem, 
                         weights = Z_all,  
                         psc = 0, 
                         threads = threads)
 
-    print("LOO")
     Alpha <- alpha_max_loo(counts = counts, 
                            alpha0 = alpha0, 
                            clust_mem = clust_mem, 
@@ -222,8 +217,6 @@ get_alpha <- function(counts,
                            max_iter = max_iter_loo, 
                            threads = threads)
     Alpha <- Alpha + psc
-    print(colSums(Alpha))
-    print(colSums(alpha0))
 
     rownames(Alpha) <- rownames(counts)
     rm(Z_all)
