@@ -76,6 +76,8 @@ set_debris_test_set <- function(x,
                 "and ", length(x@bg_set), " droplets in the debris set")
     }
 
+    x@test_data <- x@droplet_data[x@test_set,]
+
     return(x)
 }
 

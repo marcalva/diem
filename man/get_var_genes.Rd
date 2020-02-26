@@ -5,7 +5,7 @@
 \title{Get variable genes}
 \usage{
 get_var_genes(x, n_genes = 2000, lss = 0.3, droplets.use = NULL,
-  verbose = FALSE)
+  threads = 1, verbose = FALSE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -16,6 +16,8 @@ get_var_genes(x, n_genes = 2000, lss = 0.3, droplets.use = NULL,
 
 \item{droplets.use}{Vector of droplet IDs to use for getting variable 
 genes. Default is to use the test set.}
+
+\item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Verbosity.}
 }

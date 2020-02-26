@@ -22,9 +22,9 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// compute_LOO_step_all
-NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, double eps, int max_loo, double psc, int threads, bool debug);
-RcppExport SEXP _diem_compute_LOO_step_all(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP max_looSEXP, SEXP pscSEXP, SEXP threadsSEXP, SEXP debugSEXP) {
+// max_loo
+NumericVector max_loo(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, double eps, int max_iter, double psc, int threads, bool debug);
+RcppExport SEXP _diem_max_loo(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP max_iterSEXP, SEXP pscSEXP, SEXP threadsSEXP, SEXP debugSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -33,48 +33,64 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
-    Rcpp::traits::input_parameter< int >::type max_loo(max_looSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
     Rcpp::traits::input_parameter< double >::type psc(pscSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
     Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_LOO_step_all(x, sizes, weights, alpha, eps, max_loo, psc, threads, debug));
-    return rcpp_result_gen;
-END_RCPP
-}
-// compute_LOO_step
-NumericVector compute_LOO_step(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, double psc, bool debug);
-RcppExport SEXP _diem_compute_LOO_step(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP pscSEXP, SEXP debugSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type sizes(sizesSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
-    Rcpp::traits::input_parameter< NumericVector >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< double >::type psc(pscSEXP);
-    Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
-    rcpp_result_gen = Rcpp::wrap(compute_LOO_step(x, sizes, weights, alpha, psc, debug));
+    rcpp_result_gen = Rcpp::wrap(max_loo(x, sizes, weights, alpha, eps, max_iter, psc, threads, debug));
     return rcpp_result_gen;
 END_RCPP
 }
 // fast_varCPP
-NumericVector fast_varCPP(Eigen::SparseMatrix<double> x, NumericVector mu);
-RcppExport SEXP _diem_fast_varCPP(SEXP xSEXP, SEXP muSEXP) {
+NumericVector fast_varCPP(Eigen::SparseMatrix<double> x, NumericVector mu, int threads, bool display_progress);
+RcppExport SEXP _diem_fast_varCPP(SEXP xSEXP, SEXP muSEXP, SEXP threadsSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
-    rcpp_result_gen = Rcpp::wrap(fast_varCPP(x, mu));
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_varCPP(x, mu, threads, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_wvarCPP
+NumericVector fast_wvarCPP(Eigen::SparseMatrix<double> x, NumericVector mu, NumericVector weights, int threads, bool display_progress);
+RcppExport SEXP _diem_fast_wvarCPP(SEXP xSEXP, SEXP muSEXP, SEXP weightsSEXP, SEXP threadsSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_wvarCPP(x, mu, weights, threads, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_wmeanCPP
+NumericVector fast_wmeanCPP(Eigen::SparseMatrix<double> x, NumericVector weights, int threads, bool display_progress);
+RcppExport SEXP _diem_fast_wmeanCPP(SEXP xSEXP, SEXP weightsSEXP, SEXP threadsSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_wmeanCPP(x, weights, threads, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_diem_LlkDirMultSparsePar", (DL_FUNC) &_diem_LlkDirMultSparsePar, 6},
-    {"_diem_compute_LOO_step_all", (DL_FUNC) &_diem_compute_LOO_step_all, 9},
-    {"_diem_compute_LOO_step", (DL_FUNC) &_diem_compute_LOO_step, 6},
-    {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 2},
+    {"_diem_max_loo", (DL_FUNC) &_diem_max_loo, 9},
+    {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 4},
+    {"_diem_fast_wvarCPP", (DL_FUNC) &_diem_fast_wvarCPP, 5},
+    {"_diem_fast_wmeanCPP", (DL_FUNC) &_diem_fast_wmeanCPP, 4},
     {NULL, NULL, 0}
 };
 

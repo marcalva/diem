@@ -24,6 +24,7 @@ SCE <- setClass(Class = "SCE",
                           bg_set = "character", 
                           gene_data = "data.frame", 
                           droplet_data = "data.frame", 
+                          test_data = "data.frame", 
                           kruns = "list", 
                           vg_info = "data.frame", 
                           vg = "character", 
@@ -106,7 +107,7 @@ create_SCE <- function(x, name = "SCE"){
 
 #' Return the droplet data from an SCE object
 #'
-#' Return the data frame stored in the slot \code{droplet_data}. This 
+#' Return droplet data from the test set. This 
 #' contains data such as number of counts and genes in each droplet, as 
 #' well as some of the output from the filtering, such as whether the 
 #' droplet is classified as debris or cell/nucleus. The parameter 
@@ -116,24 +117,23 @@ create_SCE <- function(x, name = "SCE"){
 #' @param x An SCE object.
 #' @param min_counts Minimum number of read counts a droplet must have to 
 #'  be output.
-#' @param type One of either 'all' (default), 'test', 'clean', or 'debris' 
+#' @param type One of either 'test' (default), 'clean', or 'debris' 
 #'  specifying how to subset the data frame to include only those droplets.
 #'
 #' @return A data frame
 #'
 #' @export
-droplet_data <- function(x, min_counts = 1, type = "all"){
-    keep <- x@droplet_data$total_counts >= min_counts
+droplet_data <- function(x, min_counts = 1, type = "test"){
+    if (length(x@test_data) < 2) dd <- x@droplet_data
+    else dd <- x@test_data
+    keep <- dd$total_counts >= min_counts
     if (type == "clean"){
-        keep <- keep & x@droplet_data$Call == "Clean"
-    }
-    if (type == "test"){
-        keep <- keep & (rownames(x@droplet_data) %in% x@test_set)
+        keep <- keep & dd$Call == "Clean"
     }
     if (type == "debris"){
-        keep <- keep & x@droplet_data$Call == "Debris"
+        keep <- keep & dd$Call == "Debris"
     }
-    return(x@droplet_data[keep,,drop=FALSE])
+    return(dd[keep,,drop=FALSE])
 }
 
 #' Return the gene data from an SCE object
@@ -233,6 +233,9 @@ get_gene_pct <- function(x, genes, name){
     }
     gene_pct <- 100 * colSums(x@counts[genes,,drop=FALSE]) / colSums(x@counts)
     x@droplet_data[names(gene_pct),name] <- gene_pct
+    if (length(x@test_data) > 1){
+        x@test_data[,name] <- gene_pct[rownames(x@test_data)]
+    }
     return(x)
 }
 
@@ -267,9 +270,9 @@ convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
     } else {
 
         if (targets) drops <- get_clean_ids(x)
-        else drops <- rownames(x@droplet_data)
+        else drops <- rownames(x@test_data)
 
-        if (meta) meta.data <- x@droplet_data[drops,,drop=FALSE]
+        if (meta) meta.data <- x@test_data[drops,,drop=FALSE]
         else meta.data <- NULL
 
         seur <- Seurat::CreateSeuratObject(counts = x@counts[,drops,drop=FALSE], 

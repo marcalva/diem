@@ -8,8 +8,6 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-#include <progress.hpp>
-// #include <progress_bar.hpp>
 using namespace Rcpp;
 using namespace std;
 
@@ -18,15 +16,16 @@ using namespace std;
 
 // Compute LOO step for Dirichlet-Multinomial
 // [[Rcpp::export]]
-NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x, 
+NumericVector max_loo(Eigen::SparseMatrix<double> x, 
         NumericVector sizes,
         NumericVector weights,
         NumericVector alpha, 
         double eps = 1e-4, 
-        int max_loo = 500, 
+        int max_iter = 1e4, 
         double psc = 1e-10, 
         int threads = 1, 
         bool debug = false){
+
     int n_c = x.rows();
     int n_g = x.cols();
     double as = sum(alpha);
@@ -43,10 +42,6 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
 
 #ifdef _OPENMP
     if ( threads > 0 ){
-        //int mt = omp_get_max_threads();
-        //if (threads > mt){
-        //    threads = mt;
-        //}
         omp_set_num_threads( threads );
     }
 #endif
@@ -55,7 +50,7 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
     int iter = 1;
     double* numer = new double[n_g]();
     // calculate weighted gene sums
-    while (delt > eps && iter <= max_loo){
+    while (delt > eps && iter <= max_iter){
         double as = sum(alpha_old);
 
         double denom = 0;
@@ -100,48 +95,6 @@ NumericVector compute_LOO_step_all(Eigen::SparseMatrix<double> x,
         alpha_old = clone(alpha_new);
     }
     delete [] numer;
-    return(alpha_new);
-}
-
-// Compute LOO step for Dirichlet-Multinomial
-// [[Rcpp::export]]
-NumericVector compute_LOO_step(Eigen::SparseMatrix<double> x, 
-        NumericVector sizes,
-        NumericVector weights,
-        NumericVector alpha, 
-        double psc = 1e-10, 
-        bool debug = false){
-    int n_c = x.rows();
-    int n_g = x.cols();
-    double as = sum(alpha);
-    NumericVector alpha_new(n_g);
-
-    double denom = 0;
-    for (int i = 0; i < n_c; ++i){
-        denom += (weights[i] * sizes[i]) / (sizes[i] - 1 + as);
-    }
-
-    if (std::isnan(denom)){
-        Rcout << "Denominator " << denom << "\n";
-        stop("NA values encountered. An alpha value is likely 0.");
-    }
-
-    for (int k = 0; k < n_g; ++k){
-        double numer = 0;
-        for (Eigen::SparseMatrix<double>::InnerIterator it(x,k); it; ++it) {
-            double xik = it.value();
-            int i = it.index();
-            numer += (weights[i] * xik) / (xik - 1 + alpha[k]);
-        }
-        alpha_new[k] = alpha[k] * (numer / denom);
-        if (std::isnan(alpha_new[k])){
-            Rcout << "alpha_k " << alpha[k] << "\n";
-            Rcout << "value " << (numer / denom) << "\n";
-            Rcout << "Numerator " << numer << "\n";
-            Rcout << "Denominator " << denom << "\n";
-            stop("NA values encountered. An alpha value is likely 0.");
-        }
-    }
     return(alpha_new);
 }
 

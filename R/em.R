@@ -39,6 +39,112 @@ get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, v
     return(llk)
 }
 
+#' Estimate alpha using method of moments
+#' 
+#' Estimate Alpha parameters of DM using method of moments. The input 
+#' data \code{counts} is in sparse matrix format. The parameters for 
+#' DM can be estimated for multiple centers, where both \code{clust_mem} and 
+#' \code{weights} specify the cluster's members and their weights, 
+#' respectively.
+#'
+#' @param counts A gene by droplet sparse count matrix.
+#' @param clust_mem A droplet by cluster boolean matrix, indicating whether 
+#'  a droplet will count towards estimation of the cluster's parameters.
+#' @param weights A droplet by cluster matrix of weights, or the posterior 
+#'  probability the droplet belongs to the cluster
+#' @param psc pseudocount to add to the final alpha. This avoids alpha values 
+#'  of 0 that are outside the domain of the parameter.
+#' @param threads Number of threads for parallel execution. Default is 1.
+#'
+#' @return A gene by cluster matrix of alpha values for the cluster's 
+#'  DM parameters
+#'
+#' @importFrom Matrix t
+alpha_mom <- function(counts, 
+                      clust_mem, 
+                      weights, 
+                      psc = 1e-10, 
+                      threads = 1){
+    clusts <- 1:ncol(clust_mem)
+    p <- divide_by_colsum(counts)
+    p_bar <- sapply(clusts, function(k){
+                    pb <- fast_wmeanCPP(x = t(p[,clust_mem[,k],drop=FALSE]), 
+                                        weights = weights[clust_mem[,k], k], 
+                                        threads = threads)
+                    return(pb) })
+
+    p_var <- sapply(clusts, function(k){
+                    pv <- fast_wvarCPP(x = t(p[,clust_mem[,k],drop=FALSE]), 
+                                       mu = p_bar[,k], 
+                                       weights = weights[clust_mem[,k], k], 
+                                       threads = threads)
+                    return(pv) })
+
+    a0 <- sapply(clusts, function(k){
+                 nm <- p_bar[,k] * (1 - p_bar[,k])
+                 a <- (nm / p_var[,k]) - 1
+                 keep <- !( is.infinite(a) | is.na(a) )
+                 a[!keep] <- 0
+                 a[ a < 0 ] <- 0
+                 return(max(a))
+                    })
+    alpha0 <- p_bar %*% diag(a0)
+    alpha0 <- alpha0 + psc
+    return(alpha0)
+}
+
+#' Maximize leave-one-out with respect to alpha
+#' 
+#' Estimate Alpha parameters of DM using method of moments. The input 
+#' data \code{counts} is in sparse matrix format. The parameters for 
+#' DM can be estimated for multiple centers, where both \code{clust_mem} and 
+#' \code{weights} specify the cluster's members and their weights, 
+#' respectively.
+#'
+#' @param counts A gene by droplet sparse count matrix.
+#' @param alpha0 A gene by cluster matrix of initial alpha parameter values.
+#' @param clust_mem A droplet by cluster boolean matrix, indicating whether 
+#'  a droplet will count towards estimation of the cluster's parameters.
+#' @param weights A droplet by cluster matrix of weights, or the posterior 
+#'  probability the droplet belongs to the cluster
+#' @param psc pseudocount to add to the final alpha. This avoids alpha values 
+#'  of 0 that are outside the domain of the parameter.
+#' @param eps The threshold of change in the parameter to stop the 
+#'  LOO iterations.
+#' @param max_iter The maximum number of LOO iterations.
+#' @param threads Number of threads for parallel execution. Default is 1.
+#'
+#' @return A gene by cluster matrix of alpha values for the cluster's 
+#'  DM parameters
+#'
+#' @importFrom Matrix colSums t
+alpha_max_loo <- function(counts, 
+                          alpha0, 
+                          clust_mem, 
+                          weights, 
+                          psc = 1e-10, 
+                          eps = 1e-4, 
+                          max_iter = 1e4, 
+                          threads = 1){
+    sizes <- colSums(counts)
+    clusts <- 1:ncol(clust_mem)
+
+    # LOO optimize
+    Alpha <- sapply(clusts, function(k){
+                    Ak <- max_loo(x = t(counts[,clust_mem[,k],drop=FALSE]), 
+                                  sizes = sizes[clust_mem[,k]], 
+                                  weights = weights[clust_mem[,k], k], 
+                                  alpha = alpha0[,k], 
+                                  eps = eps, 
+                                  psc = psc, 
+                                  threads = threads, 
+                                  max_iter = max_iter)
+                    return(Ak)
+                          })
+    rownames(Alpha) <- rownames(counts)
+    return(Alpha)
+}
+
 #' Get MLE of alphas
 #' 
 #' Given the count data and posterior probabilities (membership), 
@@ -58,12 +164,12 @@ get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, v
 #'  background set
 #' @param eps The threshold of change in the parameter to stop the 
 #'  LOO iterations.
-#' @param max_loo The maximum number of LOO iterations
+#' @param max_iter_loo The maximum number of LOO iterations
 #' @param psc The pseudocount to add to the final MLE estimate. This avoids 
 #'  inappropriate alpha values of 0.
+#' @param ignore The posterior probability must be larger than this value 
+#'  for it to count towards alpha estimation in a cluster.
 #' @param threads Number of threads for parallel execution. Default is 1.
-#' @param tol The \code{tol} parameter for \code{\link[stats]{optimize}} 
-#' used in the  initialization.
 #' @param verbose Verbosity.
 #' 
 #' @importFrom Matrix rowSums t
@@ -74,15 +180,11 @@ get_alpha <- function(counts,
                       test_set, 
                       bg_set, 
                       eps = 1e-4, 
-                      max_loo = 500, 
+                      max_iter_loo = 1e4, 
                       psc = 1e-10, 
+                      ignore = 1e-10, 
                       threads = 1, 
-                      tol = 1e2, 
                       verbose = FALSE){
-    K <- ncol(Z)
-    ks <- 1:K
-    sizes <- colSums(counts)
-
     if (verbose) message("estimating alpha")
 
     clusts <- 1:ncol(Z)
@@ -92,56 +194,32 @@ get_alpha <- function(counts,
     }
 
     # Get droplet membership
-    clust_mem <- matrix(FALSE, nrow = ncol(counts), ncol = length(clusts))
-    rownames(clust_mem) <- colnames(counts)
-    colnames(clust_mem) <- clusts
-    clust_mem[bg_set, 1] <- TRUE
-    clust_mem[test_set,] <- apply(Z, 2, function(i) i != 0)
+    Z_all <- matrix(0, nrow = ncol(counts), ncol = length(clusts))
+    Z_all[,1] <- 1
+    rownames(Z_all) <- colnames(counts)
+    colnames(Z_all) <- clusts
+    Z_all[test_set,] <- Z[test_set,]
 
-    zl <- lapply(1:K, function(k){
-                 v1 <- rep(1, ncol(counts))
-                 names(v1) <- colnames(counts)
-                 v1[test_set] <- Z[,k]
-                 return(v1[clust_mem[,k]])
-                      })
-    names(zl) <- clusts
+    clust_mem <- Z_all > ignore
 
-    # Loop over droplets with high enough p(z)
-    p_bar <- sapply(clusts, function(k){
-                      p <- counts[,clust_mem[,k],drop=FALSE] %*% zl[[k]]
-                      p <- as.matrix(p) + psc
-                      p / sum(p) })
+    alpha0 <- alpha_mom(counts = counts, 
+                        clust_mem = clust_mem, 
+                        weights = Z_all,  
+                        psc = 0, 
+                        threads = threads)
 
-    # Initialize
-    a_range <- c(10, 1e6)
-    a0 <- c()
-    a0 <- sapply(clusts, function(k){
-                   f <- function(x){
-                       r <- get_llk(counts = counts[,clust_mem[,k],drop=FALSE], 
-                                    Alpha = x * p_bar[,k,drop=FALSE], 
-                                    sizes = sizes[clust_mem[,k]], 
-                                    threads = threads, 
-                                    verbose = FALSE)
-                       r <- as.numeric(t(r) %*% zl[[k]])
-                       return(r)
-                   }
-                   a_max <- optimize(f, interval = a_range, tol = tol, maximum = TRUE)
-                   return(a_max$maximum)
-                      })
-
-    # LOO optimize
-    Alpha <- sapply(ks, function(k){
-                      Ak <- compute_LOO_step_all(x = t(counts[,clust_mem[,k],drop=FALSE]), 
-                                                 sizes = sizes[clust_mem[,k]], 
-                                                 weights = zl[[k]], 
-                                                 alpha = p_bar[,k] * a0[k], 
-                                                 eps = eps, 
-                                                 psc = psc, 
-                                                 threads = threads, 
-                                                 max_loo = max_loo)
-                      return(Ak)})
+    Alpha <- alpha_max_loo(counts = counts, 
+                           alpha0 = alpha0, 
+                           clust_mem = clust_mem, 
+                           weights = Z_all, 
+                           psc = 0, 
+                           eps = eps, 
+                           max_iter = max_iter_loo, 
+                           threads = threads)
+    Alpha <- Alpha + psc
 
     rownames(Alpha) <- rownames(counts)
+    rm(Z_all)
 
     return(Alpha)
 }

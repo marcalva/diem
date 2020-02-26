@@ -4,7 +4,7 @@
 \alias{droplet_data}
 \title{Return the droplet data from an SCE object}
 \usage{
-droplet_data(x, min_counts = 1, type = "all")
+droplet_data(x, min_counts = 1, type = "test")
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -12,14 +12,14 @@ droplet_data(x, min_counts = 1, type = "all")
 \item{min_counts}{Minimum number of read counts a droplet must have to 
 be output.}
 
-\item{type}{One of either 'all' (default), 'test', 'clean', or 'debris' 
+\item{type}{One of either 'test' (default), 'clean', or 'debris' 
 specifying how to subset the data frame to include only those droplets.}
 }
 \value{
 A data frame
 }
 \description{
-Return the data frame stored in the slot \code{droplet_data}. This 
+Return droplet data from the test set. This 
 contains data such as number of counts and genes in each droplet, as 
 well as some of the output from the filtering, such as whether the 
 droplet is classified as debris or cell/nucleus. The parameter 

@@ -4,7 +4,7 @@
 \alias{get_pcs}
 \title{Get PCs}
 \usage{
-get_pcs(x, n_var_genes = 2000, lss = 0.3, n_pcs = 30)
+get_pcs(x, n_var_genes = 2000, lss = 0.3, threads = 1, n_pcs = 30)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -14,6 +14,8 @@ get_pcs(x, n_var_genes = 2000, lss = 0.3, n_pcs = 30)
 \item{lss}{The span parameter of the loess regression, the parameter 
 for the function \code{\link[stats]{loess}}. The loess regression is
 used to regress out the effect of mean expression on variance.}
+
+\item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{n_pcs}{Number of PCs to return.}
 }
