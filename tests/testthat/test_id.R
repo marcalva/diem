@@ -26,7 +26,7 @@ sce@test_data[clean, "CleanProb"] <- 1
 
 sce <- filter_genes(sce, cpm_thresh = 0)
 sce <- get_pcs(sce, n_var_genes = 50)
-sce <- init(sce, k_init = 2)
+sce <- init(sce, k_init = 1)
 sce <- get_dist(sce)
 sce <- rm_close(sce)
 sce <- run_em(sce)
