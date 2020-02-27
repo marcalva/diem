@@ -212,11 +212,10 @@ get_alpha <- function(counts,
                            alpha0 = alpha0, 
                            clust_mem = clust_mem, 
                            weights = Z_all, 
-                           psc = 0, 
                            eps = eps, 
+                           psc = psc, 
                            max_iter = max_iter_loo, 
                            threads = threads)
-    Alpha <- Alpha + psc
 
     rownames(Alpha) <- rownames(counts)
     rm(Z_all)

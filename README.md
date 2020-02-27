@@ -59,6 +59,10 @@ seur <- convert_to_seurat(sce)
 
 ## Version History
 
+February 27, 2020
+* version 2.2.1
+    * Fixed pseudocount to prohibit alpha values of 0
+
 February 25, 2020
 * version 2.2.0
     * Initialize alpha with method of moments instead of optimize
