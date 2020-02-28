@@ -47,10 +47,10 @@ NumericVector max_loo(Eigen::SparseMatrix<double> x,
 #endif
 
     for (int k = 0; k < n_g; ++k){
-        if (alpha_new(k) < 0) {
-            alpha_new(k) = psc;
+        if (alpha_old(k) < 0) {
+            alpha_old(k) = psc;
         } else {
-            alpha_new(k) += psc;
+            alpha_old(k) += psc;
         }
     }
 
