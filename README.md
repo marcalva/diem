@@ -59,7 +59,7 @@ seur <- convert_to_seurat(sce)
 
 ## Version History
 
-February 27, 2020
+March 24, 2020
 * version 2.2.1
     * Fixed pseudocount to prohibit alpha values of 0
 
