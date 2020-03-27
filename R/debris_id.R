@@ -1,4 +1,36 @@
 
+#' Assign clusters to droplets from EM
+#'
+#' Assign cluster to droplets in the test_data from a DIEM k_init run.
+#'
+#' @param x An SCE object.
+#' @param k_init The k_init run to call droplets from. This must 
+#'  specify a single value. If left unspecified, will call droplets only if 
+#'  there is one k_init run.
+#'
+#' @return An SCE object.
+#'
+#' @export
+assign_clusters <- function(x, k_init = NULL){
+    k_init <- check_k_init(x, k_init)
+
+    emo <- x@kruns[[k_init]]
+    if (length(emo$llk) <= 1){
+        stop("run EM to assign clusters")
+    }
+
+    Z <- get_z(emo$llk, emo$params$Pi)
+    Z <- Z[rownames(x@test_data),]
+
+    clust_max <- apply(Z, 1, which.max)
+    clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
+    
+    x@test_data[,"Cluster"] <- clust_max
+    x@test_data[,"ClusterProb"] <- clust_prob
+
+    return(x)
+}
+
 #' Call clean droplets after running EM
 #'
 #' Call cells or nuclei from an SCE object. Adds meta data to 
@@ -12,13 +44,17 @@
 #' is an integer that specifies debris (1) or cell type (>1). The 
 #' function calls droplets that have a probability of being a cell 
 #' type greater of at least \code{pp_thresh} and at least 
-#' \code{min_genes} detected as "Clean." 
+#' \code{min_genes} detected as "Clean." The debris clusters are 
+#' specified by deb_clust and default to cluster 1, which 
+#' should always be included.
 #'
 #' @param x An SCE object.
 #' @param pp_thresh The minimum posterior probability of a droplet to be 
 #'  classified as a cell/nucleus.
 #' @param min_genes The minimum number of genes a droplet must have 
 #'  to be classified as a cell/nucleus.
+#' @param deb_clust A numeric vector of debris clusters. Contains 
+#'  only cluster 1 by default, and should always contain cluster 1.
 #' @param k_init The k_init run to call droplets from. This must 
 #'  specify a single value. If left unspecified, will call droplets only if 
 #'  there is one k_init run.
@@ -30,6 +66,7 @@
 call_targets <- function(x, 
                          pp_thresh = 0.95, 
                          min_genes = 200, 
+                         deb_clust = c(1), 
                          k_init = NULL, 
                          verbose = TRUE){
 
@@ -47,31 +84,41 @@ call_targets <- function(x,
     }
 
     Z <- get_z(emo$llk, emo$params$Pi)
+    Z <- Z[rownames(x@test_data),]
+    llk <- emo$llk[x@test_set,,drop=FALSE]
+    Pi <- emo$params$Pi
+    llk_pi <- t(apply(llk, 1, function(j) j + log(Pi)))
+
+    if ( any( !(deb_clust %in% 1:ncol(Z)) ) )
+        stop("deb_clust clusters must be between 1 and ", ncol(Z))
+
+    clean_clust <- setdiff(1:ncol(Z), deb_clust)
 
     clust_max <- apply(Z, 1, which.max)
     clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
 
-    # Place calls
-    calls <- rep("Debris", length(x@test_set))
-    prob_keep <- (1 - Z[,1]) >= pp_thresh
+    debris_prob <- rowSums(Z[,deb_clust, drop=FALSE])
+    clean_prob <- rowSums(Z[,clean_clust, drop=FALSE])
+
+    prob_keep <- clean_prob >= pp_thresh
     gene_keep <- x@test_data[, "n_genes"] >= min_genes
-    calls[prob_keep & gene_keep] <- "Clean"
-    x@test_data[,"Call"] <- "Debris"
-    x@test_data[,"Call"] <- calls
-    x@test_data[,"Call"] <- as.factor(x@test_data[,"Call"])
+    
+    x@test_data[, "Call"] <- "Debris"
+    x@test_data[prob_keep & gene_keep,"Call"] <- "Clean"
+    x@test_data[, "Call"] <- as.factor(x@test_data[,"Call"])
 
-    # Add debris log odds
-    llk <- emo$llk[x@test_set,,drop=FALSE]
-    Pi <- emo$params$Pi
-    llk_pi <- t(apply(llk, 1, function(j) j + log(Pi)))
-    debris_prob <- llk_pi[,1]
-    clean_prob <- apply(llk_pi[,2:ncol(llk_pi),drop=FALSE], 1, sum_log)
-    x@test_data[, "DebrisLlk"] <- debris_prob
-    x@test_data[, "DebrisLogOdds"] <- debris_prob - clean_prob
 
-    x@test_data[,"DebrisProb"] <- Z[,1]
-    x@test_data["ClusterProb"] <-  clust_prob
-    x@test_data[,"Cluster"] <- clust_max
+    debris_llk <- apply(llk_pi[,deb_clust,drop=FALSE], 1, sum_log)
+    clean_llk <- apply(llk_pi[,clean_clust,drop=FALSE], 1, sum_log)
+
+    x@test_data[, "DebrisLlk"] <- debris_llk
+    x@test_data[, "DebrisLogOdds"] <- debris_llk - clean_llk
+
+    x@test_data[, "DebrisProb"] <- debris_prob
+    x@test_data[, "CleanProb"] <- clean_prob
+
+    x@test_data[, "Cluster"] <- clust_max
+    x@test_data[, "ClusterProb"] <- clust_prob
 
     if (verbose){
         n_clean <- sum(x@test_data[,"Call"] == "Clean")

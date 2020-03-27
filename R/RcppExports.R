@@ -5,6 +5,10 @@ LlkDirMultSparsePar <- function(x, sizes, alpha, threads = 1L, display_progress 
     .Call('_diem_LlkDirMultSparsePar', PACKAGE = 'diem', x, sizes, alpha, threads, display_progress, debug)
 }
 
+fast_correct <- function(x, means, props, round_count = TRUE, display_progress = FALSE) {
+    .Call('_diem_fast_correct', PACKAGE = 'diem', x, means, props, round_count, display_progress)
+}
+
 max_loo <- function(x, sizes, weights, alpha, eps = 1e-4, max_iter = 1e4L, psc = 1e-10, threads = 1L, debug = FALSE) {
     .Call('_diem_max_loo', PACKAGE = 'diem', x, sizes, weights, alpha, eps, max_iter, psc, threads, debug)
 }

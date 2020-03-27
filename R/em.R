@@ -354,11 +354,16 @@ em <- function(counts,
             message("converged after ", iter-1, " iterations")
     }
 
+    Z <- get_z(llk, Pi)
+    clust_max <- apply(Z, 1, which.max)
+    names(clust_max) <- rownames(Z)
+
     params <- list("Alpha" = Alpha, 
                    "Pi" = Pi)
     ret <- list("params" = params, 
                 "llk" = llk, 
-                "converged" = converged)
+                "converged" = converged, 
+                "cluster" = clust_max)
     return(ret)
 }
 

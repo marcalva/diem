@@ -4,8 +4,8 @@
 \alias{call_targets}
 \title{Call clean droplets after running EM}
 \usage{
-call_targets(x, pp_thresh = 0.95, min_genes = 200, k_init = NULL,
-  verbose = TRUE)
+call_targets(x, pp_thresh = 0.95, min_genes = 200, deb_clust = c(1),
+  k_init = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -15,6 +15,9 @@ classified as a cell/nucleus.}
 
 \item{min_genes}{The minimum number of genes a droplet must have 
 to be classified as a cell/nucleus.}
+
+\item{deb_clust}{A numeric vector of debris clusters. Contains 
+only cluster 1 by default, and should always contain cluster 1.}
 
 \item{k_init}{The k_init run to call droplets from. This must 
 specify a single value. If left unspecified, will call droplets only if 
@@ -37,5 +40,7 @@ the probability of the cell type assignment, and "Cluster" which
 is an integer that specifies debris (1) or cell type (>1). The 
 function calls droplets that have a probability of being a cell 
 type greater of at least \code{pp_thresh} and at least 
-\code{min_genes} detected as "Clean."
+\code{min_genes} detected as "Clean." The debris clusters are 
+specified by deb_clust and default to cluster 1, which 
+should always be included.
 }

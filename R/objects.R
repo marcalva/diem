@@ -19,6 +19,8 @@ setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 SCE <- setClass(Class = "SCE", 
                 slots = c(counts = "any_matrix", 
                           norm = "any_matrix", 
+                          corrected = "any_matrix", 
+                          prop = "matrix", 
                           pcs = "matrix", 
                           test_set = "character", 
                           bg_set = "character", 
@@ -248,10 +250,15 @@ get_gene_pct <- function(x, genes, name){
 #' \code{min.features = 200}.
 #'
 #' @param x An SCE object.
-#' @param targets Logical indicating whether to remove droplets called as debris. Default is TRUE.
-#' @param meta Logical that indicates whether to place the data from droplet_info into meta.data in the 
-#'  resulting Seurat object. Default is TRUE.
-#' @param ... Arguments to \code{\link[Seurat]{CreateSeuratObject}}, such as \code{project} for project name.
+#' @param targets Logical indicating whether to remove droplets called as 
+#'  If FALSE, return counts for the test set. Default is TRUE.
+#' @param corrected Boolean indiciating whether to return corrected counts 
+#'  in the Seurat object or raw counts (FALSE by default).
+#' @param meta Logical that indicates whether to place the data from 
+#' droplet_info into meta.data in the  resulting Seurat object. 
+#'  Default is TRUE.
+#' @param ... Arguments to \code{\link[Seurat]{CreateSeuratObject}}, 
+#'  such as \code{project} for project name.
 #'
 #' @return A Seurat object
 #' @export
@@ -263,7 +270,11 @@ get_gene_pct <- function(x, genes, name){
 #'                              min.cells = 3, 
 #'                              project = mb_small@name)
 #' }
-convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
+convert_to_seurat <- function(x, 
+                              targets = TRUE, 
+                              corrected = FALSE, 
+                              meta = TRUE, 
+                              ...){
     if (!requireNamespace("Seurat", quietly = TRUE)) {
         stop("Package \"Seurat\" needed for convert_to_seurat. Please install.",
              call. = FALSE)
@@ -275,7 +286,10 @@ convert_to_seurat <- function(x, targets = TRUE, meta = TRUE, ...){
         if (meta) meta.data <- x@test_data[drops,,drop=FALSE]
         else meta.data <- NULL
 
-        seur <- Seurat::CreateSeuratObject(counts = x@counts[,drops,drop=FALSE], 
+        if (corrected) counts <- x@corrected[,drops,drop=FALSE]
+        else counts <- x@counts[,drops,drop=FALSE]
+
+        seur <- Seurat::CreateSeuratObject(counts = counts, 
                                            meta.data = meta.data, ...)
         return(seur)
     }
