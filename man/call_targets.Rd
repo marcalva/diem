@@ -2,22 +2,19 @@
 % Please edit documentation in R/debris_id.R
 \name{call_targets}
 \alias{call_targets}
-\title{Call clean droplets after running EM}
+\title{Call clean droplets after running EM using percent debris}
 \usage{
-call_targets(x, pp_thresh = 0.95, min_genes = 200, deb_clust = c(1),
-  k_init = NULL, verbose = TRUE)
+call_targets(x, thresh_score = 0.5, min_genes = 200, k_init = NULL,
+  verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{pp_thresh}{The minimum posterior probability of a droplet to be 
-classified as a cell/nucleus.}
+\item{thresh_score}{The maximum debris score a droplet must have 
+to be classified as a cell/nucleus.}
 
 \item{min_genes}{The minimum number of genes a droplet must have 
 to be classified as a cell/nucleus.}
-
-\item{deb_clust}{A numeric vector of debris clusters. Contains 
-only cluster 1 by default, and should always contain cluster 1.}
 
 \item{k_init}{The k_init run to call droplets from. This must 
 specify a single value. If left unspecified, will call droplets only if 
@@ -30,17 +27,9 @@ An SCE object.
 }
 \description{
 Call cells or nuclei from an SCE object. Adds meta data to 
-the droplet data slot. This data frame can be retreived
-using the function \code{\link{droplet_data}}. This adds 
-column "Call" which takes either "Debris" or "Clean", "DebrisLlk" 
-which is the log likelihood of the debris distribution, 
-"DebrisLogOdds" which is the log odds of the debris, "DebrisProb" 
-which is the probability of the debris, "ClusterPob" which is 
-the probability of the cell type assignment, and "Cluster" which 
-is an integer that specifies debris (1) or cell type (>1). The 
-function calls droplets that have a probability of being a cell 
-type greater of at least \code{pp_thresh} and at least 
-\code{min_genes} detected as "Clean." The debris clusters are 
-specified by deb_clust and default to cluster 1, which 
-should always be included.
+the test data slot, which can be retreived
+using the function \code{\link{test_data}}. This adds 
+column "Call" which takes either "Debris" or "Clean". Droplets
+with a debris scores less than \code{thresh_score} and at least 
+\code{min_genes} genes detected pass filtering.
 }

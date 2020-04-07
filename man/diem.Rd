@@ -28,7 +28,8 @@ used to regress out the effect of mean expression on variance.}
 \item{n_pcs}{Number of PCs to return.}
 
 \item{k_init}{The number of clusters to initialize k-means. This can be 
-1 or several values so that multiple values can be compared.}
+1 or several values so that multiple values can be compared. This value 
+will not include the debris cluster.}
 
 \item{iter.max_init}{The maximum number of k-means interations 
 for the initialization.}

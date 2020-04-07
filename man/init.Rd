@@ -10,7 +10,9 @@ init(x, k_init = 30, iter.max_init = 15, nstart_init = 30,
 \arguments{
 \item{x}{An SCE object.}
 
-\item{k_init}{The number of clusters to initialize k-means.}
+\item{k_init}{The number of clusters to initialize k-means. This 
+does not include the debris cluster as the only the unlabeled 
+test droplets are classified here.}
 
 \item{iter.max_init}{The maximum number of k-means interations 
 for the initialization.}
@@ -35,11 +37,13 @@ An SCE object
 \description{
 Initialize the parameters of the Dirichlet-mulitnomial 
 mixture model. First 
-run k-means on the principal components of the test set to 
+run k-means on the principal components of the test droplets to 
 initialize the cluster memberships. Then use these memberships 
 to estimate alpha and pi, the parameters of the mixture model. 
 These clusters are pruned by removing those that are close in 
 to the background distribution using a likelihood-based 
 distance metric. The parameter \code{k_init} specifies 
-initial number of clusters k to set for k-means.
+initial number of clusters k to set for k-means. These clusters 
+are input into the mixture model along with the labeled 
+debris clsuters.
 }

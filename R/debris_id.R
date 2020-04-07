@@ -31,30 +31,93 @@ assign_clusters <- function(x, k_init = NULL){
     return(x)
 }
 
-#' Call clean droplets after running EM
+#' Call debris clusters using the debris score
 #'
-#' Call cells or nuclei from an SCE object. Adds meta data to 
-#' the droplet data slot. This data frame can be retreived
-#' using the function \code{\link{droplet_data}}. This adds 
-#' column "Call" which takes either "Debris" or "Clean", "DebrisLlk" 
-#' which is the log likelihood of the debris distribution, 
-#' "DebrisLogOdds" which is the log odds of the debris, "DebrisProb" 
-#' which is the probability of the debris, "ClusterPob" which is 
-#' the probability of the cell type assignment, and "Cluster" which 
-#' is an integer that specifies debris (1) or cell type (>1). The 
-#' function calls droplets that have a probability of being a cell 
-#' type greater of at least \code{pp_thresh} and at least 
-#' \code{min_genes} detected as "Clean." The debris clusters are 
-#' specified by deb_clust and default to cluster 1, which 
-#' should always be included.
+#' Specify which clusters from DIEM are debris clusters. This uses the 
+#' debris score of droplets from \code{\link{estimate_db_score}}. The 
+#' average debris score of clusters assigned to the fixed debris cluster 
+#' (cluster 1) is calculated. Then, for each cluster, the fraction of 
+#' droplets with a debris score above this mean value is calculated. 
+#' In addition to the fixed debris cluster, any clusters with a 
+#' fraction of debris droplets above \code{thresh} (0.5 by default) 
+#' are assigned as debris clusters.
 #'
 #' @param x An SCE object.
-#' @param pp_thresh The minimum posterior probability of a droplet to be 
-#'  classified as a cell/nucleus.
+#' @param thresh Clusters with a fraction of debris droplets above this 
+#'  value are set to debris clusters.
+#' @param top_n Number of differentially expressed genes per cluster 
+#'  to use for calculating debris score.
+#' @param deb_clust Manually specify clusters which should be set as debris 
+#'  clusters.
+#' @param k_init The k_init run to call droplets from. This must 
+#'  specify a single value. If left unspecified, will call droplets only if 
+#'  there is one k_init run.
+#' @param verbose verbosity
+#'
+#' @return An SCE object.
+call_debris_clusters <- function(x, 
+                                 thresh = 0.25, 
+                                 top_n = 20, 
+                                 deb_clust = NULL, 
+                                 k_init = NULL, 
+                                 verbose = TRUE){
+    k_init <- check_k_init(x, k_init)
+
+    if (!is.null(deb_clust)){
+        clusters <- unique(x@test_data$Cluster)
+        deb_clust <- c(1, deb_clust)
+        deb_clust <- unique(intersect(clusters, deb_clust))
+        x@debris_clusters <- deb_clust
+        return(x)
+    }
+
+    if (is.null(thresh)){
+        return(x)
+    }
+
+    emo <- x@kruns[[k_init]]
+    if (length(emo$llk) <= 1){
+        stop("run EM to assign clusters")
+    }
+
+    x <- estimate_db_score(x, top_n = top_n, k_init = k_init)
+    sm <- summarize_clusters(x)
+
+    db_thresh <- sm["Debris", "avg_dbr_score"]
+
+    pct_debris_drop <- tapply(x@test_data[,"score.debris"], 
+                              x@test_data[,"Cluster"], 
+                              function(i){
+                                  sum(i >= db_thresh)/length(i)
+                              })
+
+    deb_clust <- c(1, names(pct_debris_drop)[pct_debris_drop > thresh])
+    deb_clust <- unique(deb_clust)
+    x@debris_clusters <- as.integer(deb_clust)
+
+    if (verbose){
+        message("found ", length(deb_clust), " debris clusters: ", 
+                paste(deb_clust, collapse = " "))
+    }
+
+    return(x)
+}
+
+#' Call clean droplets after running EM using percent debris
+#'
+#' Call cells or nuclei from an SCE object. Adds meta data to 
+#' the test data slot, which can be retreived
+#' using the function \code{\link{test_data}}. This adds 
+#' column "Call" which takes either "Debris" or "Clean". Droplets
+#' with a debris scores less than \code{thresh_score} and at least 
+#' \code{min_genes} genes detected pass filtering.
+#'
+#' @param x An SCE object.
+#' @param thresh_score The maximum debris score a droplet must have 
+#'  to be classified as a cell/nucleus. This takes values between 
+#'  0 and 1.
 #' @param min_genes The minimum number of genes a droplet must have 
 #'  to be classified as a cell/nucleus.
-#' @param deb_clust A numeric vector of debris clusters. Contains 
-#'  only cluster 1 by default, and should always contain cluster 1.
 #' @param k_init The k_init run to call droplets from. This must 
 #'  specify a single value. If left unspecified, will call droplets only if 
 #'  there is one k_init run.
@@ -64,9 +127,8 @@ assign_clusters <- function(x, k_init = NULL){
 #'
 #' @export
 call_targets <- function(x, 
-                         pp_thresh = 0.95, 
+                         thresh_score = 0.5, 
                          min_genes = 200, 
-                         deb_clust = c(1), 
                          k_init = NULL, 
                          verbose = TRUE){
 
@@ -78,59 +140,19 @@ call_targets <- function(x,
 
     k_init <- as.character(k_init)
 
-    emo <- x@kruns[[k_init]]
-    if (length(emo$llk) <= 1){
-        stop("run EM to estimate parameters and likelihoods before calling targets")
-    }
-
-    Z <- get_z(emo$llk, emo$params$Pi)
-    Z <- Z[rownames(x@test_data),]
-    llk <- emo$llk[x@test_set,,drop=FALSE]
-    Pi <- emo$params$Pi
-    llk_pi <- t(apply(llk, 1, function(j) j + log(Pi)))
-
-    if ( any( !(deb_clust %in% 1:ncol(Z)) ) )
-        stop("deb_clust clusters must be between 1 and ", ncol(Z))
-
-    clean_clust <- setdiff(1:ncol(Z), deb_clust)
-
-    clust_max <- apply(Z, 1, which.max)
-    clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
-
-    debris_prob <- rowSums(Z[,deb_clust, drop=FALSE])
-    clean_prob <- rowSums(Z[,clean_clust, drop=FALSE])
-
-    prob_keep <- clean_prob >= pp_thresh
+    prob_keep <- x@test_data[, "score.debris"] < thresh_score
     gene_keep <- x@test_data[, "n_genes"] >= min_genes
     
     x@test_data[, "Call"] <- "Debris"
     x@test_data[prob_keep & gene_keep,"Call"] <- "Clean"
     x@test_data[, "Call"] <- as.factor(x@test_data[,"Call"])
 
-
-    debris_llk <- apply(llk_pi[,deb_clust,drop=FALSE], 1, sum_log)
-    clean_llk <- apply(llk_pi[,clean_clust,drop=FALSE], 1, sum_log)
-
-    x@test_data[, "DebrisLlk"] <- debris_llk
-    x@test_data[, "DebrisLogOdds"] <- debris_llk - clean_llk
-
-    x@test_data[, "DebrisProb"] <- debris_prob
-    x@test_data[, "CleanProb"] <- clean_prob
-
-    x@test_data[, "Cluster"] <- clust_max
-    x@test_data[, "ClusterProb"] <- clust_prob
-
     if (verbose){
         n_clean <- sum(x@test_data[,"Call"] == "Clean")
         n_rm <- length(x@test_set) - n_clean
-        message(paste0("removed ", 
-                       as.character(n_rm), 
-                       " debris droplets from the test set."))
-        message(paste0("kept ", 
-                       as.character(n_clean), 
-                       " clean droplets with probability >= ", 
-                       pp_thresh, " and at least ", min_genes, 
-                       " genes detected"))
+        message("removed ", n_rm, " debris droplets from the test set.")
+        message("kept ", n_clean, " clean droplets with debris score < ", 
+                thresh_score, " and at least ", min_genes, " genes detected")
     }
 
     return(x)

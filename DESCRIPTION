@@ -32,6 +32,7 @@ Imports:
     Matrix,
     irlba,
     nnls,
+    quadprog,
     scales,
     utils,
     stats,

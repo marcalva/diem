@@ -4,11 +4,14 @@
 \alias{de_basic}
 \title{Run a basic DE between clusters}
 \usage{
-de_basic(means, top_n = 20)
+de_basic(means, weights, top_n = 20)
 }
 \arguments{
 \item{means}{A gene by cluster sata frame of cluster means, 
 of which the columns sum to 1.}
+
+\item{weights}{weight to give each column of means when calculating the 
+average proportions in means across columns.}
 
 \item{top_n}{Number of top DE genes to return.}
 }

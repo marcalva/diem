@@ -1,17 +1,179 @@
 
+#' Output summary stats from a DIEM run
+#'
+#' Return summary statistics from a DIEM run to evaluate clustering 
+#' and classification. The function calculates helpful statistics to 
+#' evaluate each cluster, including the debris and putatitive cell 
+#' types. This returns a data frame with the following 
+#' summary stats per cluster:
+#' \describe{
+#' \item{n_droplets}{Number of droplets.}
+#' \item{avg_n_genes}{Average number of genes detected.}
+#' \item{avg_n_counts}{Average number of counts.}
+#' \item{avg_logFC}{Average log fold change of the top \code{top_n} 
+#'  marker genes.}
+#' \item{genes}{Set of top \code{top_n} marker genes separated by 
+#'  semicolons.}
+#' }
+#' The marker genes are calculated as the genes with the largest 
+#' difference in proportion between the 
+#'
+#' @param x An SCE object.
+#' @param top_n Number of top DE genes to return in column.
+#' @param k_init Run EM on the \code{k_init} initialization(s). 
+#'  If NULL (default), run on all \code{k_init} initializations.
+#'
+#' @return A data frame
+#'
+#' @export
+summarize_clusters <- function(x, top_n = 20, k_init = NULL){
+    k_init <- check_k_init(x, k_init)
+    x <- estimate_db_score(x, top_n = top_n, k_init = k_init)
+    testdat <- droplet_data(x, type = "test")
+    dropdat <- droplet_data(x, type = "all")
+    dbr_clust <- x@debris_clusters
+
+
+    if ( ! "Cluster" %in% colnames(testdat))
+        stop("Run DIEM and ", sQuote("assign_clusters"), " before summarize")
+
+    if ( ! "score.debris" %in% colnames(testdat))
+        x <- estimate_db_score(x)
+
+    dropdat[,"Cluster"] <- "1"
+    dropdat[rownames(testdat),"Cluster"] <- testdat[,"Cluster"]
+    clusters_all <- sort(as.numeric(unique(dropdat[,"Cluster"])))
+    clusters_all <- as.character(clusters_all)
+    cells <- setdiff(clusters_all, "1")
+
+    means <- Alpha(x)
+    means <- sweep(means, 2, colSums(means), "/")
+
+
+    # Measures
+    ndrops <- sapply(clusters_all, function(ct){sum(testdat[,"Cluster"] == ct)})
+    ngenes <- tapply(testdat[,"n_genes"], 
+                     testdat[,"Cluster"], 
+                     mean)
+    ncounts <- tapply(testdat[,"total_counts"], 
+                      testdat[,"Cluster"], 
+                      mean)
+    ds <- tapply(testdat[,"score.debris"], 
+                 testdat[,"Cluster"],
+                 mean)
+
+    ret <- data.frame("Cluster" = clusters_all, 
+                      "n_droplets" = ndrops[clusters_all], 
+                      "avg_n_genes" = ngenes[clusters_all],
+                      "avg_n_counts" = ncounts[clusters_all], 
+                      "avg_dbr_score" = ds[clusters_all]) 
+
+    # Get DE top genes
+    de <- top_genes(x, top_n = top_n, k_init = k_init)
+
+    avgs <- sapply(clusters_all, function(ct){
+                   des <- de[de[,"cluster"] == ct,,drop=FALSE]
+                   genes <- paste(des[,"gene"], collapse=";")
+                   return(c("avg_logFC" = mean(des[,"logFC"]), 
+                          "genes" = genes))
+                      })
+    avgs <- t(avgs)
+    ret <- cbind(ret, avgs[clusters_all,])
+
+    return(ret)
+}
+
+#' Run a DE between two groups with Welch's t-test
+#'
+#' Run DE between two groups. \code{x} is a sparse matrix with 
+#' normalized expression data (typically proportions). \code{c1} 
+#' and \code{c2} are vectors containing indices or names 
+#' of the columns that belong to group 1 and 2, respectively. 
+#' A Welch's t-test is performed.
+#'
+#' @param x A sparse matrix
+#' @param c1 Column indexes or names of first group
+#' @param c2 Column indexes or names of second group
+#' 
+#' @return A data frame of DE results with
+#' \itemize{
+#' \item{diff}{difference between mu1 and mu2}
+#' \item{logFC}{log2 fold change}
+#' \item{mu1}{mean of group 1}
+#' \item{mu2}{mean of group 2}
+#' \item{t}{t statistic}
+#' \item{p}{p-value}
+#' \item{gene}{gene name}
+#' }
+#' @importFrom Matrix rowMeans
+#' @export
+de_ttest <- function(x, c1, c2){
+    if (length(c1) != ncol(x))
+        stop("c1 must have length = number of columns in x")
+    if (length(c2) != ncol(x))
+        stop("c2 must have length = number of columns in x")
+
+    mu1 <- rowMeans(x[,c1,drop=FALSE])
+    mu2 <- rowMeans(x[,c2,drop=FALSE])
+
+    keep <- mu1 > 0 & mu2 > 0
+    x <- x[keep,,drop=FALSE]
+    mu1 <- mu1[keep]
+    mu2 <- mu2[keep]
+    
+    var1 <- fast_varCPP(x = x[,c1,drop=FALSE], 
+                        mu = mu1)
+    var2 <- fast_varCPP(x = x[,c2,drop=FALSE], 
+                        mu = mu1)
+    n1 <- ncol(x[,c1,drop=FALSE])
+    n2 <- ncol(x[,c2,drop=FALSE])
+
+    t <- sapply(1:nrow(x), function(i) {
+        r <- (mu1[i] - mu2[i]) / sqrt(var1[i]/n1 + var2[i]/n2)
+        return(r)
+    })
+    p <- sapply(1:length(t), function(i){
+                num <- (var1[i]/n1 + var2[i]/n2)^2
+                d1 <- (var1[i]/n1)^2 / (n1-1)
+                d2 <- (var2[i]/n2)^2 / (n2-1)
+                dof <- num / (d1 + d2)
+                2 * pt(q = -abs(t[i]), df = dof)
+    })
+    datf <- data.frame(diff = mu1 - mu2, 
+                       logFC = log2(mu1) - log2(mu2), 
+                       mu1 = mu1, 
+                       mu2 = mu2, 
+                       t = t, 
+                       p = p, 
+                       gene = rownames(x))
+    return(datf)
+}
+
 #' Run a basic DE between clusters
 #'
 #' @param means A gene by cluster sata frame of cluster means, 
 #'  of which the columns sum to 1.
+#' @param weights weight to give each column of means when calculating the 
+#'  average proportions in means across columns.
 #' @param top_n Number of top DE genes to return.
 #' 
 #' @return A data frame of DE results
-de_basic <- function(means, top_n = 20){
+de_basic <- function(means, weights, top_n = 20){
     clusters <- 1:ncol(means)
+    if (length(weights) != ncol(means))
+        stop("length of weights must be the same as number of columns in means.")
+    weights <- weights / sum(weights)
+    names(weights) <- clusters
     de <- lapply(clusters, function(cl){
                  cln <- setdiff(clusters, cl)
                  p1 <- means[,cl]
-                 p2 <- rowMeans(means[,cln,drop=FALSE])
+                 if (!is.null(weights)){
+                     wn <- weights[cln] / sum(weights[cln])
+                     p2 <- means[,cln,drop=FALSE] %*% wn
+                 }
+                 else {
+                     p2 <- rowMeans(means[,cln,drop=FALSE])
+                 }
                  di <- p1 - p2
                  logfc <- log2(p1) - log2(p2)
                  datf <- data.frame("diff" = di, 
@@ -51,133 +213,111 @@ top_genes <- function(x, top_n = 20, k_init = NULL){
     means <- Alpha(x, k_init)
     means <- means[genes.use,]
     means <- sweep(means, 2, colSums(means), "/")
-    de <- de_basic(means, top_n = top_n)
+
+    clusters <- 1:ncol(means)
+    testdat <- droplet_data(x, type = "test")
+    dropdat <- droplet_data(x, type = "all")
+    dropdat[,"Cluster"] <- "1"
+    dropdat[rownames(testdat),"Cluster"] <- testdat[,"Cluster"]
+    clusters_all <- as.character(clusters)
+
+    w <- sapply(clusters_all, function(ct){
+                sum(dropdat[dropdat$Cluster == ct, "total_counts"])
+    })
+    de <- de_basic(means, top_n = top_n, weights = w)
     return(de)
 }
 
-#' Estimate percent of cell types in droplets
+#' Estimate debris score per droplet
 #'
-#' Use results from DIEM to estimate the 
-#' cell type proportions within each droplet using nnls
+#' Create a debris score based on expression of debris-enriched genes.
+#' For each droplet, it sums the normalized read counts for these genes. 
+#' Debris-enriched genes are calculated using a t-test between 
+#' droplets in the debris and non-debris clusters. Genes with a 
+#' Bonferroni-corrected p-value less than \code{thresh_p} ser 
+#' set as debris-enriched genes. The function starts with cluster 1 
+#' in the debris group, calculates a debris cores, and then 
+#' assigns clusters to the debris group if their average is greater than 
+#' or equal to \code(thresh_mean}. This is repeated until the set of 
+#' debris clusters remains the same as in the previous iteration.
+#' 
 #'
 #' @param x An SCE object.
-#' @param show_progress Boolean indicating whether to show a progress
+#' @param thresh_mean Threshold for cluster mean debris score. Clusters 
+#'  with a mean above this value are considered debris clusters
+#' @param thresh_p P-value threshold for calculating differential 
+#'  expression between droplets in the debris and non-debris clusters.
+#' @param dbr_clust Specifies additional clusters to set as debris. Cluster 
+#'  1 is always included. Use this only if you know what you are doing.
+#' @param verbose Verbosity, indicating whether to show a progress
 #'  bar.
-#' @param k_init Run EM on the \code{k_init} initialization(s). 
-#'  If NULL (default), run on all \code{k_init} initializations.
-#'
-#' @return An SCE object, with the prop slot containing a
-#'  cluster by droplet matrix of cell type proportions
-#'
-#' @importFrom nnls nnls
-#' @importFrom utils txtProgressBar setTxtProgressBar
-#' @export
-estim_prop_nnls <- function(x, show_progress = TRUE, k_init = NULL){
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    droplets.use <- x@test_set
-    k_init <- check_k_init(x, k_init)
-
-    means <- Alpha(x, k_init)
-    means <- means[genes.use,]
-    means <- sweep(means, 2, colSums(means), "/")
-
-    counts <- x@counts[genes.use, droplets.use]
-    counts <- divide_by_colsum(counts)
-
-    if (show_progress)
-        pb <- txtProgressBar(min = 0, max = ncol(counts), style = 3)
-
-    props <- lapply(1:ncol(counts), function(i){
-                    if (show_progress)
-                        setTxtProgressBar(pb, i)
-
-                    ret <- nnls(means, counts[,i])$x
-                    return(ret)
-    })
-    if (show_progress)
-        close(pb)
-
-    prop <- do.call(cbind, props)
-    colnames(prop) <- droplets.use
-    x@prop <- sweep(prop, 2, colSums(prop), "/")
-    return(x)
-}
-
-#' Estimate percent of debris in droplets
-#'
-#' Given the debris clusters in deb_clust, estimate the percent 
-#' of debris within each droplet. Store the percent in the 
-#' test_data slot.
-#'
-#' @param x An SCE object.
-#' @param deb_clust A numeric vector of debris clusters. Contains 
-#'  only cluster 1 by default, and should always contain cluster 1.
-#' @param name Column name in test_data to store debris percent in.
-#' 
-#' @return An SCE object
-#' @export
-estimate_db <- function(x, deb_clust = c(1), name = "pct.debris"){
-    if ( length(x@prop) == 1 ) 
-        stop("run estim_prop_nnls before estimate_db")
-    if ( any( !(deb_clust %in% 1:nrow(x@prop)) ) )
-        stop("deb_clust clusters must be between 1 and ", nrow(x@prop))
-
-    x@test_data[colnames(x@prop),name] <- 100 * colSums(x@prop[deb_clust,])
-    return(x)
-}
-
-#' Correct counts by subtracting estimated counts from debris
-#'
-#' Remove the counts predicted to originate from debris clusters. This 
-#' function takes the cluster proportions for each droplet, and estimated 
-#' the debris counts by adding the expresion means for the debris clusters 
-#' weighted by the their proportions mentioned above, and subtracting this
-#' value from the counts. The debris clusters are specified by deb_clust 
-#' and default to cluster 1, which should always be included. The values to 
-#' subtract are rounded according to the function give by the parameter rfunc, 
-#' which is round by default. This function can be floor, so that only debris 
-#' counts greater than or equal to 1 are subtracted. The rfunc function 
-#' can also be set to NULL, so that no rounding is performed.
-#' 
-#' @param x An SCE object.
-#' @param deb_clust A numeric vector of debris clusters. Contains 
-#'  only cluster 1 by default, and should always contain cluster 1.
-#' @param round_count Boolean indiciating whether to round the counts 
-#'  to integers or not.
 #' @param k_init Run EM on the \code{k_init} initialization(s). 
 #'  If NULL (default), run on all \code{k_init} initializations.
 #' 
 #' @importFrom Matrix colSums
+#'
+#' @return An SCE object
 #' @export
-correct_counts <- function(x, 
-                           deb_clust = c(1), 
-                           round_count = TRUE, 
-                           k_init = NULL){
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
-    droplets.use <- x@test_set
+estimate_db_score <- function(x, 
+                              thresh_mean = 0.5, 
+                              thresh_p = 0.05, 
+                              dbr_clust = NULL, 
+                              verbose = TRUE, 
+                              k_init = NULL){
+    name <- "score.debris"
+
     k_init <- check_k_init(x, k_init)
+    fixed <- c(1, dbr_clust)
+    dbr_clust <- c()
+    new_dbr_clust <- fixed
 
-    if ( length(x@prop) == 1 ) 
-        stop("run estim_prop_nnls before estimate_db")
 
-    means <- Alpha(x, k_init)
-    means <- means[genes.use,]
-    means <- sweep(means, 2, colSums(means), "/")
+    # Specify all clusters
+    all_cl <- rep(1, ncol(x@counts))
+    names(all_cl) <- colnames(x@counts)
+    all_cl[rownames(x@test_data)] <- x@test_data[,"Cluster"]
 
-    counts <- x@counts[genes.use, droplets.use]
-    total_count <- colSums(counts)
+    # Normalize test counts
+    droplets.use <- rownames(x@test_data)
+    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
+    counts_test <- x@counts[, droplets.use]
+    counts_test <- divide_by_colsum(counts_test)
+    sf <- min(colSums(counts_test))
+    # sf = 1
+    counts_test <- log1p(sf * counts_test)
+    counts_test <- counts_test[genes.use,]
 
-    cnorm <- fast_correct(counts, 
-                          means[, deb_clust, drop=FALSE], 
-                          x@prop[deb_clust, , drop=FALSE], 
-                          round_count = round_count)
+    counts.use <- x@counts[genes.use, ]
+    counts.use <- divide_by_colsum(counts.use)
 
-    rownames(cnorm) <- genes.use
-    colnames(cnorm) <- droplets.use
-    if (round_count)
-        x@corrected <- as(cnorm, "CsparseMatrix")
-    else
-        x@corrected <- cnorm
+    while( !identical(dbr_clust, new_dbr_clust) ){
+        dbr_clust <- new_dbr_clust
+
+        # Specify debris droplets
+        c1 <- all_cl %in% dbr_clust
+        c2 <- !c1
+
+        # Get DE
+        de <- de_ttest(counts.use, c1, c2)
+        de <- de[order(de[,"diff"], decreasing = TRUE),]
+        de[,"p_adj"] <- nrow(de) * de[,"p"]
+        de[de[,"p_adj"] > 1,"p_adj"] <- 1
+        keep <- de[,"logFC"] > 0 & de[,"p_adj"] < thresh_p
+        de <- de[keep,]
+
+        scores <- colSums(counts_test[de$gene,])
+        clust_mean <- tapply(scores, x@test_data[,"Cluster"], mean)
+        scores <- scores - min(clust_mean)
+        dbr_mean <- mean(scores[x@test_data[,"Cluster"] %in% dbr_clust])
+        scores <- scores / dbr_mean
+
+        clust_mean <- tapply(scores, x@test_data[,"Cluster"], mean)
+        new_dbr_clust <- which(clust_mean >= thresh_mean)
+        new_dbr_clust <- unique(c(fixed, new_dbr_clust))
+    }
+    x@test_data[,name] <- scores
+    x@debris_clusters <- dbr_clust
+
     return(x)
 }
 

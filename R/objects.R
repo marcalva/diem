@@ -24,6 +24,7 @@ SCE <- setClass(Class = "SCE",
                           pcs = "matrix", 
                           test_set = "character", 
                           bg_set = "character", 
+                          debris_clusters = "vector", 
                           gene_data = "data.frame", 
                           droplet_data = "data.frame", 
                           test_data = "data.frame", 
@@ -102,6 +103,8 @@ create_SCE <- function(x, name = "SCE"){
     sce@counts <- sce@counts[,keep]
     sce@droplet_data <- sce@droplet_data[keep,]
 
+    sce@debris_clusters <- c(1)
+
     sce@name <- name
 
     return(sce)
@@ -109,23 +112,30 @@ create_SCE <- function(x, name = "SCE"){
 
 #' Return the droplet data from an SCE object
 #'
-#' Return droplet data from the test set. This 
+#' Return droplet data. This 
 #' contains data such as number of counts and genes in each droplet, as 
 #' well as some of the output from the filtering, such as whether the 
 #' droplet is classified as debris or cell/nucleus. The parameter 
 #' \code{min_counts} filters out droplets (rows) by removing those 
-#' with counts below this number
+#' with counts below this number. By default, returns all droplets in 
+#' the test set. To return clean droplets, set the \code{type} parameter 
+#' to 'clean', to return debris droplets in the test set, set to 'debris', 
+#' and to return all droplets in the data set, set to 'all'.
 #'
 #' @param x An SCE object.
 #' @param min_counts Minimum number of read counts a droplet must have to 
 #'  be output.
-#' @param type One of either 'test' (default), 'clean', or 'debris' 
+#' @param type One of either 'test' (default), 'clean', 'debris', or 'all'. 
 #'  specifying how to subset the data frame to include only those droplets.
+#'  The droplets in 'clean' and 'debris' make up the droplets in 
+#'  'test'. If 'all', returns all droplets.
 #'
 #' @return A data frame
 #'
 #' @export
 droplet_data <- function(x, min_counts = 1, type = "test"){
+    if (type == "all")
+        return(x@droplet_data)
     if (length(x@test_data) < 2) dd <- x@droplet_data
     else dd <- x@test_data
     keep <- dd$total_counts >= min_counts
