@@ -145,9 +145,7 @@ merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
 #' run k-means on the principal components of the test droplets to 
 #' initialize the cluster memberships. Then use these memberships 
 #' to estimate alpha and pi, the parameters of the mixture model. 
-#' These clusters are pruned by removing those that are close in 
-#' to the background distribution using a likelihood-based 
-#' distance metric. The parameter \code{k_init} specifies 
+#' The parameter \code{k_init} specifies 
 #' initial number of clusters k to set for k-means. These clusters 
 #' are input into the mixture model along with the labeled 
 #' debris clsuters.

@@ -301,7 +301,7 @@ em <- function(counts,
                test_set, 
                bg_set, 
                eps = 1e-4, 
-               max_iter = 1e2, 
+               max_iter = 200, 
                threads = 1, 
                verbose = TRUE){
     sizes <- colSums(counts)
@@ -369,11 +369,9 @@ em <- function(counts,
 
 #' Run EM
 #' 
-#' Estimate the parameters of the Dirichlet-multinomial mixture model, filter 
-#' out clusters close to the background distribution, and estimate the 
-#' posterior probability a droplet belongs to each of the clusters. The 
-#' \code{fltr} parameter controls the distance threshold to remove 
-#' clusters.
+#' Estimate the parameters of the Dirichlet-multinomial mixture model, 
+#' and estimate the posterior probability a droplet belongs to each 
+#' of the clusters.
 #' 
 #' @param x An SCE object.
 #' @param eps The delta threshold for when to call convergence for 
@@ -382,10 +380,6 @@ em <- function(counts,
 #'  average change in posterior probability. By default this is set to 
 #'  1e4, so that the EM converges when less than 1 in 10,000 labels 
 #'  change on average.
-#' @param fltr The filter threshold between 0 and 1 
-#'  that controls the minimum distance to 
-#'  the background distribution that a cluster can have. Remove  
-#'  centers with a distance less than this value.
 #' @param max_iter_dm Maximum number of iterations for the EM estimation 
 #'  of the Dirichlet-multinomial mixture model.
 #' @param k_init Run EM on the \code{k_init} initialization(s). 
@@ -399,8 +393,7 @@ em <- function(counts,
 #' @export
 run_em <- function(x, 
                    eps = 1e-4, 
-                   fltr = 0.1, 
-                   max_iter_dm = 1e2, 
+                   max_iter_dm = 200, 
                    k_init = NULL, 
                    threads = 1, 
                    verbose = TRUE){
@@ -424,39 +417,22 @@ run_em <- function(x,
     for (k in k_init){
         k <- as.character(k)
         if (verbose) message("running EM for k_init = ", k)
-        while (TRUE){
-            x@kruns[[k]] <- em(counts = x@counts[genes.use,droplets.use],
-                               params = x@kruns[[k]]$params, 
-                               llk = x@kruns[[k]]$llk, 
-                               test_set = x@test_set, 
-                               bg_set = x@bg_set, 
-                               eps = eps, 
-                               max_iter = max_iter_dm, 
-                               threads = threads, 
-                               verbose = verbose)
-            prev_k <- length(x@kruns[[k]]$params$Pi)
-            x <- get_dist(x, verbose = verbose)
-            x <- rm_close(x, 
-                          k_init = k, 
-                          fltr = fltr, 
-                          verbose = verbose)
-            merged_k <- length(x@kruns[[k]]$params$Pi)
-            if (merged_k == prev_k){
-                break
-            } else {
-                if (verbose){
-                    message("restarting EM")
-                    nclusters <- merged_k - 1
-                    message("using a final k of 1 background and ", 
-                            nclusters, " cell type clusters")
-                }
-            }
-        }
-        if (verbose){
-            message("finished EM")
-        }
+        x@kruns[[k]] <- em(counts = x@counts[genes.use,droplets.use],
+                           params = x@kruns[[k]]$params, 
+                           llk = x@kruns[[k]]$llk, 
+                           test_set = x@test_set, 
+                           bg_set = x@bg_set, 
+                           eps = eps, 
+                           max_iter = max_iter_dm, 
+                           threads = threads, 
+                           verbose = verbose)
+        nclusters <- merged_k - 1
+        message("using a final k of 1 background and ", 
+                nclusters, " cell type clusters for k_init ", k_init)
     }
-
+    if (verbose){
+        message("finished EM")
+    }
     return(x)
 }
 

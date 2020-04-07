@@ -16,8 +16,6 @@
 #'  \item \code{\link{filter_genes}}
 #'  \item \code{\link{get_pcs}}
 #'  \item \code{\link{init}}
-#'  \item \code{\link{get_dist}}
-#'  \item \code{\link{rm_close}}
 #'  \item \code{\link{run_em}}
 #' }
 #'
@@ -26,9 +24,7 @@
 #' expressed genes are only included in the analysis. PCA is run 
 #' on the normalized counts data subset to the variable genes in 
 #' order to reduce the dimensionality for k-means. Initialization 
-#' is performed with k-means on the PCs. The distance to the 
-#' background distribution is estimated, and clusters that have 
-#' a distance below a threshold are removed. Finally, EM is run 
+#' is performed with k-means on the PCs. inally, EM is run 
 #' to estimate the parameters of the mixture distribution.
 #' 
 #' @param sce An SCE object.
@@ -53,10 +49,6 @@
 #' @param seedn The seed for random k-means initialization. 
 #'  It is set to 1 by default. If you desire truly random initializations
 #'  across runs, set to NULL or different values for each run.
-#' @param fltr The filter threshold between 0 and 1 
-#'  that controls the minimum distance to 
-#'  the background distribution that a cluster can have. Remove those 
-#'  centers with a distance less than this value.
 #' @param eps The delta threshold for when to call convergence for 
 #'  the EM estimation of the Dirichlet-multinomial mixture model. The EM 
 #'  stops when delta falls below this value. We define delta as the 
@@ -94,10 +86,9 @@ diem <- function(sce,
                  iter.max_init = 15, 
                  nstart_init = 30, 
                  min_size_init = 10, 
-                 fltr = 0.1, 
                  seedn = 1, 
                  eps = 1e-4, 
-                 max_iter_dm = 100, 
+                 max_iter_dm = 200, 
                  min_genes = 0, 
                  top_n = NULL, 
                  debris_ids = NULL, 
@@ -124,16 +115,8 @@ diem <- function(sce,
                 seedn = seedn, 
                 threads = threads, 
                 verbose = verbose)
-    sce <- get_dist(sce, 
-                    k_init = k_init, 
-                    verbose = verbose)
-    sce <- rm_close(sce, 
-                    fltr = fltr, 
-                    k_init = k_init, 
-                    verbose = verbose)
     sce <- run_em(sce, 
                   eps = eps, 
-                  fltr = fltr, 
                   max_iter_dm = max_iter_dm, 
                   k_init = k_init, 
                   threads = threads, 

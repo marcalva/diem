@@ -179,24 +179,6 @@ raw_counts <- function(x){
     return(x@counts)
 }
 
-#' Get cluster distances to background
-#'
-#' @param x An SCE object.
-#' @param k_init The k_init run to extract the values from.
-#'
-#' @return A numeric vector containing the distances for each cluster.
-#' 
-#' @export
-distances <- function(x, k_init = NULL){
-    k_init <- check_k_init(x, k_init, return_all = FALSE)
-
-    if ("Dist" %in% names(x@kruns[[k_init]])){
-        return(x@kruns[[k_init]]$Dist)
-    } else {
-        return(NULL)
-    }
-}
-
 #' Get Alpha parameters for clusters
 #'
 #' @param x An SCE object.
