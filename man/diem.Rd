@@ -6,8 +6,8 @@
 \usage{
 diem(sce, min_counts = 100, cpm_thresh = 0, n_var_genes = 2000,
   lss = 0.3, n_pcs = 30, k_init = 30, iter.max_init = 15,
-  nstart_init = 30, min_size_init = 10, fltr = 0.1, seedn = 1,
-  eps = 1e-04, max_iter_dm = 100, min_genes = 0, top_n = NULL,
+  nstart_init = 30, min_size_init = 10, seedn = 1, eps = 1e-04,
+  max_iter_dm = 200, min_genes = 0, top_n = NULL,
   debris_ids = NULL, threads = 1, verbose = TRUE)
 }
 \arguments{
@@ -39,11 +39,6 @@ for the initialization.}
 
 \item{min_size_init}{The minimum number of droplets that must belong 
 to an initialized cluster.}
-
-\item{fltr}{The filter threshold between 0 and 1 
-that controls the minimum distance to 
-the background distribution that a cluster can have. Remove those 
-centers with a distance less than this value.}
 
 \item{seedn}{The seed for random k-means initialization. 
 It is set to 1 by default. If you desire truly random initializations
@@ -92,8 +87,6 @@ This is a wrapper function that calls the following functions:
  \item \code{\link{filter_genes}}
  \item \code{\link{get_pcs}}
  \item \code{\link{init}}
- \item \code{\link{get_dist}}
- \item \code{\link{rm_close}}
  \item \code{\link{run_em}}
 }
 
@@ -102,9 +95,7 @@ partitions the droplets into the debris and sets. Then,
 expressed genes are only included in the analysis. PCA is run 
 on the normalized counts data subset to the variable genes in 
 order to reduce the dimensionality for k-means. Initialization 
-is performed with k-means on the PCs. The distance to the 
-background distribution is estimated, and clusters that have 
-a distance below a threshold are removed. Finally, EM is run 
+is performed with k-means on the PCs. inally, EM is run 
 to estimate the parameters of the mixture distribution.
 }
 \examples{

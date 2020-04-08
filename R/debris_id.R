@@ -34,7 +34,7 @@ assign_clusters <- function(x, k_init = NULL){
 #' Call debris clusters using the debris score
 #'
 #' Specify which clusters from DIEM are debris clusters. This uses the 
-#' debris score of droplets from \code{\link{estimate_db_score}}. The 
+#' debris score of droplets from \code{\link{estimate_dbr_score}}. The 
 #' average debris score of clusters assigned to the fixed debris cluster 
 #' (cluster 1) is calculated. Then, for each cluster, the fraction of 
 #' droplets with a debris score above this mean value is calculated. 
@@ -80,7 +80,7 @@ call_debris_clusters <- function(x,
         stop("run EM to assign clusters")
     }
 
-    x <- estimate_db_score(x, top_n = top_n, k_init = k_init)
+    x <- estimate_dbr_score(x, k_init = k_init)
     sm <- summarize_clusters(x)
 
     db_thresh <- sm["Debris", "avg_dbr_score"]
@@ -107,7 +107,7 @@ call_debris_clusters <- function(x,
 #'
 #' Call cells or nuclei from an SCE object. Adds meta data to 
 #' the test data slot, which can be retreived
-#' using the function \code{\link{test_data}}. This adds 
+#' using the function \code{\link{droplet_data}}. This adds 
 #' column "Call" which takes either "Debris" or "Clean". Droplets
 #' with a debris scores less than \code{thresh_score} and at least 
 #' \code{min_genes} genes detected pass filtering.

@@ -426,7 +426,7 @@ run_em <- function(x,
                            max_iter = max_iter_dm, 
                            threads = threads, 
                            verbose = verbose)
-        nclusters <- merged_k - 1
+        nclusters <- ncol(x@kruns[[k]]$llk)
         message("using a final k of 1 background and ", 
                 nclusters, " cell type clusters for k_init ", k_init)
     }

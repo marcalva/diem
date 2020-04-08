@@ -11,7 +11,8 @@ call_targets(x, thresh_score = 0.5, min_genes = 200, k_init = NULL,
 \item{x}{An SCE object.}
 
 \item{thresh_score}{The maximum debris score a droplet must have 
-to be classified as a cell/nucleus.}
+to be classified as a cell/nucleus. This takes values between 
+0 and 1.}
 
 \item{min_genes}{The minimum number of genes a droplet must have 
 to be classified as a cell/nucleus.}
@@ -28,7 +29,7 @@ An SCE object.
 \description{
 Call cells or nuclei from an SCE object. Adds meta data to 
 the test data slot, which can be retreived
-using the function \code{\link{test_data}}. This adds 
+using the function \code{\link{droplet_data}}. This adds 
 column "Call" which takes either "Debris" or "Clean". Droplets
 with a debris scores less than \code{thresh_score} and at least 
 \code{min_genes} genes detected pass filtering.

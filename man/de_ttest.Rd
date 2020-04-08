@@ -15,7 +15,7 @@ de_ttest(x, c1, c2)
 }
 \value{
 A data frame of DE results with
-\itemize{
+\describe{
 \item{diff}{difference between mu1 and mu2}
 \item{logFC}{log2 fold change}
 \item{mu1}{mean of group 1}

@@ -18,21 +18,5 @@ test_that("initialization works", {
          ic <- mb_small@kruns[["15"]]
          expect_equal( ncol(ic$params$Alpha), ncol(ic$llk) )
          expect_equal( ncol(ic$params$Alpha), length(ic$params$Pi) )
-
-         mb_small <- get_dist(mb_small, verbose = FALSE)
-         d <- distances(mb_small, k_init = "15")
-         expect_equal( length(d), length(ic$params$Pi) )
-         expect_equal( sum(d[!is.na(d)] > 1) , 0 )
-         expect_equal( sum(d[!is.na(d)] < 0) , 0 )
-         expect_equal( sum(d[!is.na(d)] >= 0) , length(ic$params$Pi) - 1 )
-
-         mb_small <- rm_close(mb_small, verbose = FALSE)
-         ic <- mb_small@kruns[["15"]]
-         expect_equal( ncol(ic$params$Alpha), length(ic$params$Pi) )
-         d <- distances(mb_small, k_init = "15")
-         expect_equal( length(d), length(ic$params$Pi) )
-         expect_equal( sum(d[!is.na(d)] > 1) , 0 )
-         expect_equal( sum(d[!is.na(d)] < 0) , 0 )
-         expect_equal( sum(d[!is.na(d)] >= 0) , length(ic$params$Pi) - 1 )
 })
 

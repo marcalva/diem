@@ -30,7 +30,7 @@ An SCE object.
 }
 \description{
 Specify which clusters from DIEM are debris clusters. This uses the 
-debris score of droplets from \code{\link{estimate_db_score}}. The 
+debris score of droplets from \code{\link{estimate_dbr_score}}. The 
 average debris score of clusters assigned to the fixed debris cluster 
 (cluster 1) is calculated. Then, for each cluster, the fraction of 
 droplets with a debris score above this mean value is calculated. 

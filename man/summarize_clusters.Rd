@@ -11,7 +11,7 @@ summarize_clusters(x, top_n = 20, k_init = NULL)
 
 \item{top_n}{Number of top DE genes to return in column.}
 
-\item{k_init}{Run EM on the \code{k_init} initialization(s). 
+\item{k_init}{Run EM on the \code{k_init} initializations. 
 If NULL (default), run on all \code{k_init} initializations.}
 }
 \value{
@@ -22,8 +22,7 @@ Return summary statistics from a DIEM run to evaluate clustering
 and classification. The function calculates helpful statistics to 
 evaluate each cluster, including the debris and putatitive cell 
 types. This returns a data frame with the following 
-summary stats per cluster:
-\describe{
+summary stats per cluster:  \describe{
 \item{n_droplets}{Number of droplets.}
 \item{avg_n_genes}{Average number of genes detected.}
 \item{avg_n_counts}{Average number of counts.}

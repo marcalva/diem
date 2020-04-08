@@ -228,129 +228,25 @@ We run multiple starts because k-means may converge to a local optimum.
 The run with the lowest total within sum of 
 squares is selected.
 
-As the test set likely includes droplets containing ambient RNA, some 
-of the initialized clusters are likely to originate from the 
-background. We therefore developed a strategy to estimate a 
-likelihood-based distance to the background distribution and 
-remove clusters with a distance below a certain threshold. We call the 
-`get_dist` function
-
-```{r}
-mb_small <- get_dist(mb_small)
-distances(mb_small)
-```
-
-The distance values are scaled so that the maximum takes a value of 1. 
-We must then choose a threshold to remove clusters that have a distance 
-below it. It is helpful to look at the distribution of the distances 
-against the average total counts
-
-```{r}
-plot_dist(mb_small, alpha=.8)
-```
-
-Looking at the distribution of distance values, we notice a somewhat 
-bimodal pattern, where we can select a value between 0.4 and 0.6. Here 
-we choose 0.5, but we note the default is 0.1 to be careful so as to 
-not remove cell types. We'll see what happens later when we remove 
-droplets using a default filter value of 0.1.
-
-```{r}
-mb_small <- rm_close(mb_small, fltr = 0.5)
-```
-
-This removes those clusters that lie close to the background 
-distribution.
 Now that we have the number of mixtures and their initializations, we can 
 run EM to estimate the parameters and classify the droplets.
 
 ## 3.4 Running EM
 
 Use the `run_em` function to estimate the parameters of the 
-Dirichlet-multinomial mixture. Note that we iteratively perform 
-additional rounds of cluster removal until only likely cell types 
-are left. We again use the `fltr` parameter to specify this 
-threshold.
+Dirichlet-multinomial mixture
 
 ```{r}
-mb_small <- run_em(mb_small, fltr = 0.5)
+mb_small <- run_em(mb_small)
+mb_small <- assign_clusters(mb_small)
+mb_small <- estimate_dbr_score(mb_small)
 drop_data <- droplet_data(mb_small)
 summary(drop_data)
-```
-
-After runnning EM, we call nuclei based off the likelihood. We use the 
-default posterior probability threshold of 0.95.
-they are too close to the background. After a second EM, the procedure 
-is finished.
-
-
-```{r}
-mb_small <- call_targets(mb_small, 
-                         pp_thresh = 0.95, 
-                         min_genes = 50)
-clean_ids <- get_clean_ids(mb_small)
-length(clean_ids)
-debris_ids <- get_removed_ids(mb_small, min_genes = 0)
-length(debris_ids)
-drop_data <- droplet_data(mb_small)
-dd_test <- droplet_data(mb_small, type = "test")
-dd_clean <- droplet_data(mb_small, type = "clean")
-dd_debris <- droplet_data(mb_small, type = "debris")
-```
-
-This shows that droplets that pass filtering tend to have higher 
-total counts and lower MT%. Plotting the counts against MT% and 
-coloring by call
-
-```{r}
-library(ggplot2)
-dd_test <- droplet_data(mb_small, type = "test")
-ggplot(dd_test, aes(x = total_counts, y = pct.mt, color = Call)) + 
-geom_point() + 
-theme_minimal() + 
-scale_x_log10() + 
-xlab("Total Counts") + ylab("MT%")
 ```
 
 We see the filtered droplets  have higher counts and 
 lower percentages of mitochondrial reads. DIEM removed the cluster  
 of higher count droplets with high percent mitochondrial reads.
-
-## 4 Changing the filter threshold
-
-Above we used a filter threshold of 0.5 as we saw a nice separation 
-between low count and high count clusters. We now illustrate the 
-effect of using a lower threshold value of 0.1.
-
-```{r}
-mb_small <- init(mb_small,
-                 k_init = 30, 
-                 seedn = 1)
-mb_small <- get_dist(mb_small)
-mb_small <- rm_close(mb_small, fltr = 0.1)
-mb_small <- run_em(mb_small, fltr = 0.1)
-
-
-mb_small <- call_targets(mb_small, 
-                         pp_thresh = 0.95, 
-                         min_genes = 50)
-clean_ids <- get_clean_ids(mb_small)
-length(clean_ids)
-debris_ids <- get_removed_ids(mb_small, min_genes = 50)
-length(debris_ids)
-
-library(ggplot2)
-dd_test <- droplet_data(mb_small, type = "test")
-ggplot(dd_test, aes(x = total_counts, y = pct.mt, color = Call)) + 
-geom_point() + 
-theme_minimal() + 
-scale_x_log10() + 
-xlab("Total Counts") + ylab("MT%")
-```
-
-We also see that a higher number of droplets pass and these have 
-high reads counts but still have a higher percent of mitochondrial 
-reads that pass filtering.
 
 # 5. Downstream analysis
 
@@ -360,18 +256,10 @@ as the counts.
 
 ```{r}
 counts <- raw_counts(mb_small)
-clean_ids <- get_clean_ids(mb_small)
-counts_clean <- counts[,clean_ids]
-dim(counts_clean)
 ```
 
 As `diem` also clusters the droplets, one can use this for analyses of 
 cell types. They are stored in the `droplet_data` data frame.
-
-```{r}
-dd_clean <- droplet_data(mb_small, type = "clean")
-table(dd_clean[,"Cluster"])
-```
 
 Since contamination of droplets with ambient RNA is not binary but 
 continuous, we also provide the ratio of log likelihoods of 
@@ -380,24 +268,11 @@ debris over cell types in the `DebrisLogOdds` column of the
 example, PCA and clustering. Higher values indicate the droplet is 
 more similar to the debris.
 
-```{r}
-dd_clean <- droplet_data(mb_small, type = "clean")
-summary(dd_clean[,"DebrisLogOdds"])
-cor(dd_clean[,"DebrisLogOdds"], dd_clean[,"n_genes"])
-```
 
 We also provide a convenience function for converting to a Seurat 
 object. Arguments to the `CreateSeuratObject` function can be passed 
 at the end of the function call, such as `min.features` here.
 
-```{r, eval = FALSE}
-seur <- convert_to_seurat(mb_small, 
-                          targets = TRUE, 
-                          meta = TRUE, 
-                          min.features = 100)
-dim(seur)
-head(seur@meta.data)
-```
 
 # 7. Wrapper function
 
@@ -406,9 +281,8 @@ once. The workflow is as follows
 
 ```{r, eval = FALSE}
 mb_small <- diem(mb_small, min_counts = 10, cpm_thresh = 0, 
-        n_var_genes = 250, k_init = 30, fltr = 0.5)
+        n_var_genes = 250, k_init = 30)
 mb_small <- call_targets(mb_small, 
-                         pp_thresh = 0.95, 
                          min_genes = 50)
 
 ```

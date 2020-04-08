@@ -4,8 +4,8 @@
 \alias{run_em}
 \title{Run EM}
 \usage{
-run_em(x, eps = 1e-04, fltr = 0.1, max_iter_dm = 100,
-  k_init = NULL, threads = 1, verbose = TRUE)
+run_em(x, eps = 1e-04, max_iter_dm = 200, k_init = NULL,
+  threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -16,11 +16,6 @@ stops when delta falls below this value. We define delta as the
 average change in posterior probability. By default this is set to 
 1e4, so that the EM converges when less than 1 in 10,000 labels 
 change on average.}
-
-\item{fltr}{The filter threshold between 0 and 1 
-that controls the minimum distance to 
-the background distribution that a cluster can have. Remove  
-centers with a distance less than this value.}
 
 \item{max_iter_dm}{Maximum number of iterations for the EM estimation 
 of the Dirichlet-multinomial mixture model.}
@@ -36,9 +31,7 @@ If NULL (default), run on all \code{k_init} initializations.}
 An SCE object.
 }
 \description{
-Estimate the parameters of the Dirichlet-multinomial mixture model, filter 
-out clusters close to the background distribution, and estimate the 
-posterior probability a droplet belongs to each of the clusters. The 
-\code{fltr} parameter controls the distance threshold to remove 
-clusters.
+Estimate the parameters of the Dirichlet-multinomial mixture model, 
+and estimate the posterior probability a droplet belongs to each 
+of the clusters.
 }

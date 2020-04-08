@@ -4,7 +4,7 @@
 \alias{em}
 \title{Run EM}
 \usage{
-em(counts, params, llk, test_set, bg_set, eps = 1e-04, max_iter = 100,
+em(counts, params, llk, test_set, bg_set, eps = 1e-04, max_iter = 200,
   threads = 1, verbose = TRUE)
 }
 \arguments{
