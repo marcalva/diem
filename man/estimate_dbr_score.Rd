@@ -4,39 +4,57 @@
 \alias{estimate_dbr_score}
 \title{Estimate debris score per droplet}
 \usage{
-estimate_dbr_score(x, thresh_score = 0.5, thresh_genes = 200,
-  thresh_p = 0.05, p_method = "fdr", dbr_fixed = NULL,
-  verbose = TRUE, k_init = NULL)
+estimate_dbr_score(x, thresh_genes = 200, thresh_p = 0.05,
+  thresh_logfc = 0, max_genes = 5000, p_method = "fdr", sf = 1,
+  verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{thresh_score}{Threshold for cluster mean debris score. Clusters 
-with a mean above this value are considered debris clusters.}
-
 \item{thresh_genes}{Threshold for cluster mean number of genes 
-detected. Clusters with a mean number of genes less than this value 
-are set to debris clusters.}
+detected. Clusters with an average number of genes detected 
+less than this value are set to debris clusters.}
 
 \item{thresh_p}{P-value threshold for calculating differential 
 expression between droplets in the debris and non-debris clusters.}
+
+\item{thresh_logfc}{Debris genes must have a log2 fold change greater 
+than this value.}
+
+\item{max_genes}{The maximum number of debris genes to include, ranked 
+by difference in proportion. This helps if a large number of genes 
+are found significantly DE, and may improve the specificity of the 
+debris score.}
 
 \item{p_method}{Method for p-value correction using 
 \code{\link[stats]{p.adjust}}.
 expression between droplets in the debris and non-debris clusters.}
 
-\item{dbr_fixed}{Specifies additional clusters to set as debris. Cluster 
-1 is always included. Use this only if you know what you are doing.}
+\item{sf}{Scaling factor to multiple normalized counts by before 
+log transformation. The normalized counts are used for the 
+DE analysis.}
 
 \item{verbose}{Verbosity, indicating whether to show a progress
 bar.}
-
-\item{k_init}{Run EM on the \code{k_init} initialization(s). 
-If NULL (default), run on all \code{k_init} initializations.}
 }
 \value{
 An SCE object
 }
 \description{
-Estimate debris score per droplet
+Create a debris score based on expression of debris-enriched genes.
+For each droplet, it sums the normalized read counts for these genes. 
+Debris-enriched genes are calculated using a t-test between 
+droplets in the debris and non-debris clusters. Only droplets in the 
+test set are used. Genes with an 
+adjusted p-value less than \code{thresh_p}, and a log fold change 
+greater than \code{thresh_logfc} are included in the debris 
+set. The number of genes included in the debris set can be capped 
+by setting the \code{max_genes} parameter. This may help ensure 
+that only the most specific genes are used in the case the 
+many genes are significant in the DE test.
+}
+\details{
+Differential expression is run by scaling the droplet counts to 
+sum to \code{sf} and log transforming. Then, a t-test is run 
+between droplets in the debris set and the cluster being tested.
 }

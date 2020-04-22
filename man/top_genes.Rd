@@ -4,22 +4,19 @@
 \alias{top_genes}
 \title{Get top up-regulated genes per cluster}
 \usage{
-top_genes(x, top_n = 20, k_init = NULL)
+top_genes(x, top_n = 20)
 }
 \arguments{
 \item{x}{An SCE object.}
 
 \item{top_n}{Number of top DE genes to return.}
-
-\item{k_init}{Run EM on the \code{k_init} initialization(s). 
-If NULL (default), run on all \code{k_init} initializations.}
 }
 \value{
 An SCE object.
 }
 \description{
 Extract marker genes for each cluster by ranking them based on the 
-difference of their proportion means from the Dirichlet 
+difference of their proportion means from the multinomial
 distributions estimated by DIEM. Output the top \code{top_n} 
 genes for each cluster.
 }

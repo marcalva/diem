@@ -15,15 +15,16 @@ test_that("EM flags errors when initialized", {
 
 mb_small <- set_debris_test_set(mb_small, min_counts = 5, verbose = FALSE)
 mb_small <- filter_genes(mb_small, verbose = FALSE)
-mb_small <- get_pcs(mb_small)
+mb_small <- get_pcs(mb_small, min_genes=10, n_var_genes = 100)
 mb_small <- init(mb_small, k_init = 15, verbose = FALSE)
 
 
 test_that("EM works when initialized", {
-          mb_small <- run_em(mb_small, k_init = "15", verbose=FALSE)
-          mb_small <- call_targets(mb_small, min_genes = 5, k_init = "15", verbose=FALSE)
-          emo <- mb_small@kruns[["15"]]
-          expect_equal(length(emo), 5)
+          mb_small <- run_em(mb_small, verbose=FALSE)
+          mb_small <- assign_clusters(mb_small)
+          mb_small <- estimate_dbr_score(mb_small, thresh_genes = 50)
+          mb_small <- call_targets(mb_small, min_genes = 5, verbose=FALSE)
+          emo <- mb_small@model
           expect_equal(ncol(emo$params$Alpha), length(emo$params$Pi))
           expect_true(emo$converged)
                                 })

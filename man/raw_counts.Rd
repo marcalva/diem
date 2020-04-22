@@ -4,10 +4,15 @@
 \alias{raw_counts}
 \title{Return raw counts}
 \usage{
-raw_counts(x)
+raw_counts(x, type = "test")
 }
 \arguments{
 \item{x}{An SCE object.}
+
+\item{type}{One of either 'test' (default), 'clean', 'debris', or 'all'. 
+specifying how to subset the counts to include only those droplets.
+The droplets in 'clean' and 'debris' make up the droplets in 
+'test'. If 'all', returns all droplets.}
 }
 \value{
 Sparse matrix

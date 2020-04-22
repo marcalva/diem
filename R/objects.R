@@ -19,16 +19,16 @@ setClassUnion("any_matrix", c("matrix", "dgCMatrix"))
 SCE <- setClass(Class = "SCE", 
                 slots = c(counts = "any_matrix", 
                           norm = "any_matrix", 
-                          corrected = "any_matrix", 
-                          prop = "matrix", 
+                          debris_genes = "data.frame", 
+                          debris_clusters = "vector", 
                           pcs = "matrix", 
                           test_set = "character", 
                           bg_set = "character", 
-                          debris_clusters = "vector", 
                           gene_data = "data.frame", 
                           droplet_data = "data.frame", 
                           test_data = "data.frame", 
-                          kruns = "list", 
+                          model = "list", 
+                          k_init = "integer", 
                           vg_info = "data.frame", 
                           vg = "character", 
                           name = "character"))
@@ -166,34 +166,95 @@ gene_data <- function(x, min_droplets = 1){
     return(x@gene_data[keep,,drop=FALSE])
 }
 
+#' Return the differentially expression results for debris genes
+#' 
+#' Return the data frame stored in the slot \code{debris_genes}. This 
+#' contains the results of the differential expression analysis, 
+#' including
+#' \describe{
+#' \item{diff}{Difference in proportion of gene expression between 
+#'  the droplets in the debris and cell type clusters}
+#' \item{logFC}{log2 fold change between the droplets in the debris 
+#'  and cell type clusters}
+#' \item{mu1}{Mean of gene expression proportion in the debris droplets}
+#' \item{mu2}{Mean of gene expression proportion in the cell type droplets}
+#' \item{t}{t statistic}
+#' \item{p}{P value}
+#' \item{gene}{Gene name}
+#' \item{p_adj}{P value adjusted for multiple testing}
+#' }
+#'
+#' @param x An SCE object.
+#' @param p_adj Return only rows (genes) with an adjusted p-value less 
+#'  than this value.
+#' @param logFC Return only rows (genes) with a log fold-change greater 
+#'  than this value.
+#'
+#' @return A data frame
+#'
+#' @export
+debris_genes <- function(x, p_adj = 0.05, logFC = 0){
+    datf <- x@debris_genes
+    keep <- (datf[,"p_adj"] < p_adj) & (datf[,"logFC"] > logFC) 
+    return(datf[keep,,drop=FALSE])
+}
+
 #' Return raw counts
 #'
 #' Return the raw counts from an SCE object.
 #' 
 #' @param x An SCE object.
+#' @param type One of either 'test' (default), 'clean', 'debris', or 'all'. 
+#'  specifying how to subset the counts to include only those droplets.
+#'  The droplets in 'clean' and 'debris' make up the droplets in 
+#'  'test'. If 'all', returns all droplets.
 #' 
 #' @return Sparse matrix
 #'
 #' @export
-raw_counts <- function(x){
-    return(x@counts)
+raw_counts <- function(x, type = "test"){
+    if (type == "all")
+        return(x@counts)
+    if (length(x@test_data) < 2) dd <- x@droplet_data
+    else dd <- x@test_data
+    keep <- rownames(dd)
+    if (type == "clean"){
+        keep <- rownames(dd)[dd$Call == "Clean"]
+    }
+    if (type == "debris"){
+        keep <- rownames(dd)[dd$Call == "Debris"]
+    }
+    return(x@counts[,keep])
+}
+
+#' Get cluster labels
+#'
+#' @param x An SCE object.
+#'
+#' @return vector of cluster labels, NULL if no clusters
+#'
+#' @export
+clusters <- function(x){
+    ret <- x@test_data$Cluster
+    if (is.null(ret))
+        return(ret)
+    names(ret) <- rownames(x@test_data)
+    return(ret)
 }
 
 #' Get Alpha parameters for clusters
 #'
 #' @param x An SCE object.
-#' @param k_init The k_init run to extract the values from.
 #'
 #' @return A droplet by cluster matrix containing the alpha parameters of 
-#'  of the Dirichlet-multinomial cluster in each column.
+#'  of the multinomial cluster in each column.
 #'
 #' @export
-Alpha <- function(x, k_init = NULL){
-    k_init <- check_k_init(x, k_init, return_all = FALSE)
-    if ("Alpha" %in% names(x@kruns[[k_init]]$params)){
-        return(x@kruns[[k_init]]$params$Alpha)
-    } else {
+Alpha <- function(x){
+    if (length(x@model) == 0){
         return(NULL)
+    } else {
+        return(x@model$params$Alpha)
     }
 }
 
@@ -242,10 +303,9 @@ get_gene_pct <- function(x, genes, name){
 #' \code{min.features = 200}.
 #'
 #' @param x An SCE object.
-#' @param targets Logical indicating whether to remove droplets called as 
-#'  If FALSE, return counts for the test set. Default is TRUE.
-#' @param corrected Boolean indiciating whether to return corrected counts 
-#'  in the Seurat object or raw counts (FALSE by default).
+#' @param targets Logical indicating whether to remove droplets 
+#'  called as debris. If FALSE, return counts for 
+#'  the test set. Default is TRUE.
 #' @param meta Logical that indicates whether to place the data from 
 #' droplet_info into meta.data in the  resulting Seurat object. 
 #'  Default is TRUE.
@@ -258,13 +318,12 @@ get_gene_pct <- function(x, genes, name){
 #' \donttest{
 #' mm_seur <- convert_to_seurat(x = mb_small, 
 #'                              targets = FALSE, 
-#'                              min.features = 500, 
+#'                              min.features = 200, 
 #'                              min.cells = 3, 
 #'                              project = mb_small@name)
 #' }
 convert_to_seurat <- function(x, 
                               targets = TRUE, 
-                              corrected = FALSE, 
                               meta = TRUE, 
                               ...){
     if (!requireNamespace("Seurat", quietly = TRUE)) {
@@ -278,8 +337,7 @@ convert_to_seurat <- function(x,
         if (meta) meta.data <- x@test_data[drops,,drop=FALSE]
         else meta.data <- NULL
 
-        if (corrected) counts <- x@corrected[,drops,drop=FALSE]
-        else counts <- x@counts[,drops,drop=FALSE]
+        counts <- x@counts[,drops,drop=FALSE]
 
         seur <- Seurat::CreateSeuratObject(counts = counts, 
                                            meta.data = meta.data, ...)

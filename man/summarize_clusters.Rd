@@ -4,15 +4,12 @@
 \alias{summarize_clusters}
 \title{Output summary stats from a DIEM run}
 \usage{
-summarize_clusters(x, top_n = 20, k_init = NULL)
+summarize_clusters(x, top_n = 20)
 }
 \arguments{
 \item{x}{An SCE object.}
 
 \item{top_n}{Number of top DE genes to return in column.}
-
-\item{k_init}{Run EM on the \code{k_init} initializations. 
-If NULL (default), run on all \code{k_init} initializations.}
 }
 \value{
 A data frame
@@ -22,12 +19,15 @@ Return summary statistics from a DIEM run to evaluate clustering
 and classification. The function calculates helpful statistics to 
 evaluate each cluster, including the debris and putatitive cell 
 types. This returns a data frame with the following 
-summary stats per cluster:  \describe{
+summary stats per cluster:
+\describe{
+\item{Type}{Whether the cluster was considered as debris for 
+ calculating the debris score.}
+\item{Cluster}{Cluster for which summary stats are shown.}
 \item{n_droplets}{Number of droplets.}
 \item{avg_n_genes}{Average number of genes detected.}
 \item{avg_n_counts}{Average number of counts.}
-\item{avg_logFC}{Average log fold change of the top \code{top_n} 
- marker genes.}
+\item{avg_dbr_score}{Average debris score, if available.}
 \item{genes}{Set of top \code{top_n} marker genes separated by 
  semicolons.}
 }

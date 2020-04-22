@@ -4,17 +4,14 @@
 \alias{convert_to_seurat}
 \title{Convert an SCE object to Seurat}
 \usage{
-convert_to_seurat(x, targets = TRUE, corrected = FALSE, meta = TRUE,
-  ...)
+convert_to_seurat(x, targets = TRUE, meta = TRUE, ...)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{targets}{Logical indicating whether to remove droplets called as 
-If FALSE, return counts for the test set. Default is TRUE.}
-
-\item{corrected}{Boolean indiciating whether to return corrected counts 
-in the Seurat object or raw counts (FALSE by default).}
+\item{targets}{Logical indicating whether to remove droplets 
+called as debris. If FALSE, return counts for 
+the test set. Default is TRUE.}
 
 \item{meta}{Logical that indicates whether to place the data from 
 droplet_info into meta.data in the  resulting Seurat object. 
@@ -37,7 +34,7 @@ slot in the Seurat object. Additional functions \code{...} to this function are 
 \donttest{
 mm_seur <- convert_to_seurat(x = mb_small, 
                              targets = FALSE, 
-                             min.features = 500, 
+                             min.features = 200, 
                              min.cells = 3, 
                              project = mb_small@name)
 }

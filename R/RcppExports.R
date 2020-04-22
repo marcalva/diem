@@ -5,6 +5,10 @@ LlkDirMultSparsePar <- function(x, sizes, alpha, threads = 1L, display_progress 
     .Call('_diem_LlkDirMultSparsePar', PACKAGE = 'diem', x, sizes, alpha, threads, display_progress, debug)
 }
 
+LlkMultSparsePar <- function(x, sizes, alpha, threads = 1L, display_progress = TRUE, debug = FALSE) {
+    .Call('_diem_LlkMultSparsePar', PACKAGE = 'diem', x, sizes, alpha, threads, display_progress, debug)
+}
+
 fast_correct <- function(x, means, props, round_count = TRUE, display_progress = FALSE) {
     .Call('_diem_fast_correct', PACKAGE = 'diem', x, means, props, round_count, display_progress)
 }

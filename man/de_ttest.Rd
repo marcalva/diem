@@ -4,7 +4,7 @@
 \alias{de_ttest}
 \title{Run a DE between two groups with Welch's t-test}
 \usage{
-de_ttest(x, c1, c2)
+de_ttest(x, c1, c2, normalize = FALSE, sf = 1)
 }
 \arguments{
 \item{x}{A sparse matrix}
@@ -12,23 +12,30 @@ de_ttest(x, c1, c2)
 \item{c1}{Column indexes or names of first group}
 
 \item{c2}{Column indexes or names of second group}
+
+\item{normalize}{Whether to scale the droplets to sum to \code{sf} and 
+and then log transform.}
+
+\item{sf}{Scale the counts in each droplet to sum to this value.}
 }
 \value{
 A data frame of DE results with
 \describe{
+\item{gene}{gene name}
 \item{diff}{difference between mu1 and mu2}
 \item{logFC}{log2 fold change}
 \item{mu1}{mean of group 1}
 \item{mu2}{mean of group 2}
 \item{t}{t statistic}
 \item{p}{p-value}
-\item{gene}{gene name}
 }
 }
 \description{
 Run DE between two groups. \code{x} is a sparse matrix with 
-normalized expression data (typically proportions). \code{c1} 
+count data. These counts can be normalized, or raw counts 
+can be given. If providiing raw counts, set the \code{normalize} 
+parameter to TRUE. \code{c1} 
 and \code{c2} are vectors containing indices or names 
-of the columns that belong to group 1 and 2, respectively. 
+of the columns, or boolean indicies for the droplets 
 A Welch's t-test is performed.
 }

@@ -4,24 +4,24 @@
 \alias{run_em}
 \title{Run EM}
 \usage{
-run_em(x, eps = 1e-04, max_iter_dm = 200, k_init = NULL,
-  threads = 1, verbose = TRUE)
+run_em(x, eps = 1e-04, max_iter = 300, model = "mltn", threads = 1,
+  verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
 \item{eps}{The delta threshold for when to call convergence for 
-the EM estimation of the Dirichlet-multinomial mixture model. The EM 
+the EM estimation of the mixture model. The EM 
 stops when delta falls below this value. We define delta as the 
 average change in posterior probability. By default this is set to 
 1e4, so that the EM converges when less than 1 in 10,000 labels 
 change on average.}
 
-\item{max_iter_dm}{Maximum number of iterations for the EM estimation 
-of the Dirichlet-multinomial mixture model.}
+\item{max_iter}{Maximum number of iterations for the EM estimation 
+of the mixture model.}
 
-\item{k_init}{Run EM on the \code{k_init} initialization(s). 
-If NULL (default), run on all \code{k_init} initializations.}
+\item{model}{The mixture model to assume. Can be either "DM" for 
+a Dirichlet-multinomial or "mltn" for a multinomial.}
 
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 
@@ -31,7 +31,30 @@ If NULL (default), run on all \code{k_init} initializations.}
 An SCE object.
 }
 \description{
-Estimate the parameters of the Dirichlet-multinomial mixture model, 
+Estimate the parameters of the mixture model, 
 and estimate the posterior probability a droplet belongs to each 
 of the clusters.
+}
+\examples{
+\donttest{
+
+# Run EM with a multinomial model and 8 threads
+sce <- run_em(sce, threads = 8)
+sce <- assign_clusters(sce)
+drop_data <- droplet_data(sce)
+table(drop_data[,"Cluster"])
+
+# Run EM with a Dirichlet-multinomial model and 8 threads
+sce <- run_em(sce, model = "DM", threads = 8)
+sce <- assign_clusters(sce)
+drop_data <- droplet_data(sce)
+table(drop_data[,"Cluster"])
+
+# Decrease epsilon to increase accuracy of estimated parameters
+sce <- run_em(sce, eps = 1e-8, threads = 8)
+sce <- assign_clusters(sce)
+drop_data <- droplet_data(sce)
+table(drop_data[,"Cluster"])
+
+}
 }

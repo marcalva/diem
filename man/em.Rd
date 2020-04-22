@@ -4,8 +4,8 @@
 \alias{em}
 \title{Run EM}
 \usage{
-em(counts, params, llk, test_set, bg_set, eps = 1e-04, max_iter = 200,
-  threads = 1, verbose = TRUE)
+em(counts, params, llk, test_set, bg_set, eps = 1e-04, max_iter = 300,
+  model = "mltn", threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{counts}{A gene by droplet matrix}
@@ -13,7 +13,7 @@ em(counts, params, llk, test_set, bg_set, eps = 1e-04, max_iter = 200,
 \item{params}{A list containing
 \describe{
      \item{Alpha}{ A gene by cluster matrix with parameters of 
-         Dirichlet-multinomial.}
+         Dirichlet-multinomial or multinoimal.}
      \item{Pi}{ A vector of mixing coefficients. Must sum to 1 
          and be between 0 and 1.}
      }
@@ -36,6 +36,9 @@ EM. The parameter checked is the average change in posterior
 probabilities Z.}
 
 \item{max_iter}{Maximum number of iterations.}
+
+\item{model}{The mixture model to assume. Can be either "DM" for 
+a Dirichlet-multinomial or "mltn" for a multinomial.}
 
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 

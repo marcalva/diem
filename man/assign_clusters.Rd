@@ -4,18 +4,26 @@
 \alias{assign_clusters}
 \title{Assign clusters to droplets from EM}
 \usage{
-assign_clusters(x, k_init = NULL)
+assign_clusters(x)
 }
 \arguments{
 \item{x}{An SCE object.}
-
-\item{k_init}{The k_init run to call droplets from. This must 
-specify a single value. If left unspecified, will call droplets only if 
-there is one k_init run.}
 }
 \value{
 An SCE object.
 }
 \description{
-Assign cluster to droplets in the test_data from a DIEM k_init run.
+Assign cluster for each droplet in the test set, along with its 
+cluster probability. These can be retrieved using the 
+\code{\link{droplet_data}} function.
+}
+\examples{
+\donttest{
+
+sce <- assign_clusters(sce, type="test")
+drop_data <- droplet_data(sce)
+table(drop_data[,"Cluster"])
+summary(drop_data[,"ClusterProb"])
+
+}
 }

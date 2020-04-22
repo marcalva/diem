@@ -1,20 +1,27 @@
 
 #' Assign clusters to droplets from EM
 #'
-#' Assign cluster to droplets in the test_data from a DIEM k_init run.
+#' Assign cluster for each droplet in the test set, along with its 
+#' cluster probability. These can be retrieved using the 
+#' \code{\link{droplet_data}} function.
 #'
 #' @param x An SCE object.
-#' @param k_init The k_init run to call droplets from. This must 
-#'  specify a single value. If left unspecified, will call droplets only if 
-#'  there is one k_init run.
 #'
 #' @return An SCE object.
 #'
 #' @export
-assign_clusters <- function(x, k_init = NULL){
-    k_init <- check_k_init(x, k_init)
+#' @examples
+#' \donttest{
+#'
+#' sce <- assign_clusters(sce, type="test")
+#' drop_data <- droplet_data(sce)
+#' table(drop_data[,"Cluster"])
+#' summary(drop_data[,"ClusterProb"])
+#'
+#' }
+assign_clusters <- function(x){
 
-    emo <- x@kruns[[k_init]]
+    emo <- x@model
     if (length(emo$llk) <= 1){
         stop("run EM to assign clusters")
     }
@@ -31,78 +38,6 @@ assign_clusters <- function(x, k_init = NULL){
     return(x)
 }
 
-#' Call debris clusters using the debris score
-#'
-#' Specify which clusters from DIEM are debris clusters. This uses the 
-#' debris score of droplets from \code{\link{estimate_dbr_score}}. The 
-#' average debris score of clusters assigned to the fixed debris cluster 
-#' (cluster 1) is calculated. Then, for each cluster, the fraction of 
-#' droplets with a debris score above this mean value is calculated. 
-#' In addition to the fixed debris cluster, any clusters with a 
-#' fraction of debris droplets above \code{thresh} (0.5 by default) 
-#' are assigned as debris clusters.
-#'
-#' @param x An SCE object.
-#' @param thresh Clusters with a fraction of debris droplets above this 
-#'  value are set to debris clusters.
-#' @param top_n Number of differentially expressed genes per cluster 
-#'  to use for calculating debris score.
-#' @param deb_clust Manually specify clusters which should be set as debris 
-#'  clusters.
-#' @param k_init The k_init run to call droplets from. This must 
-#'  specify a single value. If left unspecified, will call droplets only if 
-#'  there is one k_init run.
-#' @param verbose verbosity
-#'
-#' @return An SCE object.
-call_debris_clusters <- function(x, 
-                                 thresh = 0.25, 
-                                 top_n = 20, 
-                                 deb_clust = NULL, 
-                                 k_init = NULL, 
-                                 verbose = TRUE){
-    k_init <- check_k_init(x, k_init)
-
-    if (!is.null(deb_clust)){
-        clusters <- unique(x@test_data$Cluster)
-        deb_clust <- c(1, deb_clust)
-        deb_clust <- unique(intersect(clusters, deb_clust))
-        x@debris_clusters <- deb_clust
-        return(x)
-    }
-
-    if (is.null(thresh)){
-        return(x)
-    }
-
-    emo <- x@kruns[[k_init]]
-    if (length(emo$llk) <= 1){
-        stop("run EM to assign clusters")
-    }
-
-    x <- estimate_dbr_score(x, k_init = k_init)
-    sm <- summarize_clusters(x)
-
-    db_thresh <- sm["Debris", "avg_dbr_score"]
-
-    pct_debris_drop <- tapply(x@test_data[,"score.debris"], 
-                              x@test_data[,"Cluster"], 
-                              function(i){
-                                  sum(i >= db_thresh)/length(i)
-                              })
-
-    deb_clust <- c(1, names(pct_debris_drop)[pct_debris_drop > thresh])
-    deb_clust <- unique(deb_clust)
-    x@debris_clusters <- as.integer(deb_clust)
-
-    if (verbose){
-        message("found ", length(deb_clust), " debris clusters: ", 
-                paste(deb_clust, collapse = " "))
-    }
-
-    return(x)
-}
-
 #' Call clean droplets after running EM using percent debris
 #'
 #' Call cells or nuclei from an SCE object. Adds meta data to 
@@ -114,45 +49,99 @@ call_debris_clusters <- function(x,
 #'
 #' @param x An SCE object.
 #' @param thresh_score The maximum debris score a droplet must have 
-#'  to be classified as a cell/nucleus. This takes values between 
-#'  0 and 1.
+#'  to be classified as a cell/nucleus. This should be a value between 
+#'  0 and 1. Set to NULL to turn off filtering by threshold.
+#' @param clusters Remove droplets assigned to these clusters.
 #' @param min_genes The minimum number of genes a droplet must have 
 #'  to be classified as a cell/nucleus.
-#' @param k_init The k_init run to call droplets from. This must 
-#'  specify a single value. If left unspecified, will call droplets only if 
-#'  there is one k_init run.
+#' @param droplets A character vector that specifies target droplets 
+#'  manually. Only droplets that intersect with test set will be 
+#'  used. If given, ignores the other parameteres. Default is NULL.
 #' @param verbose verbosity
 #'
 #' @return An SCE object.
 #'
 #' @export
+#' @examples
+#' \donttest{
+#'
+#' # Default filtering
+#' sce <- call_targets(sce)
+#' drop_data <- droplet_data(sce)
+#' table(drop_data[,"Call"])
+#'
+#' # More stringent filtering
+#' sce <- call_targets(sce, thresh = 0.3)
+#' drop_data <- droplet_data(sce)
+#' table(drop_data[,"Call"])
+#'
+#' # Less stringent filtering
+#' sce <- call_targets(sce, thresh = 0.7)
+#' drop_data <- droplet_data(sce)
+#' table(drop_data[,"Call"])
+#'
+#' }
 call_targets <- function(x, 
                          thresh_score = 0.5, 
+                         clusters = NULL,
                          min_genes = 200, 
-                         k_init = NULL, 
+                         droplets = NULL, 
                          verbose = TRUE){
 
-    k_init <- check_k_init(x, k_init, return_all = FALSE)
-
     if (verbose){
-        message("calling targets from ", sQuote("k_init"), "=", k_init)
+        message("calling targets")
     }
 
-    k_init <- as.character(k_init)
+    if (!is.null(droplets)){
+        d <- intersect(droplets, rownames(x@test_data))
+        if (length(d) == 0){
+            stop("No droplets intersect with the test set.")
+        }
+        x@test_data[, "Call"] <- "Debris"
+        x@test_data[d, "Call"] <- "Clean"
+        x@test_data[, "Call"] <- as.factor(x@test_data[,"Call"])
+        return(x)
+    }
 
+    if (is.null(thresh_score))
+        thresh_score <- Inf
+
+    if (is.null(clusters))
+        clusters <- ""
+
+    if (identical(clusters, "debris")){
+        sm <- summarize_clusters(x)
+        clusters <- sm[ sm[,"Type"] == "Debris", "Cluster"]
+    }
+    if (identical(clusters,"clean")){
+        sm <- summarize_clusters(x)
+        clusters <- sm[ sm[,"Type"] == "Clean", "Cluster"]
+    }
+
+    cluster_keep <- !(x@test_data[, "Cluster"] %in% clusters)
     prob_keep <- x@test_data[, "score.debris"] < thresh_score
     gene_keep <- x@test_data[, "n_genes"] >= min_genes
+    keep <- cluster_keep & prob_keep & gene_keep
     
     x@test_data[, "Call"] <- "Debris"
-    x@test_data[prob_keep & gene_keep,"Call"] <- "Clean"
+    x@test_data[keep, "Call"] <- "Clean"
     x@test_data[, "Call"] <- as.factor(x@test_data[,"Call"])
 
     if (verbose){
         n_clean <- sum(x@test_data[,"Call"] == "Clean")
         n_rm <- length(x@test_set) - n_clean
-        message("removed ", n_rm, " debris droplets from the test set.")
-        message("kept ", n_clean, " clean droplets with debris score < ", 
-                thresh_score, " and at least ", min_genes, " genes detected")
+        if (identical(clusters, "")){
+            message("removed ", n_rm, " debris droplets from the test set.")
+            message("kept ", n_clean, " clean droplets with debris score < ", 
+                    thresh_score, " and at least ", min_genes, " genes detected")
+        } else {
+            lclust <- length(clusters)
+            cmessage <- ngettext(lclust, "cluster ", "clusters ")
+            appe <- paste0("from ", cmessage, paste(clusters, collapse = " "))
+            message("removed ", n_rm, " debris droplets ", appe, " from the test set.")
+            message("kept ", n_clean, " clean droplets with debris score < ", 
+                    thresh_score, " and at least ", min_genes, " genes detected")
+        }
     }
 
     return(x)

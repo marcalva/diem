@@ -2,10 +2,10 @@
 % Please edit documentation in R/em.R
 \name{get_llk}
 \alias{get_llk}
-\title{Get log likelihood under Dirichlet-multinomial}
+\title{Get log likelihood}
 \usage{
-get_llk(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1,
-  verbose = FALSE)
+get_llk(counts, Alpha, droplets = NULL, sizes = NULL, model = "mltn",
+  threads = 1, verbose = FALSE)
 }
 \arguments{
 \item{counts}{A gene by droplet data matrix of read counts.}
@@ -18,6 +18,9 @@ calculated for (instead of all droplets in \code{counts}).}
 
 \item{sizes}{Optional vector of droplet (column) sizes.}
 
+\item{model}{The mixture model to assume. Can be either "DM" for 
+a Dirichlet-multinomial or "mltn" for a multinomial.}
+
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{verbose}{Verbosity.}
@@ -26,6 +29,7 @@ calculated for (instead of all droplets in \code{counts}).}
 A droplet by cluster matrix of likelihood values
 }
 \description{
-Get log likelihood from \code{counts} under a Dirichlet-multinomial 
-with parameter \code{Alpha}.
+Get log likelihood from \code{counts} for a mixture model. The 
+model can be a mulitnomial with the parameter \code{model} set to "mltn" 
+or a Dirichlet-multinomial set to "DM".
 }

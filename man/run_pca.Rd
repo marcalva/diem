@@ -4,12 +4,17 @@
 \alias{run_pca}
 \title{Run PCA}
 \usage{
-run_pca(x, n_pcs = 30)
+run_pca(x, n_pcs = 30, seedn = 1)
 }
 \arguments{
-\item{x}{An SCE object.}
+\item{x}{An SCE object.
+many genes detected.}
 
 \item{n_pcs}{Number of PCs to calculate.}
+
+\item{seedn}{The seed to set for irlba PCA calculation. It is set to 
+1 for reproducibility but can be set to NULL for a random 
+initialization.}
 }
 \value{
 An SCE object with PCs

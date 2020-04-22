@@ -4,8 +4,8 @@
 \alias{init}
 \title{Initialize clusters}
 \usage{
-init(x, k_init = 30, iter.max_init = 15, nstart_init = 30,
-  min_size_init = 10, seedn = 1, threads = 1, verbose = TRUE)
+init(x, k_init = 20, nstart_init = 30, min_size_init = 10,
+  model = "mltn", seedn = 1, threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -14,14 +14,14 @@ init(x, k_init = 30, iter.max_init = 15, nstart_init = 30,
 does not include the debris cluster as the only the unlabeled 
 test droplets are classified here.}
 
-\item{iter.max_init}{The maximum number of k-means interations 
-for the initialization.}
-
 \item{nstart_init}{The number of starts to use in k-means for 
 for the initialization.}
 
 \item{min_size_init}{The minimum number of droplets that must belong 
 to an initialized cluster.}
+
+\item{model}{The mixture model to assume. Can be either "DM" for 
+a Dirichlet-multinomial or "mltn" for a multinomial.}
 
 \item{seedn}{The seed for random k-means initialization. 
 It is set to 1 by default. If you desire truly random initializations
@@ -35,13 +35,38 @@ across runs, set to NULL or different values for each run.}
 An SCE object
 }
 \description{
-Initialize the parameters of the Dirichlet-mulitnomial 
-mixture model. First 
+Initialize the parameters of the mixture model. First 
 run k-means on the principal components of the test droplets to 
 initialize the cluster memberships. Then use these memberships 
 to estimate alpha and pi, the parameters of the mixture model. 
+The mixture model can be one either a Dirichlet-multinomial or 
+a multinomial, specified by the \code{model} parameter. The 
+multinomial is much faster but may be less exact in the 
+clustering step.
 The parameter \code{k_init} specifies 
 initial number of clusters k to set for k-means. These clusters 
 are input into the mixture model along with the labeled 
-debris clsuters.
+debris clusters.
+}
+\examples{
+\donttest{
+
+# Initialize parameters with default values and multiple threads
+sce <- init(sce, threads = 8)
+
+# Specify initial k of 10 cell type clusters
+sce <- init(sce, k_init = 10, threads = 8)
+
+# Initialize parameters for Dirichlet-multinomial
+sce <- init(sce, k_init = 10, model = "DM", threads = 8)
+
+# Set seedn to NULL for random starts
+sce <- init(sce, k_init = 10, seedn = NULL, threads = 8)
+sce <- init(sce, k_init = 10, seedn = NULL, threads = 8)
+sce <- init(sce, k_init = 10, seedn = NULL, threads = 8)
+
+# Specify initial k of 30 cell type clusters and 
+# Only allow clusters with at least 30 droplets
+sce <- init(sce, k_init = 30, min_size_init = 30, threads = 8)
+}
 }
