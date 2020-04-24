@@ -1,8 +1,9 @@
 
-#' Get log likelihood under Dirichlet-multinomial
+#' Get log likelihood
 #'
-#' Get log likelihood from \code{counts} under a Dirichlet-multinomial 
-#' with parameter \code{Alpha}.
+#' Get log likelihood from \code{counts} for a mixture model. The 
+#' model can be a mulitnomial with the parameter \code{model} set to "mltn" 
+#' or a Dirichlet-multinomial set to "DM".
 #'
 #' @param counts A gene by droplet data matrix of read counts.
 #' @param Alpha A gene by cluster matrix of parameter values for the 
@@ -10,6 +11,8 @@
 #' @param droplets Optional vector of droplet IDs the likelihood is 
 #'  calculated for (instead of all droplets in \code{counts}).
 #' @param sizes Optional vector of droplet (column) sizes.
+#' @param model The mixture model to assume. Can be either "DM" for 
+#'  a Dirichlet-multinomial or "mltn" for a multinomial.
 #' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #' 
@@ -17,7 +20,13 @@
 #' 
 #' @importFrom Matrix colSums
 #'
-get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, verbose = FALSE){
+get_llk <- function(counts, 
+                    Alpha, 
+                    droplets = NULL, 
+                    sizes = NULL, 
+                    model = "mltn", 
+                    threads = 1, 
+                    verbose = FALSE){
 
     if (any(is.na(Alpha))){
         stop("Alpha has NA value(s)")
@@ -30,10 +39,20 @@ get_llk <- function(counts, Alpha, droplets = NULL, sizes = NULL, threads = 1, v
         sizes <- colSums(counts)
     }
     if (verbose) message("estimating likelihoods")
-    if (is.null(droplets)){
-        llk <- LlkDirMultSparsePar(counts, sizes, alpha = Alpha, threads = threads, display_progress = verbose)
+    if (model == "DM"){
+        if (is.null(droplets)){
+            llk <- LlkDirMultSparsePar(counts, sizes, alpha = Alpha, threads = threads, display_progress = verbose)
+        } else {
+            llk <- LlkDirMultSparsePar(counts[,droplets], sizes[droplets], alpha = Alpha, threads = threads, display_progress = verbose)
+        }
+    } else if (model == "mltn") {
+        if (is.null(droplets)){
+            llk <- LlkMultSparsePar(counts, sizes, alpha = Alpha, threads = threads, display_progress = verbose)
+        } else {
+            llk <- LlkMultSparsePar(counts[,droplets], sizes[droplets], alpha = Alpha, threads = threads, display_progress = verbose)
+        }
     } else {
-        llk <- LlkDirMultSparsePar(counts[,droplets], sizes[droplets], alpha = Alpha, threads = threads, display_progress = verbose)
+        stop("model must be either ", sQuote("DM"), " or ", sQuote("mltn"))
     }
     rownames(llk) <- colnames(counts)
     return(llk)
@@ -142,6 +161,7 @@ alpha_max_loo <- function(counts,
                     return(Ak)
                           })
     rownames(Alpha) <- rownames(counts)
+    colnames(Alpha) <- 1:ncol(Alpha)
     return(Alpha)
 }
 
@@ -175,16 +195,16 @@ alpha_max_loo <- function(counts,
 #' @importFrom Matrix rowSums t
 #' @importFrom stats optimize
 #
-get_alpha <- function(counts, 
-                      Z, 
-                      test_set, 
-                      bg_set, 
-                      eps = 1e-4, 
-                      max_iter_loo = 1e4, 
-                      psc = 1e-10, 
-                      ignore = 1e-10, 
-                      threads = 1, 
-                      verbose = FALSE){
+get_alpha_dm <- function(counts, 
+                         Z, 
+                         test_set, 
+                         bg_set, 
+                         eps = 1e-4, 
+                         max_iter_loo = 1e4, 
+                         psc = 1e-10, 
+                         ignore = 1e-10, 
+                         threads = 1, 
+                         verbose = FALSE){
     if (verbose) message("estimating alpha")
 
     clusts <- 1:ncol(Z)
@@ -212,15 +232,53 @@ get_alpha <- function(counts,
                            alpha0 = alpha0, 
                            clust_mem = clust_mem, 
                            weights = Z_all, 
-                           psc = 0, 
                            eps = eps, 
+                           psc = psc, 
                            max_iter = max_iter_loo, 
                            threads = threads)
-    Alpha <- Alpha + psc
 
     rownames(Alpha) <- rownames(counts)
+    colnames(Alpha) <- 1:ncol(Alpha)
     rm(Z_all)
 
+    return(Alpha)
+}
+
+#' Get MLE of multinomial alphas
+#' 
+#' Given the count data and posterior probabilities (membership), 
+#' update alpha by finding the MLE. Weighted row sum
+#'
+#' @param counts A gene by droplet matrix
+#' @param Z A droplet by cluster matrix of the posterior probability a 
+#'  droplet belongs to cluster k. Rows must sum to 1 and entries must 
+#'  be between 0 and 1.
+#' @param add A number, or weight, to add to the column sums of the 
+#'  posterior probabilities. This number is added to the \code{add_to} index.
+#' @param add_to The index to add the number \code{add} to.
+#' @param psc The pseudocount to add to the final MLE estimate. This avoids 
+#'  inappropriate alpha values of 0.
+#' @param verbose Verbosity.
+#' 
+#' @importFrom Matrix rowSums t
+#' @importFrom stats optimize
+#
+get_alpha_mult <- function(counts, 
+                           Z, 
+                           add = 0, 
+                           add_to = 1, 
+                           psc = 1e-10, 
+                           verbose = FALSE){
+    if (verbose) message("estimating alpha")
+
+    K <- ncol(Z)
+    clusts <- 1:K
+
+    wm <- as.matrix(counts %*% Z) + psc
+    wm[,add_to] <- wm[,add_to] + add
+    Alpha <- sweep(wm, 2, colSums(wm), "/")
+    rownames(Alpha) <- rownames(counts)
+    colnames(Alpha) <- 1:ncol(Alpha)
     return(Alpha)
 }
 
@@ -259,12 +317,14 @@ get_z <- function(llk, Pi){
     if (K == 1){
         Z <- matrix(1, nrow = K, ncol = 1)
         rownames(Z) <- rownames(llk)
+        colnames(Z) <- 1
         return(Z)
     }
 
     llk_pi <- t(apply(llk, 1, function(j) j + log(Pi)))
     Z <- as.matrix(t(apply(llk_pi, 1, fraction_log)))
     rownames(Z) <- rownames(llk)
+    colnames(Z) <- 1:ncol(Z)
     return(Z)
 }
 
@@ -274,7 +334,7 @@ get_z <- function(llk, Pi){
 #' @param params A list containing
 #' \describe{
 #'      \item{Alpha}{ A gene by cluster matrix with parameters of 
-#'          Dirichlet-multinomial.}
+#'          Dirichlet-multinomial or multinoimal.}
 #'      \item{Pi}{ A vector of mixing coefficients. Must sum to 1 
 #'          and be between 0 and 1.}
 #'      }
@@ -292,6 +352,8 @@ get_z <- function(llk, Pi){
 #'  EM. The parameter checked is the average change in posterior 
 #'  probabilities Z.
 #' @param max_iter Maximum number of iterations.
+#' @param model The mixture model to assume. Can be either "DM" for 
+#'  a Dirichlet-multinomial or "mltn" for a multinomial.
 #' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
@@ -302,7 +364,8 @@ em <- function(counts,
                test_set, 
                bg_set, 
                eps = 1e-4, 
-               max_iter = 1e2, 
+               max_iter = 300, 
+               model = "mltn", 
                threads = 1, 
                verbose = TRUE){
     sizes <- colSums(counts)
@@ -312,6 +375,9 @@ em <- function(counts,
     Z <- get_z(llk, Pi)
 
     K <- ncol(Alpha)
+    
+    fixed_c <- rowSums(counts[,bg_set])
+    fixed_n <- length(bg_set)
 
     delta <- Inf
     iter <- 1
@@ -319,17 +385,26 @@ em <- function(counts,
         # Estimate pi
         Pi <- get_pi(Z, add = length(bg_set), add_to = 1)
 
-        # Estimate alpha
-        Alpha <- get_alpha(counts, 
-                           Z, 
-                           test_set = test_set, 
-                           bg_set = bg_set)
+        if (model == "DM"){
+            Alpha <- get_alpha_dm(counts, 
+                               Z, 
+                               test_set = test_set, 
+                               bg_set = bg_set)
+        } else if (model == "mltn") {
+            Alpha <- get_alpha_mult(counts[,test_set],
+                                    Z, 
+                                    add = fixed_c,
+                                    add_to = 1)
+        } else {
+            stop("model must be either ", sQuote("DM"), " or ", sQuote("mltn"))
+        }
 
-        # Evaluate llk and estimate Z
         llk <- get_llk(counts = counts[,test_set], 
                        Alpha = Alpha, 
+                       model = model, 
                        sizes = sizes[test_set], 
                        threads = threads)
+
         rownames(llk) <- test_set
         Z <- get_z(llk, Pi)
 
@@ -337,7 +412,8 @@ em <- function(counts,
         if (iter > 1) {
             delta <- sum(abs(Z - Z_old)) / sum(Z_old)
         }
-        if (verbose) message("iteration ", iter, "; delta = ", round(delta, 10))
+        if (verbose) message(format(Sys.time(), "%H:%M:%S"), 
+                             " iteration ", iter, "; delta = ", round(delta, 10))
 
         # Update
         iter <- iter + 1
@@ -352,52 +428,74 @@ em <- function(counts,
     } else {
         converged <- TRUE
         if (verbose)
-            message("converged after ", iter-1, " iterations")
+            message(format(Sys.time(), "%H:%M:%S"), 
+                    " converged after ", iter-1, " iterations")
     }
+
+    Z <- get_z(llk, Pi)
+    clust_max <- apply(Z, 1, which.max)
+    names(clust_max) <- rownames(Z)
 
     params <- list("Alpha" = Alpha, 
                    "Pi" = Pi)
     ret <- list("params" = params, 
                 "llk" = llk, 
-                "converged" = converged)
+                "converged" = converged, 
+                "cluster" = clust_max)
     return(ret)
 }
 
 #' Run EM
 #' 
-#' Estimate the parameters of the Dirichlet-multinomial mixture model, filter 
-#' out clusters close to the background distribution, and estimate the 
-#' posterior probability a droplet belongs to each of the clusters. The 
-#' \code{fltr} parameter controls the distance threshold to remove 
-#' clusters.
+#' Estimate the parameters of the mixture model, 
+#' and estimate the posterior probability a droplet belongs to each 
+#' of the clusters.
 #' 
 #' @param x An SCE object.
 #' @param eps The delta threshold for when to call convergence for 
-#'  the EM estimation of the Dirichlet-multinomial mixture model. The EM 
+#'  the EM estimation of the mixture model. The EM 
 #'  stops when delta falls below this value. We define delta as the 
 #'  average change in posterior probability. By default this is set to 
 #'  1e4, so that the EM converges when less than 1 in 10,000 labels 
 #'  change on average.
-#' @param fltr The filter threshold between 0 and 1 
-#'  that controls the minimum distance to 
-#'  the background distribution that a cluster can have. Remove  
-#'  centers with a distance less than this value.
-#' @param max_iter_dm Maximum number of iterations for the EM estimation 
-#'  of the Dirichlet-multinomial mixture model.
-#' @param k_init Run EM on the \code{k_init} initialization(s). 
-#'  If NULL (default), run on all \code{k_init} initializations.
+#' @param max_iter Maximum number of iterations for the EM estimation 
+#'  of the mixture model.
+#' @param model The mixture model to assume. Can be either "DM" for 
+#'  a Dirichlet-multinomial or "mltn" for a multinomial.
 #' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
 #' @return An SCE object.
 #'
-#' @importFrom Matrix t colSums
+#' @importFrom Matrix colSums
 #' @export
+#'
+#' @examples
+#' \donttest{
+#'
+#' # Run EM with a multinomial model and 8 threads
+#' sce <- run_em(sce, threads = 8)
+#' sce <- assign_clusters(sce)
+#' drop_data <- droplet_data(sce)
+#' table(drop_data[,"Cluster"])
+#'
+#' # Run EM with a Dirichlet-multinomial model and 8 threads
+#' sce <- run_em(sce, model = "DM", threads = 8)
+#' sce <- assign_clusters(sce)
+#' drop_data <- droplet_data(sce)
+#' table(drop_data[,"Cluster"])
+#'
+#' # Decrease epsilon to increase accuracy of estimated parameters
+#' sce <- run_em(sce, eps = 1e-8, threads = 8)
+#' sce <- assign_clusters(sce)
+#' drop_data <- droplet_data(sce)
+#' table(drop_data[,"Cluster"])
+#'
+#' }
 run_em <- function(x, 
                    eps = 1e-4, 
-                   fltr = 0.1, 
-                   max_iter_dm = 1e2, 
-                   k_init = NULL, 
+                   max_iter = 300, 
+                   model = "mltn", 
                    threads = 1, 
                    verbose = TRUE){
 
@@ -405,7 +503,10 @@ run_em <- function(x,
     droplets.use <- colnames(x@counts)
 
     if (length(genes.use) == 0 | length(droplets.use) == 0) stop("specify test set and filter genes before running EM.")
-    if (length(x@kruns) == 0) stop("initialize parameters before running run_em")
+    if (length(x@model) == 0) stop("initialize parameters before running run_em")
+
+    if ( (model != "DM") & (model != "mltn") )
+        stop("model must be either ",sQuote("DM"), " or ", sQuote("mltn"))
 
     # counts is a droplet by gene matrix
     sizes <- colSums(x@counts[genes.use,droplets.use])
@@ -413,46 +514,22 @@ run_em <- function(x,
     N <- length(droplets.use)
     G <- length(genes.use)
 
-    # Run EM for each K start value
-    k_init <- check_k_init(x, k_init)
-
-    emo <- list()
-    for (k in k_init){
-        k <- as.character(k)
-        if (verbose) message("running EM for k_init = ", k)
-        while (TRUE){
-            x@kruns[[k]] <- em(counts = x@counts[genes.use,droplets.use],
-                               params = x@kruns[[k]]$params, 
-                               llk = x@kruns[[k]]$llk, 
-                               test_set = x@test_set, 
-                               bg_set = x@bg_set, 
-                               eps = eps, 
-                               max_iter = max_iter_dm, 
-                               threads = threads, 
-                               verbose = verbose)
-            prev_k <- length(x@kruns[[k]]$params$Pi)
-            x <- get_dist(x, verbose = verbose)
-            x <- rm_close(x, 
-                          k_init = k, 
-                          fltr = fltr, 
-                          verbose = verbose)
-            merged_k <- length(x@kruns[[k]]$params$Pi)
-            if (merged_k == prev_k){
-                break
-            } else {
-                if (verbose){
-                    message("restarting EM")
-                    nclusters <- merged_k - 1
-                    message("using a final k of 1 background and ", 
-                            nclusters, " cell type clusters")
-                }
-            }
-        }
-        if (verbose){
-            message("finished EM")
-        }
+    if (verbose) message(format(Sys.time(), "%H:%M:%S"), 
+                         " running EM for k_init = ", x@k_init)
+    x@model <- em(counts = x@counts[genes.use,droplets.use],
+                  params = x@model$params, 
+                  llk = x@model$llk, 
+                  test_set = x@test_set, 
+                  bg_set = x@bg_set, 
+                  eps = eps, 
+                  max_iter = max_iter, 
+                  model = model, 
+                  threads = threads, 
+                  verbose = verbose)
+    nclusters <- ncol(x@model$llk)
+    if (verbose){
+        message(format(Sys.time(), "%H:%M:%S"), " finished EM")
     }
-
     return(x)
 }
 

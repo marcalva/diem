@@ -62,9 +62,8 @@ set_debris_test_set <- function(x,
     # Keep top top_n
     dc <- dc[keep]
     o <- order(dc, decreasing=TRUE)
-    dco <- dc[o]
-    min_counts <- max(min_counts, dco[top_n], na.rm=TRUE)
-    ts <- names(dco)[dco >= min_counts]
+    min_counts <- max(min_counts, dc[o[top_n]], na.rm=TRUE)
+    ts <- names(dc)[dc >= min_counts]
     x@test_set <- setdiff(ts, debris_ids)
     x@bg_set <- setdiff(colnames(x@counts), x@test_set)
 

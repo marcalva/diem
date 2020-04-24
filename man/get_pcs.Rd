@@ -4,10 +4,14 @@
 \alias{get_pcs}
 \title{Get PCs}
 \usage{
-get_pcs(x, n_var_genes = 2000, lss = 0.3, threads = 1, n_pcs = 30)
+get_pcs(x, min_genes = 200, n_var_genes = 2000, lss = 0.3,
+  threads = 1, n_pcs = 30, seedn = 1)
 }
 \arguments{
 \item{x}{An SCE object.}
+
+\item{min_genes}{Calculate PCs from droplets with at least this 
+many genes detected.}
 
 \item{n_var_genes}{Number of top variable genes to use for PCA.}
 
@@ -18,6 +22,10 @@ used to regress out the effect of mean expression on variance.}
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 
 \item{n_pcs}{Number of PCs to return.}
+
+\item{seedn}{The seed to set for irlba PCA calculation. It is set to 
+1 for reproducibility but can be set to NULL for a random 
+initialization.}
 }
 \value{
 An SCE object with PCs
@@ -25,9 +33,34 @@ An SCE object with PCs
 \description{
 Run PCA and get top \code{n_pcs} PCs for the test set. 
 The PCs are used as the features for the initial k-means clustering. 
+Only droplets with at least \code{min_genes} are used in the PCA, and 
+thus used in the initialization.
 The counts data for the test set are count-normalized to the median 
 and log transformed. Then the top \code{n_var_genes} 
 variable genes are calculated using the function 
 \code{\link{get_var_genes}}. PCA is run on the normalized count data 
 for these variable genes only.
+}
+\examples{
+\donttest{
+
+# Get PCs with default parameters
+sce <- get_pcs(sce)
+
+# Run initialization with droplets that have at least 150 genes
+# detected
+sce <- get_pcs(sce, min_genes = 150)
+
+# Using top 3,000 variable genes
+sce <- get_pcs(sce, n_var_genes = 3000)
+
+# Use top 50 PCs for initialization
+sce <- get_pcs(sce, n_pcs = 50)
+
+# Return PCs from random irlba initializations
+sce <- get_pcs(sce, seedn = NULL)
+sce <- get_pcs(sce, seedn = NULL)
+sce <- get_pcs(sce, seedn = NULL)
+
+}
 }

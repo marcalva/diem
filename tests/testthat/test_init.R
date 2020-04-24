@@ -6,7 +6,12 @@ context("Initialization")
 #rf <- system.file("data", "mb_small.rda", package="diem")
 #load(rf)
 
-mb_small <- set_debris_test_set(mb_small, verbose = FALSE)
+mb_small <- set_debris_test_set(mb_small, min_counts=100, verbose = FALSE)
+
+expect_equal(sum(mb_small@droplet_data[,"total_counts"] >= 100), nrow(mb_small@test_data))
+expect_equal(nrow(mb_small@test_data), length(mb_small@test_set))
+expect_equal(nrow(mb_small@droplet_data)-nrow(mb_small@test_data), length(mb_small@bg_set))
+
 mb_small <- filter_genes(mb_small, verbose = FALSE)
 
 test_that("initialization works", {
@@ -15,24 +20,8 @@ test_that("initialization works", {
          expect_equal(length(mb_small@vg), 200)
 
          mb_small <- init(mb_small, k_init = 15, verbose = FALSE)
-         ic <- mb_small@kruns[["15"]]
+         ic <- mb_small@model
          expect_equal( ncol(ic$params$Alpha), ncol(ic$llk) )
          expect_equal( ncol(ic$params$Alpha), length(ic$params$Pi) )
-
-         mb_small <- get_dist(mb_small, verbose = FALSE)
-         d <- distances(mb_small, k_init = "15")
-         expect_equal( length(d), length(ic$params$Pi) )
-         expect_equal( sum(d[!is.na(d)] > 1) , 0 )
-         expect_equal( sum(d[!is.na(d)] < 0) , 0 )
-         expect_equal( sum(d[!is.na(d)] >= 0) , length(ic$params$Pi) - 1 )
-
-         mb_small <- rm_close(mb_small, verbose = FALSE)
-         ic <- mb_small@kruns[["15"]]
-         expect_equal( ncol(ic$params$Alpha), length(ic$params$Pi) )
-         d <- distances(mb_small, k_init = "15")
-         expect_equal( length(d), length(ic$params$Pi) )
-         expect_equal( sum(d[!is.na(d)] > 1) , 0 )
-         expect_equal( sum(d[!is.na(d)] < 0) , 0 )
-         expect_equal( sum(d[!is.na(d)] >= 0) , length(ic$params$Pi) - 1 )
 })
 

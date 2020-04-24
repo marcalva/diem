@@ -36,28 +36,41 @@ sce <- get_gene_pct(x = sce, genes=mt_genes, name="pct.mt")
 malat <- grep(pattern="^malat1$", x=rownames(sce@gene_data), ignore.case=TRUE, value=TRUE)
 sce <- get_gene_pct(x = sce, genes=malat, name="MALAT1")
 
+# Plot total counts ranked
 barcode_rank_plot(sce)
 
 # DIEM steps
 sce <- set_debris_test_set(sce)
 sce <- filter_genes(sce)
 sce <- get_pcs(sce)
-sce <- init(sce, k_init = 30)
-sce <- get_dist(sce)
+sce <- init(sce)
+sce <- run_em(sce)
+sce <- assign_clusters(sce)
+sce <- estimate_dbr_score(sce)
 
-# Plot distances
-plot_dist(sce)
+# Evaluate debris scores
+sm <- summarize_clusters(sce)
+plot_clust(sce, feat_x = "n_genes", feat_y = "score.debris", 
+           log_x = TRUE, log_y = FALSE)
+plot_clust(sce, feat_x = "pct.mt", feat_y = "score.debris", 
+           log_x = TRUE, log_y = FALSE)
 
-fltr <- 0.1
-sce <- rm_close(sce, fltr = fltr)
-sce <- run_em(sce, fltr = fltr)
+# Call targets using debris score for single-nucleus data
+sce <- call_targets(sce, thresh_score = 0.5)
 
-sce <- call_targets(sce)
+# Call targets by removing droplets in debris cluster(s) for single-cell data
+sce <- call_targets(sce, clusters = "debris", thresh = NULL)
 
 seur <- convert_to_seurat(sce)
 ```
 
 ## Version History
+
+April 13, 2020
+* version 2.3.0
+    * Quantifies amount of contamination in droplets. Filtering is 
+      performed using this debris score.
+    * Clustering switched to multinomial mixture model to increase speed.
 
 February 25, 2020
 * version 2.2.0

@@ -2,23 +2,26 @@
 % Please edit documentation in R/debris_id.R
 \name{call_targets}
 \alias{call_targets}
-\title{Call clean droplets after running EM}
+\title{Call clean droplets after running EM using percent debris}
 \usage{
-call_targets(x, pp_thresh = 0.95, min_genes = 200, k_init = NULL,
-  verbose = TRUE)
+call_targets(x, thresh_score = 0.5, clusters = NULL, min_genes = 200,
+  droplets = NULL, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{pp_thresh}{The minimum posterior probability of a droplet to be 
-classified as a cell/nucleus.}
+\item{thresh_score}{The maximum debris score a droplet must have 
+to be classified as a cell/nucleus. This should be a value between 
+0 and 1. Set to NULL to turn off filtering by threshold.}
+
+\item{clusters}{Remove droplets assigned to these clusters.}
 
 \item{min_genes}{The minimum number of genes a droplet must have 
 to be classified as a cell/nucleus.}
 
-\item{k_init}{The k_init run to call droplets from. This must 
-specify a single value. If left unspecified, will call droplets only if 
-there is one k_init run.}
+\item{droplets}{A character vector that specifies target droplets 
+manually. Only droplets that intersect with test set will be 
+used. If given, ignores the other parameteres. Default is NULL.}
 
 \item{verbose}{verbosity}
 }
@@ -27,15 +30,29 @@ An SCE object.
 }
 \description{
 Call cells or nuclei from an SCE object. Adds meta data to 
-the droplet data slot. This data frame can be retreived
+the test data slot, which can be retreived
 using the function \code{\link{droplet_data}}. This adds 
-column "Call" which takes either "Debris" or "Clean", "DebrisLlk" 
-which is the log likelihood of the debris distribution, 
-"DebrisLogOdds" which is the log odds of the debris, "DebrisProb" 
-which is the probability of the debris, "ClusterPob" which is 
-the probability of the cell type assignment, and "Cluster" which 
-is an integer that specifies debris (1) or cell type (>1). The 
-function calls droplets that have a probability of being a cell 
-type greater of at least \code{pp_thresh} and at least 
-\code{min_genes} detected as "Clean."
+column "Call" which takes either "Debris" or "Clean". Droplets
+with a debris scores less than \code{thresh_score} and at least 
+\code{min_genes} genes detected pass filtering.
+}
+\examples{
+\donttest{
+
+# Default filtering
+sce <- call_targets(sce)
+drop_data <- droplet_data(sce)
+table(drop_data[,"Call"])
+
+# More stringent filtering
+sce <- call_targets(sce, thresh = 0.3)
+drop_data <- droplet_data(sce)
+table(drop_data[,"Call"])
+
+# Less stringent filtering
+sce <- call_targets(sce, thresh = 0.7)
+drop_data <- droplet_data(sce)
+table(drop_data[,"Call"])
+
+}
 }

@@ -46,6 +46,14 @@ NumericVector max_loo(Eigen::SparseMatrix<double> x,
     }
 #endif
 
+    for (int k = 0; k < n_g; ++k){
+        if (alpha_old(k) < 0) {
+            alpha_old(k) = psc;
+        } else {
+            alpha_old(k) += psc;
+        }
+    }
+
     double delt = eps + 1;
     int iter = 1;
     double* numer = new double[n_g]();

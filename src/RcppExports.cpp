@@ -22,6 +22,37 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// LlkMultSparsePar
+NumericVector LlkMultSparsePar(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericMatrix alpha, int threads, bool display_progress, bool debug);
+RcppExport SEXP _diem_LlkMultSparsePar(SEXP xSEXP, SEXP sizesSEXP, SEXP alphaSEXP, SEXP threadsSEXP, SEXP display_progressSEXP, SEXP debugSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type sizes(sizesSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    Rcpp::traits::input_parameter< bool >::type debug(debugSEXP);
+    rcpp_result_gen = Rcpp::wrap(LlkMultSparsePar(x, sizes, alpha, threads, display_progress, debug));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fast_correct
+NumericMatrix fast_correct(Eigen::SparseMatrix<double> x, NumericMatrix means, NumericMatrix props, bool round_count, bool display_progress);
+RcppExport SEXP _diem_fast_correct(SEXP xSEXP, SEXP meansSEXP, SEXP propsSEXP, SEXP round_countSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type means(meansSEXP);
+    Rcpp::traits::input_parameter< NumericMatrix >::type props(propsSEXP);
+    Rcpp::traits::input_parameter< bool >::type round_count(round_countSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(fast_correct(x, means, props, round_count, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
 // max_loo
 NumericVector max_loo(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, double eps, int max_iter, double psc, int threads, bool debug);
 RcppExport SEXP _diem_max_loo(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP max_iterSEXP, SEXP pscSEXP, SEXP threadsSEXP, SEXP debugSEXP) {
@@ -87,6 +118,8 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_diem_LlkDirMultSparsePar", (DL_FUNC) &_diem_LlkDirMultSparsePar, 6},
+    {"_diem_LlkMultSparsePar", (DL_FUNC) &_diem_LlkMultSparsePar, 6},
+    {"_diem_fast_correct", (DL_FUNC) &_diem_fast_correct, 5},
     {"_diem_max_loo", (DL_FUNC) &_diem_max_loo, 9},
     {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 4},
     {"_diem_fast_wvarCPP", (DL_FUNC) &_diem_fast_wvarCPP, 5},

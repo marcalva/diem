@@ -8,7 +8,7 @@ dnl Autoconf Configure Script Exception, version 3.0.
 
 AC_PREREQ(2.62)
 
-AC_INIT([ARTP2],[0.9.31],[],[ARTP2],[])
+AC_INIT([diem],[2.2.1],[],[diem],[])
 
 # Old code
 #CXX1X=`"${R_HOME}/bin/R" CMD config CXX1X`
