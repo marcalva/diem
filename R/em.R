@@ -253,6 +253,8 @@ get_alpha_dm <- function(counts,
 #' @param Z A droplet by cluster matrix of the posterior probability a 
 #'  droplet belongs to cluster k. Rows must sum to 1 and entries must 
 #'  be between 0 and 1.
+#' @param alpha_prior Add a non-informative prior by adding a count of
+#'  \code{alpha_prior} to all genes in all clusters.
 #' @param add A number, or weight, to add to the column sums of the 
 #'  posterior probabilities. This number is added to the \code{add_to} index.
 #' @param add_to The index to add the number \code{add} to.
@@ -265,6 +267,7 @@ get_alpha_dm <- function(counts,
 #
 get_alpha_mult <- function(counts, 
                            Z, 
+                           alpha_prior = 0, 
                            add = 0, 
                            add_to = 1, 
                            psc = 1e-10, 
@@ -275,6 +278,7 @@ get_alpha_mult <- function(counts,
     clusts <- 1:K
 
     wm <- as.matrix(counts %*% Z) + psc
+    wm <- wm + alpha_prior
     wm[,add_to] <- wm[,add_to] + add
     Alpha <- sweep(wm, 2, colSums(wm), "/")
     rownames(Alpha) <- rownames(counts)
@@ -287,15 +291,18 @@ get_alpha_mult <- function(counts,
 #' @param Z A droplet by cluster matrix of the posterior probability a 
 #'  droplet belongs to cluster k. Rows must sum to 1 and entries must 
 #'  be between 0 and 1.
+#' @param pi_prior Add a non-informative prior by adding a count of 
+#'  \code{pi_prior} to the each cluster's membership.
 #' @param add A number, or weight, to add to the column sums of the 
 #'  posterior probabilities. This number is added to the \code{add_to} index.
 #' @param add_to The index to add the number \code{add} to.
 #' 
 #' @return A cluster-length numeric vector that sums to 1 and entries 
 #'  between 0 and 1.
-get_pi <- function(Z, add = 0, add_to = 1){
+get_pi <- function(Z, pi_prior = 0, add = 0, add_to = 1){
     Pi <- colSums(Z)
     Pi[add_to] <- Pi[add_to] + add
+    Pi <- Pi + pi_prior
     Pi <- Pi / sum(Pi)
     return(Pi)
 }
@@ -354,6 +361,10 @@ get_z <- function(llk, Pi){
 #' @param max_iter Maximum number of iterations.
 #' @param model The mixture model to assume. Can be either "DM" for 
 #'  a Dirichlet-multinomial or "mltn" for a multinomial.
+#' @param alpha_prior Add a non-informative prior by adding a count of
+#'  \code{alpha_prior} to all genes in all clusters.
+#' @param pi_prior Add a non-informative prior by adding a count of 
+#'  \code{pi_prior} to the each cluster's membership.
 #' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
@@ -366,6 +377,8 @@ em <- function(counts,
                eps = 1e-4, 
                max_iter = 300, 
                model = "mltn", 
+               alpha_prior = 0, 
+               pi_prior = 0, 
                threads = 1, 
                verbose = TRUE){
     sizes <- colSums(counts)
@@ -383,7 +396,7 @@ em <- function(counts,
     iter <- 1
     while (iter <= max_iter & delta > eps){
         # Estimate pi
-        Pi <- get_pi(Z, add = length(bg_set), add_to = 1)
+        Pi <- get_pi(Z, pi_prior = pi_prior, add = length(bg_set), add_to = 1)
 
         if (model == "DM"){
             Alpha <- get_alpha_dm(counts, 
@@ -393,6 +406,7 @@ em <- function(counts,
         } else if (model == "mltn") {
             Alpha <- get_alpha_mult(counts[,test_set],
                                     Z, 
+                                    alpha_prior = alpha_prior, 
                                     add = fixed_c,
                                     add_to = 1)
         } else {
@@ -462,6 +476,11 @@ em <- function(counts,
 #'  of the mixture model.
 #' @param model The mixture model to assume. Can be either "DM" for 
 #'  a Dirichlet-multinomial or "mltn" for a multinomial.
+#' @param alpha_prior Add a non-informative prior by adding a count of
+#'  \code{alpha_prior} to all genes in all clusters. Only valid for 
+#'  the multinomial model.
+#' @param pi_prior Add a non-informative prior by adding a count of 
+#'  \code{pi_prior} to the each cluster's membership.
 #' @param threads Number of threads for parallel execution. Default is 1.
 #' @param verbose Verbosity.
 #'
@@ -496,6 +515,8 @@ run_em <- function(x,
                    eps = 1e-4, 
                    max_iter = 300, 
                    model = "mltn", 
+                   alpha_prior = 0, 
+                   pi_prior = 0, 
                    threads = 1, 
                    verbose = TRUE){
 
@@ -524,6 +545,8 @@ run_em <- function(x,
                   eps = eps, 
                   max_iter = max_iter, 
                   model = model, 
+                  alpha_prior = alpha_prior, 
+                  pi_prior = pi_prior, 
                   threads = threads, 
                   verbose = verbose)
     nclusters <- ncol(x@model$llk)

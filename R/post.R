@@ -390,6 +390,7 @@ estimate_dbr_score <- function(x,
     gene_mean <- tapply(x@test_data[,"n_genes"], x@test_data[,"Cluster"], mean)
     lc_clust <- which(gene_mean < thresh_genes)
     dbr_clust <- unique(c(1, lc_clust))
+    x@debris_clusters <- dbr_clust
 
     test_dat <- x@test_data
     test_drop <- rownames(test_dat)
@@ -407,24 +408,24 @@ estimate_dbr_score <- function(x,
     counts_s <- log1p(sf * counts_s)
 
     de <- de_ttest(counts_s, c1, c2)
+    de[,"Debris"] <- FALSE
 
     # Specify all clusters
     de <- de[order(de[,"diff"], decreasing = TRUE), , drop = FALSE]
     de[,"p_adj"] <- p.adjust(de[,"p"], method = p_method)
     keep <- (de[,"p_adj"] < thresh_p) & (de[,"logFC"] > thresh_logfc)
+
+    if (sum(keep) == 0){
+        x@debris_genes <- de
+        x@test_data[,name] <- NA
+        message("No DE genes found: cannot calculate debris scores")
+        return(x)
+    }
     
     de_genes <- de[keep,"gene"]
     nr <- min(length(de_genes), max_genes)
     de_genes <- de_genes[1:nr]
-    de[,"Debris"] <- FALSE
     de[de_genes,"Debris"] <- TRUE
-
-    if (sum(keep) == 0){
-        x@debris_genes <- de
-        x@debris_clusters <- dbr_clust
-        message("No DE genes found: cannot calculate debris scores")
-        return(x)
-    }
 
     scores <- colSums(counts_s[de_genes, test_drop, drop = FALSE])
     clust_mean <- tapply(scores, x@test_data[,"Cluster"], mean)
@@ -435,7 +436,6 @@ estimate_dbr_score <- function(x,
 
     x@test_data[,name] <- as.numeric(scores)
     x@debris_genes <- de
-    x@debris_clusters <- dbr_clust
 
     if (verbose){
         message("calculated debris scores using ", length(dbr_clust), 
