@@ -4,12 +4,15 @@
 \alias{get_pi}
 \title{Get mixing coefficients of Mixture model from posterior probabilities Z}
 \usage{
-get_pi(Z, add = 0, add_to = 1)
+get_pi(Z, pi_prior = 0, add = 0, add_to = 1)
 }
 \arguments{
 \item{Z}{A droplet by cluster matrix of the posterior probability a 
 droplet belongs to cluster k. Rows must sum to 1 and entries must 
 be between 0 and 1.}
+
+\item{pi_prior}{Add a non-informative prior by adding a count of 
+\code{pi_prior} to the each cluster's membership.}
 
 \item{add}{A number, or weight, to add to the column sums of the 
 posterior probabilities. This number is added to the \code{add_to} index.}

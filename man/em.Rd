@@ -5,7 +5,8 @@
 \title{Run EM}
 \usage{
 em(counts, params, llk, test_set, bg_set, eps = 1e-04, max_iter = 300,
-  model = "mltn", threads = 1, verbose = TRUE)
+  model = "mltn", alpha_prior = 0, pi_prior = 0, threads = 1,
+  verbose = TRUE)
 }
 \arguments{
 \item{counts}{A gene by droplet matrix}
@@ -39,6 +40,12 @@ probabilities Z.}
 
 \item{model}{The mixture model to assume. Can be either "DM" for 
 a Dirichlet-multinomial or "mltn" for a multinomial.}
+
+\item{alpha_prior}{Add a non-informative prior by adding a count of
+\code{alpha_prior} to all genes in all clusters.}
+
+\item{pi_prior}{Add a non-informative prior by adding a count of 
+\code{pi_prior} to the each cluster's membership.}
 
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 

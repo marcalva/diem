@@ -4,8 +4,8 @@
 \alias{get_alpha_mult}
 \title{Get MLE of multinomial alphas}
 \usage{
-get_alpha_mult(counts, Z, add = 0, add_to = 1, psc = 1e-10,
-  verbose = FALSE)
+get_alpha_mult(counts, Z, alpha_prior = 0, add = 0, add_to = 1,
+  psc = 1e-10, verbose = FALSE)
 }
 \arguments{
 \item{counts}{A gene by droplet matrix}
@@ -13,6 +13,9 @@ get_alpha_mult(counts, Z, add = 0, add_to = 1, psc = 1e-10,
 \item{Z}{A droplet by cluster matrix of the posterior probability a 
 droplet belongs to cluster k. Rows must sum to 1 and entries must 
 be between 0 and 1.}
+
+\item{alpha_prior}{Add a non-informative prior by adding a count of
+\code{alpha_prior} to all genes in all clusters.}
 
 \item{add}{A number, or weight, to add to the column sums of the 
 posterior probabilities. This number is added to the \code{add_to} index.}

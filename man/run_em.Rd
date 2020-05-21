@@ -4,8 +4,8 @@
 \alias{run_em}
 \title{Run EM}
 \usage{
-run_em(x, eps = 1e-04, max_iter = 300, model = "mltn", threads = 1,
-  verbose = TRUE)
+run_em(x, eps = 1e-04, max_iter = 300, model = "mltn",
+  alpha_prior = 0, pi_prior = 0, threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -22,6 +22,13 @@ of the mixture model.}
 
 \item{model}{The mixture model to assume. Can be either "DM" for 
 a Dirichlet-multinomial or "mltn" for a multinomial.}
+
+\item{alpha_prior}{Add a non-informative prior by adding a count of
+\code{alpha_prior} to all genes in all clusters. Only valid for 
+the multinomial model.}
+
+\item{pi_prior}{Add a non-informative prior by adding a count of 
+\code{pi_prior} to the each cluster's membership.}
 
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 

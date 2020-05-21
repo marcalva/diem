@@ -400,9 +400,9 @@ em <- function(counts,
 
         if (model == "DM"){
             Alpha <- get_alpha_dm(counts, 
-                               Z, 
-                               test_set = test_set, 
-                               bg_set = bg_set)
+                                  Z, 
+                                  test_set = test_set, 
+                                  bg_set = bg_set)
         } else if (model == "mltn") {
             Alpha <- get_alpha_mult(counts[,test_set],
                                     Z, 
