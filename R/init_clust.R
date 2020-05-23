@@ -205,11 +205,6 @@ merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
 #'  to an initialized cluster.
 #' @param model The mixture model to assume. Can be either "DM" for 
 #'  a Dirichlet-multinomial or "mltn" for a multinomial.
-#' @param alpha_prior Add a non-informative prior by adding a count of
-#'  \code{alpha_prior} to all genes in all clusters. Only valid for 
-#'  the multinomial model.
-#' @param pi_prior Add a non-informative prior by adding a count of 
-#'  \code{pi_prior} to the each cluster's membership.
 #' @param seedn The seed for random k-means initialization. 
 #'  It is set to 1 by default. If you desire truly random initializations
 #'  across runs, set to NULL or different values for each run.
@@ -249,8 +244,6 @@ init <- function(x,
                  nstart_init = 30, 
                  min_size_init = 10, 
                  model = "mltn", 
-                 alpha_prior = 0, 
-                 pi_prior = 0, 
                  seedn = 1, 
                  threads = 1, 
                  verbose = TRUE){ 
@@ -309,13 +302,12 @@ init <- function(x,
         fixed_c <- rowSums(x@counts[genes.use,x@bg_set])
         Alpha <- get_alpha_mult(counts = x@counts[genes.use, rownames(Z)], 
                                 Z = Z, 
-                                alpha_prior = alpha_prior, 
                                 add = fixed_c, 
                                 add_to = 1)
     } else {
         stop("model must be either ", sQuote("DM"), " or ", sQuote("mltn"))
     }
-    Pi <- get_pi(Z, pi_prior = pi_prior, add = length(x@bg_set), add_to = 1)
+    Pi <- get_pi(Z, add = length(x@bg_set), add_to = 1)
     llk <- get_llk(counts = x@counts[genes.use, x@test_set], 
                    Alpha = Alpha, 
                    sizes = sizes[x@test_set], 

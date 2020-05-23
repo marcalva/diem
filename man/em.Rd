@@ -42,7 +42,8 @@ probabilities Z.}
 a Dirichlet-multinomial or "mltn" for a multinomial.}
 
 \item{alpha_prior}{Add a non-informative prior by adding a count of
-\code{alpha_prior} to all genes in all clusters.}
+\code{alpha_prior} to all genes in each cluster. Only valid for 
+the multinomial model.}
 
 \item{pi_prior}{Add a non-informative prior by adding a count of 
 \code{pi_prior} to the each cluster's membership.}

@@ -14,8 +14,8 @@ get_alpha_mult(counts, Z, alpha_prior = 0, add = 0, add_to = 1,
 droplet belongs to cluster k. Rows must sum to 1 and entries must 
 be between 0 and 1.}
 
-\item{alpha_prior}{Add a non-informative prior by adding a count of
-\code{alpha_prior} to all genes in all clusters.}
+\item{alpha_prior}{A scale or vector that is added to each cluster of 
+of counts.}
 
 \item{add}{A number, or weight, to add to the column sums of the 
 posterior probabilities. This number is added to the \code{add_to} index.}

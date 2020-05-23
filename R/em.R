@@ -253,8 +253,8 @@ get_alpha_dm <- function(counts,
 #' @param Z A droplet by cluster matrix of the posterior probability a 
 #'  droplet belongs to cluster k. Rows must sum to 1 and entries must 
 #'  be between 0 and 1.
-#' @param alpha_prior Add a non-informative prior by adding a count of
-#'  \code{alpha_prior} to all genes in all clusters.
+#' @param alpha_prior A scale or vector that is added to each cluster of 
+#'  of counts.
 #' @param add A number, or weight, to add to the column sums of the 
 #'  posterior probabilities. This number is added to the \code{add_to} index.
 #' @param add_to The index to add the number \code{add} to.
@@ -278,7 +278,7 @@ get_alpha_mult <- function(counts,
     clusts <- 1:K
 
     wm <- as.matrix(counts %*% Z) + psc
-    wm <- wm + alpha_prior
+    wm <- apply(wm, 2, function(i) i + alpha_prior)
     wm[,add_to] <- wm[,add_to] + add
     Alpha <- sweep(wm, 2, colSums(wm), "/")
     rownames(Alpha) <- rownames(counts)
@@ -362,7 +362,8 @@ get_z <- function(llk, Pi){
 #' @param model The mixture model to assume. Can be either "DM" for 
 #'  a Dirichlet-multinomial or "mltn" for a multinomial.
 #' @param alpha_prior Add a non-informative prior by adding a count of
-#'  \code{alpha_prior} to all genes in all clusters.
+#'  \code{alpha_prior} to all genes in each cluster. Only valid for 
+#'  the multinomial model.
 #' @param pi_prior Add a non-informative prior by adding a count of 
 #'  \code{pi_prior} to the each cluster's membership.
 #' @param threads Number of threads for parallel execution. Default is 1.
@@ -390,7 +391,10 @@ em <- function(counts,
     K <- ncol(Alpha)
     
     fixed_c <- rowSums(counts[,bg_set])
+    fixed_cp <- fixed_c / sum(fixed_c)
     fixed_n <- length(bg_set)
+
+    alpha_prior <- alpha_prior / nrow(counts)
 
     delta <- Inf
     iter <- 1
@@ -448,6 +452,7 @@ em <- function(counts,
 
     Z <- get_z(llk, Pi)
     clust_max <- apply(Z, 1, which.max)
+    clust_max <- sapply(clust_max, function(i) colnames(Z)[i])
     names(clust_max) <- rownames(Z)
 
     params <- list("Alpha" = Alpha, 
@@ -477,7 +482,7 @@ em <- function(counts,
 #' @param model The mixture model to assume. Can be either "DM" for 
 #'  a Dirichlet-multinomial or "mltn" for a multinomial.
 #' @param alpha_prior Add a non-informative prior by adding a count of
-#'  \code{alpha_prior} to all genes in all clusters. Only valid for 
+#'  \code{alpha_prior} to all genes in each cluster. Only valid for 
 #'  the multinomial model.
 #' @param pi_prior Add a non-informative prior by adding a count of 
 #'  \code{pi_prior} to the each cluster's membership.
