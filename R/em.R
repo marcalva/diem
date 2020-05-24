@@ -19,6 +19,7 @@
 #' @return A droplet by cluster matrix of likelihood values
 #' 
 #' @importFrom Matrix colSums
+#' @export
 #'
 get_llk <- function(counts, 
                     Alpha, 
