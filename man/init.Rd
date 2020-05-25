@@ -5,7 +5,8 @@
 \title{Initialize clusters}
 \usage{
 init(x, k_init = 20, nstart_init = 30, min_size_init = 10,
-  model = "mltn", seedn = 1, threads = 1, verbose = TRUE)
+  clust_init = NULL, model = "mltn", seedn = 1, threads = 1,
+  verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
@@ -19,6 +20,12 @@ for the initialization.}
 
 \item{min_size_init}{The minimum number of droplets that must belong 
 to an initialized cluster.}
+
+\item{clust_init}{Either NULL to estimate initial clusters with k-means, 
+or a character vector of initial cluster assignments. The vector 
+must be named and correspond to the droplets in the data. Cluster 
+values of 0 correspond to unknown, 1 corrsponds to background. This
+also overrides the \code{k_init} parameter.}
 
 \item{model}{The mixture model to assume. Can be either "DM" for 
 a Dirichlet-multinomial or "mltn" for a multinomial.}

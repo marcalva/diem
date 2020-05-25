@@ -203,6 +203,11 @@ merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
 #'  for the initialization.
 #' @param min_size_init The minimum number of droplets that must belong 
 #'  to an initialized cluster.
+#' @param clust_init Either NULL to estimate initial clusters with k-means, 
+#'  or a character vector of initial cluster assignments. The vector 
+#'  must be named and correspond to the droplets in the data. Cluster 
+#'  values of 0 correspond to unknown, 1 corrsponds to background. This
+#'  also overrides the \code{k_init} parameter.
 #' @param model The mixture model to assume. Can be either "DM" for 
 #'  a Dirichlet-multinomial or "mltn" for a multinomial.
 #' @param seedn The seed for random k-means initialization. 
@@ -243,6 +248,7 @@ init <- function(x,
                  k_init = 20, 
                  nstart_init = 30, 
                  min_size_init = 10, 
+                 clust_init = NULL, 
                  model = "mltn", 
                  seedn = 1, 
                  threads = 1, 
@@ -250,12 +256,6 @@ init <- function(x,
     genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
 
     sizes <- colSums(x@counts[genes.use,])
-
-    if (length(x@pcs) == 0){
-        stop("calculate PCs before k-means initialization")
-    }
-
-    pcs_s <- scale(x@pcs)
 
     labs <- rep(0, ncol(x@counts[genes.use,]))
     names(labs) <- colnames(x@counts[genes.use,])
@@ -265,32 +265,44 @@ init <- function(x,
 
     k <- as.integer(k_init)
     x@k_init <- k
-    if (verbose){
-        message("initializing parameters for k_init = ", k)
+
+    if (is.null(clust_init)){
+        if (length(x@pcs) == 0){
+            stop("calculate PCs before k-means initialization")
+        }
+        pcs_s <- scale(x@pcs)
+        if (verbose) message("running k-means")
+        old_opt <- options(warn = -1)
+        set.seed(seedn, kind = "Mersenne-Twister")
+
+        km <- kmeans(x = pcs_s, 
+                     centers = k, 
+                     nstart = nstart_init)
+        options(old_opt)
+        kclust <- km$cluster # integer vector of 1 to k values, corresponding to column in pcs_s
+
+        # Merge small clusters from k-means
+        kclust <- merge_size(kclust, pcs_s, min_size_init, verbose)
+        kclust <- as.numeric(kclust)
+        names(kclust) <- rownames(pcs_s)
+
+        labs_k <- labs
+        labs_k[names(kclust)] <- kclust + 1
+        Z <- z_table(kclust)
+        Z <- cbind(0, Z)
+    } else {
+        clin <- names(clust_init)
+        clust_init <- as.character(clust_init)
+        names(clust_init) <- clin
+        clust_init <- clust_init[names(clust_init) %in% colnames(x@counts)]
+        x@k_init <- length(setdiff(unique(clust_init), "1"))
+        clust_init <- condense_labs(clust_init)
+        Z <- z_table(clust_init)
     }
 
-    if (verbose) message("running k-means")
-    old_opt <- options(warn = -1)
-    set.seed(seedn, kind = "Mersenne-Twister")
-
-    km <- kmeans(x = pcs_s, 
-                 centers = k, 
-                 nstart = nstart_init)
-    options(old_opt)
-    kclust <- km$cluster # integer vector of 1 to k values, corresponding to column in pcs_s
-
-    # Merge small clusters from k-means
-    kclust <- merge_size(kclust, pcs_s, min_size_init, verbose)
-    kclust <- as.numeric(kclust)
-    names(kclust) <- rownames(pcs_s)
-    kclust <- kclust
-
-    labs_k <- labs
-    labs_k[names(kclust)] <- kclust + 1
-
-    if (verbose) message("estimating initial parameters")
-    Z <- z_table(kclust)
-    Z <- cbind(0, Z)
+    if (verbose){
+        message("initializing parameters for k_init = ", x@k_init)
+    }
 
     if (model == "DM"){
         Alpha <- get_alpha_dm(counts = x@counts[genes.use, rownames(Z)], 
