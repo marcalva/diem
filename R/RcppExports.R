@@ -13,6 +13,10 @@ fast_correct <- function(x, means, props, round_count = TRUE, display_progress =
     .Call('_diem_fast_correct', PACKAGE = 'diem', x, means, props, round_count, display_progress)
 }
 
+fit_prop <- function(x, alpha, w, lrate = 0.1, eps = 0.001, accelerate = FALSE, threads = 1L, display_progress = TRUE) {
+    .Call('_diem_fit_prop', PACKAGE = 'diem', x, alpha, w, lrate, eps, accelerate, threads, display_progress)
+}
+
 max_loo <- function(x, sizes, weights, alpha, eps = 1e-4, max_iter = 1e4L, psc = 1e-10, threads = 1L, debug = FALSE) {
     .Call('_diem_max_loo', PACKAGE = 'diem', x, sizes, weights, alpha, eps, max_iter, psc, threads, debug)
 }

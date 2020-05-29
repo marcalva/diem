@@ -53,6 +53,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// fit_prop
+Eigen::MatrixXd fit_prop(Eigen::SparseMatrix<double> x, Eigen::MatrixXd alpha, Eigen::MatrixXd w, double lrate, double eps, bool accelerate, int threads, bool display_progress);
+RcppExport SEXP _diem_fit_prop(SEXP xSEXP, SEXP alphaSEXP, SEXP wSEXP, SEXP lrateSEXP, SEXP epsSEXP, SEXP accelerateSEXP, SEXP threadsSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type w(wSEXP);
+    Rcpp::traits::input_parameter< double >::type lrate(lrateSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< bool >::type accelerate(accelerateSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(fit_prop(x, alpha, w, lrate, eps, accelerate, threads, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
 // max_loo
 NumericVector max_loo(Eigen::SparseMatrix<double> x, NumericVector sizes, NumericVector weights, NumericVector alpha, double eps, int max_iter, double psc, int threads, bool debug);
 RcppExport SEXP _diem_max_loo(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP max_iterSEXP, SEXP pscSEXP, SEXP threadsSEXP, SEXP debugSEXP) {
@@ -120,6 +138,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_diem_LlkDirMultSparsePar", (DL_FUNC) &_diem_LlkDirMultSparsePar, 6},
     {"_diem_LlkMultSparsePar", (DL_FUNC) &_diem_LlkMultSparsePar, 6},
     {"_diem_fast_correct", (DL_FUNC) &_diem_fast_correct, 5},
+    {"_diem_fit_prop", (DL_FUNC) &_diem_fit_prop, 8},
     {"_diem_max_loo", (DL_FUNC) &_diem_max_loo, 9},
     {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 4},
     {"_diem_fast_wvarCPP", (DL_FUNC) &_diem_fast_wvarCPP, 5},
