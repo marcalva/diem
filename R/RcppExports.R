@@ -13,8 +13,12 @@ fast_correct <- function(x, means, props, round_count = TRUE, display_progress =
     .Call('_diem_fast_correct', PACKAGE = 'diem', x, means, props, round_count, display_progress)
 }
 
-fit_prop <- function(x, alpha, w, lrate = 0.1, eps = 0.001, accelerate = FALSE, threads = 1L, display_progress = TRUE) {
-    .Call('_diem_fit_prop', PACKAGE = 'diem', x, alpha, w, lrate, eps, accelerate, threads, display_progress)
+fit_prop <- function(x, theta, w, lrate = 0.1, eps = 0.001, psc = 0, threads = 1L, max_iter = 1e4L, display_progress = TRUE) {
+    .Call('_diem_fit_prop', PACKAGE = 'diem', x, theta, w, lrate, eps, psc, threads, max_iter, display_progress)
+}
+
+fitm <- function(x, theta, w, f, eps1 = 0.001, eps2 = 0.001, max_iter1 = 200L, max_iter2 = 100L, alpha = 0, beta = 0, lrate_w = 0.1, lrate_theta = 1e-8, psc = 1e-8, threads = 1L, display_progress = TRUE) {
+    .Call('_diem_fitm', PACKAGE = 'diem', x, theta, w, f, eps1, eps2, max_iter1, max_iter2, alpha, beta, lrate_w, lrate_theta, psc, threads, display_progress)
 }
 
 max_loo <- function(x, sizes, weights, alpha, eps = 1e-4, max_iter = 1e4L, psc = 1e-10, threads = 1L, debug = FALSE) {

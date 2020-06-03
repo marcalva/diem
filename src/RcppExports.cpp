@@ -54,20 +54,46 @@ BEGIN_RCPP
 END_RCPP
 }
 // fit_prop
-Eigen::MatrixXd fit_prop(Eigen::SparseMatrix<double> x, Eigen::MatrixXd alpha, Eigen::MatrixXd w, double lrate, double eps, bool accelerate, int threads, bool display_progress);
-RcppExport SEXP _diem_fit_prop(SEXP xSEXP, SEXP alphaSEXP, SEXP wSEXP, SEXP lrateSEXP, SEXP epsSEXP, SEXP accelerateSEXP, SEXP threadsSEXP, SEXP display_progressSEXP) {
+Eigen::MatrixXd fit_prop(Eigen::SparseMatrix<double> x, Eigen::MatrixXd theta, Eigen::MatrixXd w, double lrate, double eps, double psc, int threads, int max_iter, bool display_progress);
+RcppExport SEXP _diem_fit_prop(SEXP xSEXP, SEXP thetaSEXP, SEXP wSEXP, SEXP lrateSEXP, SEXP epsSEXP, SEXP pscSEXP, SEXP threadsSEXP, SEXP max_iterSEXP, SEXP display_progressSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
-    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type theta(thetaSEXP);
     Rcpp::traits::input_parameter< Eigen::MatrixXd >::type w(wSEXP);
     Rcpp::traits::input_parameter< double >::type lrate(lrateSEXP);
     Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
-    Rcpp::traits::input_parameter< bool >::type accelerate(accelerateSEXP);
+    Rcpp::traits::input_parameter< double >::type psc(pscSEXP);
+    Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
+    rcpp_result_gen = Rcpp::wrap(fit_prop(x, theta, w, lrate, eps, psc, threads, max_iter, display_progress));
+    return rcpp_result_gen;
+END_RCPP
+}
+// fitm
+List fitm(Eigen::SparseMatrix<double> x, Eigen::MatrixXd theta, Eigen::MatrixXd w, Eigen::VectorXi f, double eps1, double eps2, int max_iter1, int max_iter2, double alpha, double beta, double lrate_w, double lrate_theta, double psc, int threads, bool display_progress);
+RcppExport SEXP _diem_fitm(SEXP xSEXP, SEXP thetaSEXP, SEXP wSEXP, SEXP fSEXP, SEXP eps1SEXP, SEXP eps2SEXP, SEXP max_iter1SEXP, SEXP max_iter2SEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP lrate_wSEXP, SEXP lrate_thetaSEXP, SEXP pscSEXP, SEXP threadsSEXP, SEXP display_progressSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::SparseMatrix<double> >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type w(wSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXi >::type f(fSEXP);
+    Rcpp::traits::input_parameter< double >::type eps1(eps1SEXP);
+    Rcpp::traits::input_parameter< double >::type eps2(eps2SEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter1(max_iter1SEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter2(max_iter2SEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type lrate_w(lrate_wSEXP);
+    Rcpp::traits::input_parameter< double >::type lrate_theta(lrate_thetaSEXP);
+    Rcpp::traits::input_parameter< double >::type psc(pscSEXP);
     Rcpp::traits::input_parameter< int >::type threads(threadsSEXP);
     Rcpp::traits::input_parameter< bool >::type display_progress(display_progressSEXP);
-    rcpp_result_gen = Rcpp::wrap(fit_prop(x, alpha, w, lrate, eps, accelerate, threads, display_progress));
+    rcpp_result_gen = Rcpp::wrap(fitm(x, theta, w, f, eps1, eps2, max_iter1, max_iter2, alpha, beta, lrate_w, lrate_theta, psc, threads, display_progress));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -138,7 +164,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_diem_LlkDirMultSparsePar", (DL_FUNC) &_diem_LlkDirMultSparsePar, 6},
     {"_diem_LlkMultSparsePar", (DL_FUNC) &_diem_LlkMultSparsePar, 6},
     {"_diem_fast_correct", (DL_FUNC) &_diem_fast_correct, 5},
-    {"_diem_fit_prop", (DL_FUNC) &_diem_fit_prop, 8},
+    {"_diem_fit_prop", (DL_FUNC) &_diem_fit_prop, 9},
+    {"_diem_fitm", (DL_FUNC) &_diem_fitm, 15},
     {"_diem_max_loo", (DL_FUNC) &_diem_max_loo, 9},
     {"_diem_fast_varCPP", (DL_FUNC) &_diem_fast_varCPP, 4},
     {"_diem_fast_wvarCPP", (DL_FUNC) &_diem_fast_wvarCPP, 5},
