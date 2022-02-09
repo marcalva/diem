@@ -147,9 +147,9 @@ de_ttest <- function(x, c1, c2, normalize = FALSE, sf = 1){
         return(NA)
     }
 
-    var1 <- fast_varCPP(x = xc1, 
+    var1 <- fast_varCPP(x = t(xc1), 
                         mu = mu1)
-    var2 <- fast_varCPP(x = xc2, 
+    var2 <- fast_varCPP(x = t(xc2), 
                         mu = mu2)
     n1 <- ncol(x[,c1,drop=FALSE])
     n2 <- ncol(x[,c2,drop=FALSE])
@@ -362,6 +362,7 @@ top_genes <- function(x, top_n = 20){
 #' between droplets in the debris set and the cluster being tested.
 #'
 #' @param x An SCE object.
+#' @param dbr_clust Specify additional debris clusters/
 #' @param thresh_genes Threshold for cluster mean number of genes 
 #'  detected. Clusters with an average number of genes detected 
 #'  less than this value are set to debris clusters.
@@ -388,6 +389,7 @@ top_genes <- function(x, top_n = 20){
 #' @return An SCE object
 #' @export
 estimate_dbr_score <- function(x, 
+                               dbr_clust = c(1), 
                                thresh_genes = 200, 
                                thresh_p = 0.05, 
                                thresh_logfc = 0, 
@@ -402,7 +404,7 @@ estimate_dbr_score <- function(x,
 
     gene_mean <- tapply(x@test_data[,"n_genes"], x@test_data[,"Cluster"], mean)
     lc_clust <- which(gene_mean < thresh_genes)
-    dbr_clust <- unique(c(1, lc_clust))
+    dbr_clust <- unique(c(1, dbr_clust, lc_clust))
     x@debris_clusters <- dbr_clust
 
     test_dat <- x@test_data

@@ -27,7 +27,7 @@ assign_clusters <- function(x){
         stop("run EM to assign clusters")
     }
 
-    Z <- get_z(emo$llk, emo$params$Pi)
+    Z <- emo$Z
     Z <- Z[rownames(x@test_data),]
 
     clust_max <- apply(Z, 1, which.max)

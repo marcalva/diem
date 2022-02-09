@@ -2,23 +2,20 @@
 % Please edit documentation in R/em.R
 \name{run_em}
 \alias{run_em}
-\title{Run EM}
+\title{Run EM to estimate parameters of mixture model}
 \usage{
-run_em(x, eps = 1e-04, max_iter = 300, model = "mltn",
-  alpha_prior = 0, pi_prior = 0, threads = 1, verbose = TRUE)
+run_em(x, A = NULL, P = NULL, Z = NULL, model = "mltn",
+  alpha_prior = 0, pi_prior = 0, max_iter = 1000, eps = 1e-04,
+  psc = 1e-10, threads = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{eps}{The delta threshold for when to call convergence for 
-the EM estimation of the mixture model. The EM 
-stops when delta falls below this value. We define delta as the 
-average change in posterior probability. By default this is set to 
-1e4, so that the EM converges when less than 1 in 10,000 labels 
-change on average.}
+\item{A}{Initial alpha parameter.}
 
-\item{max_iter}{Maximum number of iterations for the EM estimation 
-of the mixture model.}
+\item{P}{Initial pi parameter.}
+
+\item{Z}{Initial latent variable Z values.}
 
 \item{model}{The mixture model to assume. Can be either "DM" for 
 a Dirichlet-multinomial or "mltn" for a multinomial.}
@@ -29,6 +26,18 @@ the multinomial model.}
 
 \item{pi_prior}{Add a non-informative prior by adding a count of 
 \code{pi_prior} to the each cluster's membership.}
+
+\item{max_iter}{Maximum number of iterations for the EM estimation 
+of the mixture model.}
+
+\item{eps}{The delta threshold for when to call convergence for 
+the EM estimation of the mixture model. The EM 
+stops when delta falls below this value. We define delta as the 
+average change in posterior probability. By default this is set to 
+1e4, so that the EM converges when less than 1 in 10,000 labels 
+change on average.}
+
+\item{psc}{Pseudocount to add to avoid collapsing likelihood to 0.}
 
 \item{threads}{Number of threads for parallel execution. Default is 1.}
 
@@ -41,27 +50,4 @@ An SCE object.
 Estimate the parameters of the mixture model, 
 and estimate the posterior probability a droplet belongs to each 
 of the clusters.
-}
-\examples{
-\donttest{
-
-# Run EM with a multinomial model and 8 threads
-sce <- run_em(sce, threads = 8)
-sce <- assign_clusters(sce)
-drop_data <- droplet_data(sce)
-table(drop_data[,"Cluster"])
-
-# Run EM with a Dirichlet-multinomial model and 8 threads
-sce <- run_em(sce, model = "DM", threads = 8)
-sce <- assign_clusters(sce)
-drop_data <- droplet_data(sce)
-table(drop_data[,"Cluster"])
-
-# Decrease epsilon to increase accuracy of estimated parameters
-sce <- run_em(sce, eps = 1e-8, threads = 8)
-sce <- assign_clusters(sce)
-drop_data <- droplet_data(sce)
-table(drop_data[,"Cluster"])
-
-}
 }

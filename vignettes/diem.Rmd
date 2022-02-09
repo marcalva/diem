@@ -220,28 +220,8 @@ mb_small <- init(mb_small,
 
 We see that 4 clusters were merged as they contained less than 2 droplets,
 resulting in 16 cell types. The total number of clusters used in the
-mixture model is then 17, including the debris cluster.
-
-If we wanted to look into the initialized clusters, we can assign droplets
-to the clusters based on the likelihood of the data given the 
-initialized parameters using the `assign_clusters` function. We can 
-access the data using the `droplet_data` function as before.
-
-```{r}
-mb_small <- assign_clusters(mb_small)
-drop_data <- droplet_data(mb_small, type="test")
-table(drop_data[,"Cluster"])
-tapply(drop_data[,"n_genes"],
-       drop_data[,"Cluster"],
-       mean)
-tapply(drop_data[,"pct.mt"],
-       drop_data[,"Cluster"],
-       mean)
-```
-
-We see the assignments for the 17 clusters, with cluster 1 always corresponding
-to the fixed debris cluster. We already see some clusters showing increased
-mitochondrial contamination. Now that we have the number of mixtures
+mixture model is then 17, including the debris cluster. 
+Now that we have the number of mixtures
 and their initializations, we can run EM to estimate the parameters and
 classify the droplets.
 

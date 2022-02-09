@@ -2,18 +2,27 @@
 % Please edit documentation in R/init_clust.R
 \name{init}
 \alias{init}
-\title{Initialize clusters}
+\title{Initialize parameters}
 \usage{
-init(x, k_init = 20, nstart_init = 30, min_size_init = 10,
-  clust_init = NULL, model = "mltn", seedn = 1, threads = 1,
-  verbose = TRUE)
+init(x, k_init = 20, use = "kmeans", droplets.use = NULL,
+  n_sample = NULL, nstart_init = 30, min_size_init = 10,
+  fixed = NULL, model = "mltn", psc = 1e-10, seedn = 1,
+  threads = threads, verbose = TRUE, ...)
 }
 \arguments{
 \item{x}{An SCE object.}
 
-\item{k_init}{The number of clusters to initialize k-means. This 
-does not include the debris cluster as the only the unlabeled 
-test droplets are classified here.}
+\item{k_init}{The number of clusters to initialize, not including 
+fixed background clusters.}
+
+\item{use}{The method to use for clustering, one of either 
+"kmeans" or "hclust."}
+
+\item{droplets.use}{Specify droplet IDs to use for initializing 
+parameters.}
+
+\item{n_sample}{The number of droplets to sample from for initializing
+parameters.}
 
 \item{nstart_init}{The number of starts to use in k-means for 
 for the initialization.}
@@ -21,39 +30,29 @@ for the initialization.}
 \item{min_size_init}{The minimum number of droplets that must belong 
 to an initialized cluster.}
 
-\item{clust_init}{Either NULL to estimate initial clusters with k-means, 
-or a character vector of initial cluster assignments. The vector 
-must be named and correspond to the droplets in the data. Cluster 
-values of 0 correspond to unknown, 1 corrsponds to background. This
-also overrides the \code{k_init} parameter.}
+\item{fixed}{A named integer vector that specifies which droplets to 
+fix to which clusters. If \code{NULL}, then sets background droplets 
+to 1.}
 
 \item{model}{The mixture model to assume. Can be either "DM" for 
 a Dirichlet-multinomial or "mltn" for a multinomial.}
 
-\item{seedn}{The seed for random k-means initialization. 
-It is set to 1 by default. If you desire truly random initializations
-across runs, set to NULL or different values for each run.}
+\item{psc}{Pseudocount to add to estimation of gene probabilities.}
 
-\item{threads}{Number of threads for parallel execution. Default is 1.}
+\item{seedn}{Random seed.}
+
+\item{threads}{Number of threads.}
 
 \item{verbose}{Verbosity.}
+
+\item{...}{Additional parameters to pass to hclust or kmeans.}
 }
 \value{
 An SCE object
 }
 \description{
-Initialize the parameters of the mixture model. First 
-run k-means on the principal components of the test droplets to 
-initialize the cluster memberships. Then use these memberships 
-to estimate alpha and pi, the parameters of the mixture model. 
-The mixture model can be one either a Dirichlet-multinomial or 
-a multinomial, specified by the \code{model} parameter. The 
-multinomial is much faster but may be less exact in the 
-clustering step.
-The parameter \code{k_init} specifies 
-initial number of clusters k to set for k-means. These clusters 
-are input into the mixture model along with the labeled 
-debris clusters.
+Initialize the parameters of the mixture model using 
+k-means or hierarchical clustering on the PCs.
 }
 \examples{
 \donttest{
@@ -76,4 +75,5 @@ sce <- init(sce, k_init = 10, seedn = NULL, threads = 8)
 # Only allow clusters with at least 30 droplets
 sce <- init(sce, k_init = 30, min_size_init = 30, threads = 8)
 }
+
 }
