@@ -3,7 +3,8 @@
 #'
 #' Assign cluster for each droplet in the test set, along with its 
 #' cluster probability. These can be retrieved using the 
-#' \code{\link{droplet_data}} function.
+#' \code{\link{droplet_data}} function. Only allow clusters with 
+#' at least \code{min_drop} droplets.
 #'
 #' @param x An SCE object.
 #'
@@ -26,12 +27,12 @@ assign_clusters <- function(x){
         stop("run EM to assign clusters")
     }
 
-    Z <- get_z(emo$llk, emo$params$Pi)
+    Z <- emo$Z
     Z <- Z[rownames(x@test_data),]
 
     clust_max <- apply(Z, 1, which.max)
+    clust_max <- sapply(clust_max, function(i) colnames(Z)[i])
     clust_prob <- apply(Z, 1, function(i) i[which.max(i)])
-    
     x@test_data[,"Cluster"] <- clust_max
     x@test_data[,"ClusterProb"] <- clust_prob
 

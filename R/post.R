@@ -39,9 +39,9 @@ summarize_clusters <- function(x, top_n = 20){
     dropdat[rownames(testdat),"Cluster"] <- testdat[,"Cluster"]
     clusters_all <- sort(as.numeric(unique(dropdat[,"Cluster"])))
     clusters_all <- as.character(clusters_all)
-    cells <- setdiff(clusters_all, "1")
 
     means <- Alpha(x)
+    means <- means[,clusters_all]
     if (is.null(means))
         stop("Estimate parameters before ", sQuote("summarize_clusters"))
 
@@ -51,18 +51,21 @@ summarize_clusters <- function(x, top_n = 20){
     # Measures
     cs <- rep("Clean", ncol(means))
     cs[1] <- "Debris"
-    ndrops <- sapply(clusters_all, function(ct){sum(testdat[,"Cluster"] == ct)})
-    ngenes <- tapply(testdat[,"n_genes"], 
-                     testdat[,"Cluster"], 
-                     mean)
-    ncounts <- tapply(testdat[,"total_counts"], 
-                      testdat[,"Cluster"], 
-                      mean)
+    ndrops <- sapply(clusters_all, function(ct){
+                     sum(testdat[,"Cluster"] %in% ct) })
+    ngenes <- sapply(clusters_all, function(ct){
+                     ci <- which(testdat[,"Cluster"] %in% ct)
+                     tdc <- testdat[ci, , drop = FALSE]
+                     mean(tdc[, "n_genes"], na.rm = TRUE)})
+    ncounts <- sapply(clusters_all, function(ct){
+                      ci <- which(testdat[,"Cluster"] %in% ct)
+                      tdc <- testdat[ci, , drop = FALSE]
+                      mean(tdc[, "total_counts"], na.rm = TRUE) })
     if ("score.debris" %in% colnames(testdat)){
         cs[clusters_all %in% dbr_clust] <- "Debris"
         ds <- tapply(testdat[,"score.debris"], 
                      testdat[,"Cluster"],
-                     mean)
+                     mean, na.rm = TRUE)
     } else {
         ds <- rep(NA, length(clusters_all))
         names(ds) <- clusters_all
@@ -79,7 +82,8 @@ summarize_clusters <- function(x, top_n = 20){
     de <- top_genes(x, top_n = top_n)
 
     gene_ids <- sapply(clusters_all, function(ct){
-                       des <- de[de[,"Cluster"] == ct,,drop=FALSE]
+                       ci <- which(de[,"Cluster"] %in% ct)
+                       des <- de[ci, , drop=FALSE]
                        genes <- paste(des[,"gene"], collapse=";")
                        return(genes)
                       })
@@ -137,9 +141,15 @@ de_ttest <- function(x, c1, c2, normalize = FALSE, sf = 1){
     mu1 <- mu1[keep]
     mu2 <- mu2[keep]
     
-    var1 <- fast_varCPP(x = x[,c1,drop=FALSE], 
+    xc1 <- x[,c1,drop=FALSE]
+    xc2 <- x[,c2,drop=FALSE]
+    if ( (ncol(xc1) == 1) | (ncol(xc2) == 1) ){
+        return(NA)
+    }
+
+    var1 <- fast_varCPP(x = t(xc1), 
                         mu = mu1)
-    var2 <- fast_varCPP(x = x[,c2,drop=FALSE], 
+    var2 <- fast_varCPP(x = t(xc2), 
                         mu = mu2)
     n1 <- ncol(x[,c1,drop=FALSE])
     n2 <- ncol(x[,c2,drop=FALSE])
@@ -237,6 +247,8 @@ de_ttest_all <- function(counts,
         l1 <- labels %in% c1
         l2 <- labels %in% c2
 
+        if ( (sum(l1) == 1) | (sum(l2) == 1) )
+            next
         datf <- de_ttest(counts_s, l1, l2)
         datf$cluster <- c1
         datf$p_adj <- p.adjust(datf$p, method = p_method)
@@ -324,7 +336,8 @@ top_genes <- function(x, top_n = 20){
     clusters_all <- as.character(clusters)
 
     w <- sapply(clusters_all, function(ct){
-                sum(dropdat[dropdat$Cluster == ct, "total_counts"])
+                ci <- which(dropdat$Cluster %in% ct)
+                sum(dropdat[ci, "total_counts"])
     })
     de <- de_basic(means, top_n = top_n, weights = w)
     return(de)
@@ -349,6 +362,7 @@ top_genes <- function(x, top_n = 20){
 #' between droplets in the debris set and the cluster being tested.
 #'
 #' @param x An SCE object.
+#' @param dbr_clust Specify additional debris clusters/
 #' @param thresh_genes Threshold for cluster mean number of genes 
 #'  detected. Clusters with an average number of genes detected 
 #'  less than this value are set to debris clusters.
@@ -375,6 +389,7 @@ top_genes <- function(x, top_n = 20){
 #' @return An SCE object
 #' @export
 estimate_dbr_score <- function(x, 
+                               dbr_clust = c(1), 
                                thresh_genes = 200, 
                                thresh_p = 0.05, 
                                thresh_logfc = 0, 
@@ -389,7 +404,8 @@ estimate_dbr_score <- function(x,
 
     gene_mean <- tapply(x@test_data[,"n_genes"], x@test_data[,"Cluster"], mean)
     lc_clust <- which(gene_mean < thresh_genes)
-    dbr_clust <- unique(c(1, lc_clust))
+    dbr_clust <- unique(c(1, dbr_clust, lc_clust))
+    x@debris_clusters <- dbr_clust
 
     test_dat <- x@test_data
     test_drop <- rownames(test_dat)
@@ -407,24 +423,24 @@ estimate_dbr_score <- function(x,
     counts_s <- log1p(sf * counts_s)
 
     de <- de_ttest(counts_s, c1, c2)
+    de[,"Debris"] <- FALSE
 
     # Specify all clusters
     de <- de[order(de[,"diff"], decreasing = TRUE), , drop = FALSE]
     de[,"p_adj"] <- p.adjust(de[,"p"], method = p_method)
     keep <- (de[,"p_adj"] < thresh_p) & (de[,"logFC"] > thresh_logfc)
+
+    if (sum(keep) == 0){
+        x@debris_genes <- de
+        x@test_data[,name] <- NA
+        message("No DE genes found: cannot calculate debris scores")
+        return(x)
+    }
     
     de_genes <- de[keep,"gene"]
     nr <- min(length(de_genes), max_genes)
     de_genes <- de_genes[1:nr]
-    de[,"Debris"] <- FALSE
     de[de_genes,"Debris"] <- TRUE
-
-    if (sum(keep) == 0){
-        x@debris_genes <- de
-        x@debris_clusters <- dbr_clust
-        message("No DE genes found: cannot calculate debris scores")
-        return(x)
-    }
 
     scores <- colSums(counts_s[de_genes, test_drop, drop = FALSE])
     clust_mean <- tapply(scores, x@test_data[,"Cluster"], mean)
@@ -435,7 +451,6 @@ estimate_dbr_score <- function(x,
 
     x@test_data[,name] <- as.numeric(scores)
     x@debris_genes <- de
-    x@debris_clusters <- dbr_clust
 
     if (verbose){
         message("calculated debris scores using ", length(dbr_clust), 

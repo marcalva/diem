@@ -97,8 +97,8 @@ set_debris_test_set <- function(x,
 #' @importFrom Matrix rowSums
 #' @export
 filter_genes <- function(x, cpm_thresh = 0, verbose = TRUE){
-    if (length(x@test_set) == 0 || length(x@bg_set) == 0)
-        stop("no test droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
+    if (length(x@test_set) == 0 && length(x@bg_set) == 0)
+        stop("no test and bg droplets found. Run ", sQuote("set_debris_test_set"), " before setting cluster droplets.")
     groups <- list(c(x@test_set, x@bg_set))
     keep_all <- sapply(groups, function(g){
                        expr <- rowSums(x@counts[,g,drop=FALSE])

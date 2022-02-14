@@ -4,12 +4,14 @@
 \alias{estimate_dbr_score}
 \title{Estimate debris score per droplet}
 \usage{
-estimate_dbr_score(x, thresh_genes = 200, thresh_p = 0.05,
-  thresh_logfc = 0, max_genes = 5000, p_method = "fdr", sf = 1,
-  verbose = TRUE)
+estimate_dbr_score(x, dbr_clust = c(1), thresh_genes = 200,
+  thresh_p = 0.05, thresh_logfc = 0, max_genes = 5000,
+  p_method = "fdr", sf = 1, verbose = TRUE)
 }
 \arguments{
 \item{x}{An SCE object.}
+
+\item{dbr_clust}{Specify additional debris clusters/}
 
 \item{thresh_genes}{Threshold for cluster mean number of genes 
 detected. Clusters with an average number of genes detected 

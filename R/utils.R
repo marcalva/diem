@@ -2,6 +2,7 @@
 #' fraction of logs
 #'
 #' @param x numeric vector
+#' @export
 fraction_log <- function(x){
     xinf <- is.infinite(x)
     if (any(xinf)){
@@ -18,6 +19,7 @@ fraction_log <- function(x){
 #' sum of logs
 #'
 #' @param x numeric vector
+#' @export
 sum_log <- function(x){
     max_x <- max(x)
     x_c = x - max_x

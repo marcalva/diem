@@ -9,11 +9,12 @@ z_table <- function(labs){
     labs <- factor(labs)
     nl <- nlevels(labs)
     z <- matrix(0, nrow = length(labs), ncol = nl)
-    for (i in 1:nl){
-        z[unclass(labs) == i,i] <- 1
-    }
     rownames(z) <- names(labs)
     colnames(z) <- levels(labs)
+    # for (i in 1:nl){
+    for (i in levels(labs)){
+        z[unclass(labs) == i,i] <- 1
+    }
     return(z)
 }
 
@@ -61,6 +62,7 @@ run_pca <- function(x, n_pcs = 30, seedn = 1){
 #' for these variable genes only. 
 #'
 #' @param x An SCE object.
+#' @param droplets.use Specify droplets to calculate PCs for.
 #' @param min_genes Calculate PCs from droplets with at least this 
 #'  many genes detected.
 #' @param n_var_genes Number of top variable genes to use for PCA.
@@ -99,14 +101,19 @@ run_pca <- function(x, n_pcs = 30, seedn = 1){
 #' 
 #' }
 get_pcs <- function(x, 
+                    droplets.use = NULL,
                     min_genes = 200,
                     n_var_genes = 2000, 
                     lss = 0.3, 
                     threads = 1, 
                     n_pcs = 30, 
                     seedn = 1){
-    keep <- x@test_data[,"n_genes"] >= min_genes
-    droplets.use <- rownames(x@test_data)[keep]
+    if (is.null(droplets.use)){
+        keep <- x@test_data[,"n_genes"] >= min_genes
+        droplets.use <- rownames(x@test_data)[keep]
+    } else {
+        droplets.use <- intersect(rownames(x@test_data), droplets.use)
+    }
 
     x <- get_var_genes(x, 
                        droplets.use = droplets.use, 
@@ -180,41 +187,83 @@ merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
     return(labs)
 }
 
-#' Initialize clusters
-#' 
-#' Initialize the parameters of the mixture model. First 
-#' run k-means on the principal components of the test droplets to 
-#' initialize the cluster memberships. Then use these memberships 
-#' to estimate alpha and pi, the parameters of the mixture model. 
-#' The mixture model can be one either a Dirichlet-multinomial or 
-#' a multinomial, specified by the \code{model} parameter. The 
-#' multinomial is much faster but may be less exact in the 
-#' clustering step.
-#' The parameter \code{k_init} specifies 
-#' initial number of clusters k to set for k-means. These clusters 
-#' are input into the mixture model along with the labeled 
-#' debris clusters.
+#' Get params from cluster assignments
 #'
 #' @param x An SCE object.
-#' @param k_init The number of clusters to initialize k-means. This 
-#'  does not include the debris cluster as the only the unlabeled 
-#'  test droplets are classified here.
+#' @param clusts Integer vector of cluster assignments. Names designate 
+#'  the droplets
+#' @param genes.use Character vector of gene names
+#'
+#' @importFrom Matrix colSums rowSums
+params_frm_clust <- function(x, 
+                             clusts, 
+                             genes.use, 
+                             model = "mltn", 
+                             alpha_prior = 0, 
+                             pi_prior = 0,
+                             psc = 1e-10, 
+                             threads = 1){
+    acu <- as.character(sort(unique(clusts)))
+    # Set Z
+    Z <- matrix(0, nrow = ncol(x@counts), ncol = length(acu))
+    rownames(Z) <- colnames(x@counts)
+    colnames(Z) <- acu
+    for (i in acu){
+        drops <- names(clusts)[clusts == i]
+        Z[drops, i] <- 1
+    }
+
+    # Initialize alpha
+    if (model == "mltn"){
+        A <- mult_alpha_ml(x@counts[genes.use, rownames(Z)], Z, 
+                       prior = alpha_prior, psc = psc)
+    } else if (model == "DM") {
+        A <- dirmult_alpha_ml(x@counts[genes.use, rownames(Z)], Z, 
+                              alpha_prior = alpha_prior, psc = psc, 
+                              threads = threads)
+    }
+    rownames(A) <- genes.use; colnames(A) <- colnames(Z);
+
+    # Initialize pi
+    Pi <- mult_pi_ml(Z, pi_prior)
+    names(Pi) <- colnames(Z)
+
+    return(list("Z" = Z, "A" = A, "Pi" = Pi))
+}
+
+#' Initialize parameters
+#' 
+#' Initialize the parameters of the mixture model using 
+#' k-means or hierarchical clustering on the PCs.
+#'
+#' @param x An SCE object.
+#' @param k_init The number of clusters to initialize, not including 
+#'  fixed background clusters.
+#' @param use The method to use for clustering, one of either 
+#'  "kmeans" or "hclust."
+#' @param droplets.use Specify droplet IDs to use for initializing 
+#'  parameters.
+#' @param n_sample The number of droplets to sample from for initializing  
+#'  parameters.
 #' @param nstart_init The number of starts to use in k-means for 
 #'  for the initialization.
 #' @param min_size_init The minimum number of droplets that must belong 
 #'  to an initialized cluster.
+#' @param fixed A named integer vector that specifies which droplets to 
+#'  fix to which clusters. If \code{NULL}, then sets background droplets 
+#'  to 1.
 #' @param model The mixture model to assume. Can be either "DM" for 
 #'  a Dirichlet-multinomial or "mltn" for a multinomial.
-#' @param seedn The seed for random k-means initialization. 
-#'  It is set to 1 by default. If you desire truly random initializations
-#'  across runs, set to NULL or different values for each run.
-#' @param threads Number of threads for parallel execution. Default is 1.
+#' @param psc Pseudocount to add to estimation of gene probabilities.
+#' @param threads Number of threads.
+#' @param seedn Random seed.
 #' @param verbose Verbosity.
+#' @param ... Additional parameters to pass to hclust or kmeans.
 #'
 #' @return An SCE object
 #'
-#' @importFrom Matrix Diagonal colSums rowMeans rowSums t
-#' @importFrom stats kmeans
+#' @importFrom Matrix colSums rowSums
+#' @importFrom stats dist hclust cutree
 #'
 #' @export
 #' @examples
@@ -239,83 +288,87 @@ merge_size <- function(labs, dat, min_size = 10, verbose = TRUE){
 #' sce <- init(sce, k_init = 30, min_size_init = 30, threads = 8)
 #
 #' }
+#'
 init <- function(x, 
                  k_init = 20, 
+                 use = "kmeans", 
+                 droplets.use = NULL, 
+                 n_sample = NULL, 
                  nstart_init = 30, 
                  min_size_init = 10, 
+                 fixed = NULL,
                  model = "mltn", 
+                 psc = 1e-10,
                  seedn = 1, 
-                 threads = 1, 
-                 verbose = TRUE){ 
-    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
+                 threads = threads, 
+                 verbose = TRUE, 
+                 ...){ 
 
-    sizes <- colSums(x@counts[genes.use,])
+    k <- as.integer(k_init)
+
+    genes.use <- rownames(x@gene_data)[x@gene_data$exprsd]
 
     if (length(x@pcs) == 0){
         stop("calculate PCs before k-means initialization")
     }
+    # Get droplets
+    if (is.null(droplets.use))
+        droplets.use <- rownames(x@pcs)
 
-    pcs_s <- scale(x@pcs)
+    droplets.use <- intersect(droplets.use, rownames(x@pcs))
 
-    labs <- rep(0, ncol(x@counts[genes.use,]))
-    names(labs) <- colnames(x@counts[genes.use,])
-    labs[x@bg_set] <- 1
-
-    all_ret <- list()
-
-    k <- as.integer(k_init)
-    x@k_init <- k
-    if (verbose){
-        message("initializing parameters for k_init = ", k)
+    # Subsample
+    if (!is.null(n_sample)){
+        set.seed(seedn, kind = "Mersenne-Twister")
+        n_sample <- min(n_sample, length(droplets.use))
+        droplets.use <- sample(droplets.use, n_sample)
     }
+    pcs <- scale(x@pcs[droplets.use,,drop=FALSE])
 
-    if (verbose) message("running k-means")
-    old_opt <- options(warn = -1)
-    set.seed(seedn, kind = "Mersenne-Twister")
-
-    km <- kmeans(x = pcs_s, 
-                 centers = k, 
-                 nstart = nstart_init)
-    options(old_opt)
-    kclust <- km$cluster # integer vector of 1 to k values, corresponding to column in pcs_s
+    # Set fixed droplets
+    if (is.null(fixed)){
+        fixed <- rep(1, length(x@bg_set))
+        names(fixed) <- x@bg_set
+    }
+    fn <- names(fixed)
+    fixed <- condense_labs(fixed)
+    fixed <- as.integer(fixed)
+    names(fixed) <- fn
+    fc <- sort(unique(fixed))
+    
+    if (use == "kmeans"){
+        # Run k-means
+        if (verbose) message("running k-means")
+        old_opt <- options(warn = -1)
+        set.seed(seedn, kind = "Mersenne-Twister")
+        km <- kmeans(x = pcs, 
+                     centers = k, 
+                     ...)
+        options(old_opt)
+        kclust <- km$cluster # integer vector of 1 to k values, corresponding to column in pcs
+    } else if (use == "hclust"){
+        dm <- dist(pcs)
+        hc <- hclust(dm, ...)
+        kclust <- cutree(hc, k_init)
+    }
+    names(kclust) <- rownames(pcs)
 
     # Merge small clusters from k-means
-    kclust <- merge_size(kclust, pcs_s, min_size_init, verbose)
-    kclust <- as.numeric(kclust)
-    names(kclust) <- rownames(pcs_s)
-    kclust <- kclust
+    # kclust <- merge_size(kclust, pcs, min_size_init, verbose)
+    # kclust <- as.numeric(kclust)
+    # names(kclust) <- rownames(pcs)
+    kclust <- kclust + length(fc)
 
-    labs_k <- labs
-    labs_k[names(kclust)] <- kclust + 1
+    ac <- c(fixed, kclust)
 
-    if (verbose) message("estimating initial parameters")
-    Z <- z_table(kclust)
-    Z <- cbind(0, Z)
+    ret <- params_frm_clust(x, ac, genes.use, psc, model = model, 
+                            threads = threads)
 
-    if (model == "DM"){
-        Alpha <- get_alpha_dm(counts = x@counts[genes.use, rownames(Z)], 
-                           Z = Z, 
-                           test_set = x@test_set, 
-                           bg_set = x@bg_set, 
-                           threads = threads)
-    } else if (model == "mltn") {
-        fixed_c <- rowSums(x@counts[genes.use,x@bg_set])
-        Alpha <- get_alpha_mult(counts = x@counts[genes.use, rownames(Z)], 
-                                Z = Z, 
-                                add = fixed_c, 
-                                add_to = 1)
-    } else {
-        stop("model must be either ", sQuote("DM"), " or ", sQuote("mltn"))
-    }
-    Pi <- get_pi(Z, add = length(x@bg_set), add_to = 1)
-    llk <- get_llk(counts = x@counts[genes.use, x@test_set], 
-                   Alpha = Alpha, 
-                   sizes = sizes[x@test_set], 
-                   model = model, 
-                   threads = threads)
+    # Parameters
+    params <- list("Alpha" = ret[["A"]], "Pi" = ret[["Pi"]])
+    x@model <- list("params" = params, "Z" = ret[["Z"]])
+    x@k_init <- as.integer(k_init)
 
-    params <- list("Alpha" = Alpha, "Pi" = Pi)
-    x@model <- list("params" = params, "llk" = llk)
     return(x)
 }
 

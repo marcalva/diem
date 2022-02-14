@@ -15,7 +15,8 @@ An SCE object.
 \description{
 Assign cluster for each droplet in the test set, along with its 
 cluster probability. These can be retrieved using the 
-\code{\link{droplet_data}} function.
+\code{\link{droplet_data}} function. Only allow clusters with 
+at least \code{min_drop} droplets.
 }
 \examples{
 \donttest{

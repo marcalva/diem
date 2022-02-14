@@ -66,6 +66,10 @@ seur <- convert_to_seurat(sce)
 
 ## Version History
 
+February 13, 2022
+* version 2.4.0
+    * Added a prior to reduce overfitting
+
 April 13, 2020
 * version 2.3.0
     * Quantifies amount of contamination in droplets. Filtering is 
