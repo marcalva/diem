@@ -263,7 +263,7 @@ params_frm_clust <- function(x,
 #' @return An SCE object
 #'
 #' @importFrom Matrix colSums rowSums
-#' @importFrom stats dist hclust cutree
+#' @importFrom stats dist hclust cutree kmeans
 #'
 #' @export
 #' @examples

@@ -94,6 +94,9 @@ run_em <- function(x,
     x@model$params$Pi <- ret[[2]]
     x@model$Z <- ret[[3]]
     x@model$llk <- ret[[4]][x@test_set,]
+    x@model$converged = FALSE
+    if (ret[[5]] <= max_iter)
+        x@model$converged = TRUE
 
     return(x)
 }

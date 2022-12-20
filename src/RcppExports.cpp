@@ -6,6 +6,11 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // max_loo
 Eigen::VectorXd max_loo(const Eigen::SparseMatrix<double>& x, const Eigen::VectorXd& sizes, const Eigen::VectorXd& weights, const Eigen::VectorXd& alpha, double eps, int max_iter, double alpha_prior, double psc, int threads, bool debug);
 RcppExport SEXP _diem_max_loo(SEXP xSEXP, SEXP sizesSEXP, SEXP weightsSEXP, SEXP alphaSEXP, SEXP epsSEXP, SEXP max_iterSEXP, SEXP alpha_priorSEXP, SEXP pscSEXP, SEXP threadsSEXP, SEXP debugSEXP) {

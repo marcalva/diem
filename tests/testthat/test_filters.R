@@ -1,9 +1,9 @@
 
 # Test functions in filter.R
 
-context("Filtering")
-
 library(Matrix)
+
+context("Filtering")
 
 nr <- 100
 nc <- 100

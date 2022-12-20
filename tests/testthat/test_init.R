@@ -21,7 +21,6 @@ test_that("initialization works", {
 
          mb_small <- init(mb_small, k_init = 15, verbose = FALSE)
          ic <- mb_small@model
-         expect_equal( ncol(ic$params$Alpha), ncol(ic$llk) )
          expect_equal( ncol(ic$params$Alpha), length(ic$params$Pi) )
 })
 

@@ -54,6 +54,10 @@ Eigen::MatrixXd LlkMultSparsePar(const Eigen::SparseMatrix<double> &x,
             }
         }
     }
+    // testing
+    if (ix.size() != ix_len){
+        stop("ix.size != ix_len");
+    }
     for (int ixi = 0; ixi < ix_len; ++ixi){
         int i = ix(ixi);
         if (sizes(i) == 0){
@@ -276,21 +280,18 @@ List mult_em(Eigen::SparseMatrix<double> X,
     }
 #endif
 
-    int N = X.cols();
-    int M = X.rows();
-    int K = Alpha.cols();
+    int N = X.cols(); // M droplets
+    int M = X.rows(); // M genes
+    int K = Alpha.cols(); // K groups
 
-    if (Alpha.rows() != M){
-        stop("Number of rows in Alpha must match X");
+    if (Alpha.rows() != M || Alpha.cols() != K){
+        stop("Dimensions of Alpha must be (M,K)");
     }
     if (Pi.size() != K){
         stop("Length of Pi must match number of columns in Alpha");
     }
-    if (Z.rows() != N){
-        stop("Rows in Z must match columns in X");
-    }
-    if (Z.cols() != K){
-        stop("Columns in Z must match columns in Alpha");
+    if (Z.rows() != N || Z.cols() != K){
+        stop("Dimensions of Z must match (N,K)");
     }
 
     // Create copies
@@ -302,12 +303,15 @@ List mult_em(Eigen::SparseMatrix<double> X,
     // Eigen::VectorXd sizes(N);
     Eigen::VectorXd sizes = sparse_colsum(X);
 
-    // Get indices of free
+    // Check fixed indices
     int fixed_n = fixed.size();
     for (int i = 0; i < fixed_n; i++){
         fixed(i) -= 1;
+        if (fixed(i) < 0 || fixed(i) >= N)
+            stop("fixed indices must be >= 0 and < N");
     }
 
+    // get free indices
     int free_n = 0;
     Eigen::VectorXi free_o = vec_cmplmnt(fixed, N, free_n);
 
@@ -368,8 +372,10 @@ List mult_em(Eigen::SparseMatrix<double> X,
             Rcout << "converged after " << iter-1 << " iterations\n";
     }
 
-    Rcout << "Done\n";
-    List l = List::create(Ac, Pc, Zc, llk);
+    if (display_progress)
+        Rcout << "Done\n";
+
+    List l = List::create(Ac, Pc, Zc, llk, iter);
 
     return l;
 }

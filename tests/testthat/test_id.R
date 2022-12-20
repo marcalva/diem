@@ -3,7 +3,7 @@
 
 context("Debris calling")
 
-library(Matrix)
+# library(Matrix)
 
 nr <- 100
 nc <- 800
@@ -77,10 +77,11 @@ sce <- create_SCE(counts)
 sce <- set_debris_test_set(sce, min_counts = 100, min_genes = test_thresh)
 sce <- filter_genes(sce, cpm_thresh = 0)
 sce <- get_pcs(sce, min_genes = 10, n_var_genes = 30)
-sce <- init(sce, k_init = 2)
-sce <- run_em(sce)
+sce <- init(sce, k_init = 3)
+sce <- run_em(sce, alpha_prior = 0.1, pi_prior = 0.1, verbose = FALSE)
 sce <- assign_clusters(sce)
 sce <- estimate_dbr_score(sce, thresh_genes = test_thresh)
+
 
 # Add truth
 si <- intersect(rownames(sce@test_data), names(labels))

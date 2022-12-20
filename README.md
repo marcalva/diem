@@ -66,6 +66,14 @@ seur <- convert_to_seurat(sce)
 
 ## Version History
 
+December 19, 2022
+* version 2.4.1
+    * Fixed an emergent bug that dropped barcode IDs when 
+      calling get_pcs and normalizing counts.
+    * Fixed a bug in vec_cmplmnt that could have caused invalid indexing.
+      Added further checks in index values in MultEM.cpp.
+    * Fixed possible bugs in test functions introduced in v2.4.0
+
 February 13, 2022
 * version 2.4.0
     * Added a prior to reduce overfitting

@@ -7,9 +7,12 @@
 #' @importFrom Matrix Diagonal colSums
 divide_by_colsum <- function(x){
     if (!inherits(x, what="Matrix")) stop("argument must be of class Matrix.")
+    dn = dimnames(x)
     cs <- colSums(x = x)
     d <- Diagonal(x = 1/cs)
+    dimnames(d) = list(colnames(x), colnames(x))
     x <- x %*% d
+    dimnames(x) = dn
     return(x)
 }
 

@@ -97,17 +97,18 @@ Eigen::VectorXi vec_cmplmnt(Eigen::VectorXi x, int n, int &xcn){
         x(0) = -1;
     }
 
+    // set each index in xn to 1 in x_flag
+    // elements in x_flag that are 0 are indices not present in x
+    Eigen::VectorXi x_flag(n);
+    x_flag.setZero();
+    for (int i = 0; i < xn; ++i)
+        x_flag(x(i)) = 1;
+
+    Eigen::VectorXi xc(n); // size to fit all droplets
     xcn = 0;
-    Eigen::VectorXi xc(n);
-    int j = 0;
     for (int i = 0; i < n; i++){
-        if (i != x(j)){
-            xc(xcn) = i;
-            xcn++;
-        }
-        if (i == x(j)){
-            j++;
-        }
+        if (x_flag(i) == 0)
+            xc(xcn++) = i;
     }
     xc.conservativeResize(xcn);
     return xc;
